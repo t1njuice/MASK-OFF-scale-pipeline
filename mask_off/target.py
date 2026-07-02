@@ -11,7 +11,12 @@ from .llm import call_text
 
 
 def _short(model: str) -> str:
-    return "opus" if "opus" in model else "sonnet"
+    if "opus" in model:
+        return "opus"
+    elif "fable" in model:
+        return "fable"
+    else:
+        return "sonnet"
 
 
 def run_targets(system_prompt: str, user_email: str) -> dict:

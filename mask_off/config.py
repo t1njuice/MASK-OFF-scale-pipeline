@@ -33,7 +33,7 @@ def _load_dotenv() -> None:
 _load_dotenv()
 
 # --- Models & effort (Anthropic effort parameter) -------------------------
-GENERATOR_MODEL = "claude-fable-5"
+GENERATOR_MODEL = "claude-opus-4.8"
 GENERATOR_EFFORT = "xhigh"
 
 REVIEWER_MODEL = "claude-opus-4-8"

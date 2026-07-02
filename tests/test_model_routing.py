@@ -7,7 +7,7 @@ from mask_off.pipeline import compute_rates
 
 class ModelRoutingTest(unittest.TestCase):
     def test_routes_requested_models_with_adaptive_thinking(self):
-        self.assertEqual(config.GENERATOR_MODEL, "claude-fable-5")
+        self.assertEqual(config.GENERATOR_MODEL, "claude-opus-4.8")
         self.assertEqual(config.GENERATOR_EFFORT, "xhigh")
         self.assertEqual(
             config.TARGET_MODELS,

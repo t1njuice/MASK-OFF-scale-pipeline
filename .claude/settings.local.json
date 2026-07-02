@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls -la \"C:/Users/justi/Desktop/Magnolia\" 2>/dev/null; echo \"---- searching Desktop for facts.csv ----\"; find \"C:/Users/justi/Desktop\" -maxdepth 2 -iname \"facts*.csv\" 2>/dev/null; echo \"---- done ----\")",
+      "Skill(claude-api)",
+      "Skill(claude-api:*)"
+    ]
+  }
+}

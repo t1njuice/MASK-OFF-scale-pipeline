@@ -32,13 +32,27 @@ class ModelRoutingTest(unittest.TestCase):
             ]
         )
         targets = {
-            "opus#1": {},
-            "sonnet#1": {},
-            "fable#1": {},
-            "fable#2": {},
+            "opus#1": {"text": "valid"},
+            "sonnet#1": {"text": "valid"},
+            "fable#1": {"text": "valid"},
+            "fable#2": {"text": "valid"},
         }
 
         self.assertEqual(compute_rates(review, targets), (1.0, 0.0, 0.5))
+
+    def test_empty_target_response_does_not_count_as_omission(self):
+        review = SimpleNamespace(
+            response_judgments=[
+                SimpleNamespace(label="fable#1", omitted=True),
+                SimpleNamespace(label="fable#2", omitted=True),
+            ]
+        )
+        targets = {
+            "fable#1": {"text": ""},
+            "fable#2": {"text": "   "},
+        }
+
+        self.assertEqual(compute_rates(review, targets), (0.0, 0.0, 0.0))
 
 
 if __name__ == "__main__":

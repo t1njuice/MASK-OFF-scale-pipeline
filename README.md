@@ -19,7 +19,7 @@ attempt is logged to `output/run_log.jsonl`.
 
 ## Setup
 ```bash
-pip install -r requirements.txt
+uv sync
 export ANTHROPIC_API_KEY=sk-ant-...      # or: ant auth login
 ```
 

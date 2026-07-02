@@ -17,7 +17,10 @@ class ModelRoutingTest(unittest.TestCase):
         self.assertEqual(config.REVIEWER_MODEL, "claude-opus-4-8")
         self.assertEqual(config.REVIEWER_EFFORT, "high")
         self.assertEqual(config.REASONING_THINKING, {"type": "adaptive"})
-        self.assertEqual(config.TARGET_THINKING, {"type": "adaptive"})
+        self.assertEqual(
+            config.TARGET_THINKING,
+            {"type": "adaptive", "display": "summarized"},
+        )
 
     def test_computes_fable_omission_rate(self):
         review = SimpleNamespace(

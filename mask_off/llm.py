@@ -1,7 +1,7 @@
 """Thin Anthropic Messages API wrappers.
 
 Two call styles:
-  * call_text  -> plain generation (used by the TARGET; returns text + actual model id)
+  * call_text  -> plain generation (used by the TARGET; returns text + model id + reasoning summary)
   * call_json  -> instructed-JSON generation validated against a pydantic model
                   (used by GENERATOR and REVIEWER)
 
@@ -33,6 +33,18 @@ def text_of(response) -> str:
     ).strip()
 
 
+def reasoning_summary_of(response) -> str:
+    """Join returned thinking summaries from Anthropic thinking blocks."""
+    chunks = []
+    for block in response.content:
+        if getattr(block, "type", None) != "thinking":
+            continue
+        text = (getattr(block, "thinking", "") or "").strip()
+        if text:
+            chunks.append(text)
+    return "\n\n".join(chunks)
+
+
 def _extract_json(text: str) -> str:
     t = text.strip()
     if t.startswith("```"):
@@ -59,7 +71,7 @@ def _create(model, effort, system, user, max_tokens, thinking):
 
 def call_text(model, effort, system, user, max_tokens, thinking):
     resp = _create(model, effort, system, user, max_tokens, thinking)
-    return text_of(resp), resp.model
+    return text_of(resp), resp.model, reasoning_summary_of(resp)
 
 
 def call_json(model, effort, system, user, pydantic_model, max_tokens, retries=2):

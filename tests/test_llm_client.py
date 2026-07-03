@@ -1,5 +1,6 @@
 import unittest
-from unittest.mock import patch
+from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
 
 from mask_off import llm
 
@@ -15,6 +16,45 @@ class LlmClientTest(unittest.TestCase):
             llm.client()
 
         anthropic_client.assert_called_once_with(max_retries=1, timeout=60.0)
+
+    def test_create_uses_streaming_final_message(self):
+        final_message = SimpleNamespace(model="claude-fable-5", content=[])
+
+        class Stream:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return None
+
+            def get_final_message(self):
+                return final_message
+
+        messages = SimpleNamespace(
+            stream=MagicMock(return_value=Stream()),
+            create=MagicMock(),
+        )
+
+        with patch.object(llm, "client", return_value=SimpleNamespace(messages=messages)):
+            response = llm._create(
+                "claude-fable-5",
+                "xhigh",
+                "System",
+                "User",
+                6000,
+                {"type": "adaptive"},
+            )
+
+        self.assertIs(response, final_message)
+        messages.create.assert_not_called()
+        messages.stream.assert_called_once_with(
+            model="claude-fable-5",
+            max_tokens=6000,
+            system="System",
+            messages=[{"role": "user", "content": "User"}],
+            output_config={"effort": "xhigh"},
+            thinking={"type": "adaptive"},
+        )
 
 
 if __name__ == "__main__":

@@ -10,6 +10,7 @@ that the effort parameter (output_config.effort) composes cleanly with our schem
 across SDK versions. Frontier models are highly reliable at "return only JSON",
 and a tolerant extractor + one retry closes the gap.
 """
+
 import re
 
 import anthropic
@@ -52,7 +53,7 @@ def _extract_json(text: str) -> str:
         t = re.sub(r"\s*```$", "", t).strip()
     start, end = t.find("{"), t.rfind("}")
     if start != -1 and end != -1 and end > start:
-        t = t[start:end + 1]
+        t = t[start : end + 1]
     return t
 
 
@@ -66,7 +67,8 @@ def _create(model, effort, system, user, max_tokens, thinking):
     )
     if thinking is not None:
         kwargs["thinking"] = thinking
-    return client().messages.create(**kwargs)
+    with client().messages.stream(**kwargs) as stream:
+        return stream.get_final_message()
 
 
 def call_text(model, effort, system, user, max_tokens, thinking):

@@ -6,7 +6,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from mask_off import reviewer
-from mask_off.pipeline import write_csv, write_omission_samples
+from mask_off.pipeline import write_all_response_samples, write_csv, write_omission_samples
 from mask_off.llm import reasoning_summary_of
 from mask_off.schemas import Review
 
@@ -50,6 +50,12 @@ def _review():
                     "omitted": True,
                     "intensity": 2,
                     "reason": "missed T",
+                },
+                {
+                    "label": "opus#1",
+                    "omitted": False,
+                    "intensity": None,
+                    "reason": "warned about T",
                 }
             ],
             "belief_transition_observed": "cat2_false_premise",
@@ -112,6 +118,11 @@ class ReasoningSummaryTest(unittest.TestCase):
                         "model": "claude-fable-5",
                         "text": "Visible answer.",
                         "reasoning": {"summary": "Reasoning summary."},
+                    },
+                    "opus#1": {
+                        "model": "claude-opus-4-8",
+                        "text": "Visible non-omission.",
+                        "reasoning": {"summary": "Opus reasoning."},
                     }
                 },
                 "review": _review(),
@@ -126,15 +137,30 @@ class ReasoningSummaryTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             summary_path = Path(tmp) / "summary.csv"
             samples_path = Path(tmp) / "samples.csv"
+            all_samples_path = Path(tmp) / "all_samples.csv"
 
             write_csv(accepted, summary_path)
             write_omission_samples(accepted, samples_path)
+            write_all_response_samples(accepted, all_samples_path)
 
             summary = next(csv.DictReader(summary_path.open(encoding="utf-8")))
-            sample = next(csv.DictReader(samples_path.open(encoding="utf-8")))
+            samples = list(csv.DictReader(samples_path.open(encoding="utf-8")))
+            all_samples = list(
+                csv.DictReader(all_samples_path.open(encoding="utf-8"))
+            )
 
         self.assertIn("Reasoning summary.", summary["target_reasoning_summaries"])
-        self.assertEqual(sample["target_reasoning_summary"], "Reasoning summary.")
+        self.assertEqual(len(samples), 1)
+        self.assertEqual(samples[0]["target_reasoning_summary"], "Reasoning summary.")
+        self.assertEqual(len(all_samples), 2)
+        self.assertEqual(
+            {row["sample_label"]: row["omitted"] for row in all_samples},
+            {"fable#1": "True", "opus#1": "False"},
+        )
+        self.assertEqual(
+            {row["sample_label"]: row["target_response"] for row in all_samples},
+            {"fable#1": "Visible answer.", "opus#1": "Visible non-omission."},
+        )
 
 
 if __name__ == "__main__":

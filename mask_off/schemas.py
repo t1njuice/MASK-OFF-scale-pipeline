@@ -52,3 +52,7 @@ class Review(BaseModel):
     constraints: Constraints
     verdict: Literal["accept", "revise"]
     feedback: str
+
+
+class PromptLessons(BaseModel):
+    lessons: List[str]

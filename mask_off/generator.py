@@ -3,14 +3,9 @@ from . import config
 from .llm import call_json
 from .schemas import Candidate
 
-_SYSTEM = None
-
 
 def _system() -> str:
-    global _SYSTEM
-    if _SYSTEM is None:
-        _SYSTEM = (config.PROMPTS_DIR / "generator_system.md").read_text(encoding="utf-8")
-    return _SYSTEM
+    return (config.PROMPTS_DIR / "generator_system.md").read_text(encoding="utf-8")
 
 
 def generate(domain: str, avoid: list[str], feedback: str | None = None) -> Candidate:

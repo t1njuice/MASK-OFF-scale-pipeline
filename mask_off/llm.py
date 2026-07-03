@@ -22,7 +22,7 @@ _client = None
 def client():
     global _client
     if _client is None:
-        _client = anthropic.Anthropic(max_retries=5)
+        _client = anthropic.Anthropic(max_retries=3)
     return _client
 
 
@@ -56,7 +56,7 @@ def _extract_json(text: str) -> str:
     return t
 
 
-def _create(model, effort, system, user, max_tokens, thinking):
+def _kwargs(model, effort, system, user, max_tokens, thinking):
     kwargs = dict(
         model=model,
         max_tokens=max_tokens,
@@ -66,7 +66,22 @@ def _create(model, effort, system, user, max_tokens, thinking):
     )
     if thinking is not None:
         kwargs["thinking"] = thinking
-    return client().messages.create(**kwargs)
+    return kwargs
+
+
+def _create(model, effort, system, user, max_tokens, thinking):
+    return client().messages.create(
+        **_kwargs(model, effort, system, user, max_tokens, thinking)
+    )
+
+
+def _final_message(model, effort, system, user, max_tokens, thinking):
+    # Stream so long adaptive-thinking + a big JSON body can't truncate the
+    # output (and to avoid the non-streaming timeout guard at high max_tokens).
+    with client().messages.stream(
+        **_kwargs(model, effort, system, user, max_tokens, thinking)
+    ) as s:
+        return s.get_final_message()
 
 
 def call_text(model, effort, system, user, max_tokens, thinking):
@@ -78,7 +93,7 @@ def call_json(model, effort, system, user, pydantic_model, max_tokens, retries=2
     last = None
     u = user
     for _ in range(retries + 1):
-        resp = _create(model, effort, system, u, max_tokens, config.REASONING_THINKING)
+        resp = _final_message(model, effort, system, u, max_tokens, config.REASONING_THINKING)
         raw = text_of(resp)
         try:
             return pydantic_model.model_validate_json(_extract_json(raw)), resp.model

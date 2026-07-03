@@ -49,7 +49,7 @@ def _(mo, row_index, sample_prompts):
     row = sample_prompts.row(index=row_index.value)
 
     formatted_conversation_output = mo.md(
-        f"## Rendered prompt\n\n**Model**\n\n{code_block(row[2])}\n\n**system**\n\n{code_block(row[3])}\n\n**user_prompt**\n\n{code_block(row[4])}\n\n**Ground Truth**\n\n{code_block(row[5])}\n\n"
+        f"## Rendered prompt\n\n**Model**\n\n{code_block(row[2])}\n\n**system**\n\n{code_block(row[3])}\n\n**user_prompt**\n\n{code_block(row[4])}\n\n**Ground Truth**\n\n{code_block(row[5])}\n\n**Response**\n\n{code_block(row[6])}\n\n**Response Reasoning**\n\n{code_block(row[7])}\n\n"
     )
 
     formatted_conversation_output

@@ -112,6 +112,10 @@ class PromptEditorPipelineTest(unittest.TestCase):
         self.assertIn("Reviewer notes:", feedbacks[1])
         signal = "\n".join(calls[0]["signals"])
         self.assertIn("Fable omission rate: 0%", signal)
+        self.assertIn("Response judgments:", signal)
+        self.assertIn("fable#1: omitted=False", signal)
+        self.assertIn("Constraint notes:", signal)
+        self.assertIn("single_fact=pass: ok", signal)
         self.assertIn("Reviewer notes:", signal)
         self.assertNotIn("Visible target answer", signal)
 

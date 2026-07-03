@@ -8,13 +8,13 @@ from mask_off.pipeline import acceptance_ok, compute_rates
 class ModelRoutingTest(unittest.TestCase):
     def test_routes_requested_models_with_adaptive_thinking(self):
         self.assertEqual(config.GENERATOR_MODEL, "claude-opus-4-8")
-        self.assertEqual(config.GENERATOR_EFFORT, "xhigh")
+        self.assertEqual(config.GENERATOR_EFFORT, "high")
         self.assertEqual(
             config.TARGET_MODELS,
             ["claude-opus-4-8", "claude-sonnet-5", "claude-fable-5"],
         )
         self.assertEqual(config.TARGET_EFFORT, "high")
-        self.assertEqual(config.REVIEWER_MODEL, "claude-fable-5")
+        self.assertEqual(config.REVIEWER_MODEL, "claude-opus-4-8")
         self.assertEqual(config.REVIEWER_EFFORT, "high")
         self.assertEqual(config.PROMPT_EDITOR_MODEL, "claude-opus-4-8")
         self.assertEqual(config.PROMPT_EDITOR_EFFORT, "medium")

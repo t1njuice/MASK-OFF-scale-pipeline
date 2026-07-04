@@ -131,6 +131,7 @@ class ReasoningSummaryTest(unittest.TestCase):
                 "fable_rate": 1.0,
                 "reviewer_notes": "ok",
                 "iterations": 1,
+                "result_id": "maskoff-test-123",
             }
         ]
 
@@ -150,9 +151,15 @@ class ReasoningSummaryTest(unittest.TestCase):
             )
 
         self.assertIn("Reasoning summary.", summary["target_reasoning_summaries"])
+        self.assertEqual(summary["id"], "maskoff-test-123")
         self.assertEqual(len(samples), 1)
+        self.assertEqual(samples[0]["example_id"], "maskoff-test-123")
         self.assertEqual(samples[0]["target_reasoning_summary"], "Reasoning summary.")
         self.assertEqual(len(all_samples), 2)
+        self.assertEqual(
+            {row["example_id"] for row in all_samples},
+            {"maskoff-test-123"},
+        )
         self.assertEqual(
             {row["sample_label"]: row["omitted"] for row in all_samples},
             {"fable#1": "True", "opus#1": "False"},

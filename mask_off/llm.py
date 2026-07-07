@@ -10,6 +10,7 @@ that the effort parameter (output_config.effort) composes cleanly with our schem
 across SDK versions. Frontier models are highly reliable at "return only JSON",
 and a tolerant extractor + one retry closes the gap.
 """
+
 import re
 
 import anthropic
@@ -22,7 +23,7 @@ _client = None
 def client():
     global _client
     if _client is None:
-        _client = anthropic.Anthropic(max_retries=3)
+        _client = anthropic.Anthropic(max_retries=1, timeout=config.TIMEOUT)
     return _client
 
 
@@ -45,6 +46,29 @@ def reasoning_summary_of(response) -> str:
     return "\n\n".join(chunks)
 
 
+def usage_summary_of(response) -> dict:
+    usage = getattr(response, "usage", None)
+    return {
+        "input_tokens": getattr(usage, "input_tokens", 0) or 0,
+        "output_tokens": getattr(usage, "output_tokens", 0) or 0,
+        "cache_creation_input_tokens": getattr(
+            usage,
+            "cache_creation_input_tokens",
+            0,
+        )
+        or 0,
+        "cache_read_input_tokens": getattr(usage, "cache_read_input_tokens", 0) or 0,
+    }
+
+
+def attach_usage(obj, usage: dict):
+    try:
+        object.__setattr__(obj, "_llm_usage", usage)
+    except Exception:  # noqa: BLE001 - usage is best-effort metadata
+        pass
+    return obj
+
+
 def _extract_json(text: str) -> str:
     t = text.strip()
     if t.startswith("```"):
@@ -52,51 +76,52 @@ def _extract_json(text: str) -> str:
         t = re.sub(r"\s*```$", "", t).strip()
     start, end = t.find("{"), t.rfind("}")
     if start != -1 and end != -1 and end > start:
-        t = t[start:end + 1]
+        t = t[start : end + 1]
     return t
 
 
-def _kwargs(model, effort, system, user, max_tokens, thinking):
+def _create(model, effort, system, user, max_tokens, thinking):
     kwargs = dict(
         model=model,
         max_tokens=max_tokens,
-        system=system,
+        system=[
+            {
+                "type": "text",
+                "text": system,
+                "cache_control": {"type": "ephemeral", "ttl": "5m"},
+            }
+        ],
         messages=[{"role": "user", "content": user}],
         output_config={"effort": effort},
     )
     if thinking is not None:
         kwargs["thinking"] = thinking
-    return kwargs
-
-
-def _create(model, effort, system, user, max_tokens, thinking):
-    return client().messages.create(
-        **_kwargs(model, effort, system, user, max_tokens, thinking)
-    )
-
-
-def _final_message(model, effort, system, user, max_tokens, thinking):
-    # Stream so long adaptive-thinking + a big JSON body can't truncate the
-    # output (and to avoid the non-streaming timeout guard at high max_tokens).
-    with client().messages.stream(
-        **_kwargs(model, effort, system, user, max_tokens, thinking)
-    ) as s:
-        return s.get_final_message()
+    with client().messages.stream(**kwargs) as stream:
+        return stream.get_final_message()
 
 
 def call_text(model, effort, system, user, max_tokens, thinking):
     resp = _create(model, effort, system, user, max_tokens, thinking)
-    return text_of(resp), resp.model, reasoning_summary_of(resp)
+    return (
+        text_of(resp),
+        resp.model,
+        reasoning_summary_of(resp),
+        usage_summary_of(resp),
+    )
 
 
 def call_json(model, effort, system, user, pydantic_model, max_tokens, retries=2):
     last = None
     u = user
     for _ in range(retries + 1):
-        resp = _final_message(model, effort, system, u, max_tokens, config.REASONING_THINKING)
+        resp = _create(model, effort, system, u, max_tokens, config.REASONING_THINKING)
         raw = text_of(resp)
         try:
-            return pydantic_model.model_validate_json(_extract_json(raw)), resp.model
+            return (
+                pydantic_model.model_validate_json(_extract_json(raw)),
+                resp.model,
+                usage_summary_of(resp),
+            )
         except Exception as e:  # noqa: BLE001 - validation/parse errors
             last = e
             u = (

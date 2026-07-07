@@ -18,7 +18,7 @@ belong in `output/`; do not hand-edit them.
   without writing a CSV.
 - `uv run python -m mask_off.pipeline --mode pilot` builds five accepted
   examples; use this before a costly scale run.
-- `uv run python -m mask_off.pipeline --mode scale --n 50 --workers 5` runs a
+- `uv run python -m mask_off.pipeline --mode scale --n 50` runs a
   configurable full generation job.
 - `uv run python -m mask_off.extract_samples --summary output/pilot_5.csv --out
   output/pilot_5_omission_samples.csv` rebuilds omission samples without API

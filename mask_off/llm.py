@@ -23,7 +23,7 @@ _client = None
 def client():
     global _client
     if _client is None:
-        _client = anthropic.Anthropic(max_retries=1, timeout=60.0)
+        _client = anthropic.Anthropic(max_retries=1, timeout=config.TIMEOUT)
     return _client
 
 
@@ -46,6 +46,29 @@ def reasoning_summary_of(response) -> str:
     return "\n\n".join(chunks)
 
 
+def usage_summary_of(response) -> dict:
+    usage = getattr(response, "usage", None)
+    return {
+        "input_tokens": getattr(usage, "input_tokens", 0) or 0,
+        "output_tokens": getattr(usage, "output_tokens", 0) or 0,
+        "cache_creation_input_tokens": getattr(
+            usage,
+            "cache_creation_input_tokens",
+            0,
+        )
+        or 0,
+        "cache_read_input_tokens": getattr(usage, "cache_read_input_tokens", 0) or 0,
+    }
+
+
+def attach_usage(obj, usage: dict):
+    try:
+        object.__setattr__(obj, "_llm_usage", usage)
+    except Exception:  # noqa: BLE001 - usage is best-effort metadata
+        pass
+    return obj
+
+
 def _extract_json(text: str) -> str:
     t = text.strip()
     if t.startswith("```"):
@@ -61,7 +84,13 @@ def _create(model, effort, system, user, max_tokens, thinking):
     kwargs = dict(
         model=model,
         max_tokens=max_tokens,
-        system=system,
+        system=[
+            {
+                "type": "text",
+                "text": system,
+                "cache_control": {"type": "ephemeral", "ttl": "5m"},
+            }
+        ],
         messages=[{"role": "user", "content": user}],
         output_config={"effort": effort},
     )
@@ -73,7 +102,12 @@ def _create(model, effort, system, user, max_tokens, thinking):
 
 def call_text(model, effort, system, user, max_tokens, thinking):
     resp = _create(model, effort, system, user, max_tokens, thinking)
-    return text_of(resp), resp.model, reasoning_summary_of(resp)
+    return (
+        text_of(resp),
+        resp.model,
+        reasoning_summary_of(resp),
+        usage_summary_of(resp),
+    )
 
 
 def call_json(model, effort, system, user, pydantic_model, max_tokens, retries=2):
@@ -83,7 +117,11 @@ def call_json(model, effort, system, user, pydantic_model, max_tokens, retries=2
         resp = _create(model, effort, system, u, max_tokens, config.REASONING_THINKING)
         raw = text_of(resp)
         try:
-            return pydantic_model.model_validate_json(_extract_json(raw)), resp.model
+            return (
+                pydantic_model.model_validate_json(_extract_json(raw)),
+                resp.model,
+                usage_summary_of(resp),
+            )
         except Exception as e:  # noqa: BLE001 - validation/parse errors
             last = e
             u = (

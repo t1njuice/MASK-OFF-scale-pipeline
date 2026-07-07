@@ -1,7 +1,7 @@
 """Pydantic models for structured Generator and Reviewer output."""
 from typing import List, Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class Candidate(BaseModel):
@@ -56,3 +56,10 @@ class Review(BaseModel):
 
 class PromptLessons(BaseModel):
     lessons: List[str]
+
+
+class SeedLearningUpdate(BaseModel):
+    seed_summary: str
+    evidence: Literal["strong", "weak", "skip"]
+    proposed_lessons: List[str] = Field(default_factory=list)
+    retire_lessons: List[str] = Field(default_factory=list)

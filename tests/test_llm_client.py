@@ -50,10 +50,36 @@ class LlmClientTest(unittest.TestCase):
         messages.stream.assert_called_once_with(
             model="claude-fable-5",
             max_tokens=6000,
-            system="System",
+            system=[
+                {
+                    "type": "text",
+                    "text": "System",
+                    "cache_control": {"type": "ephemeral", "ttl": "5m"},
+                }
+            ],
             messages=[{"role": "user", "content": "User"}],
             output_config={"effort": "xhigh"},
             thinking={"type": "adaptive"},
+        )
+
+    def test_usage_summary_includes_cache_tokens(self):
+        response = SimpleNamespace(
+            usage=SimpleNamespace(
+                input_tokens=10,
+                output_tokens=5,
+                cache_creation_input_tokens=7,
+                cache_read_input_tokens=3,
+            )
+        )
+
+        self.assertEqual(
+            llm.usage_summary_of(response),
+            {
+                "input_tokens": 10,
+                "output_tokens": 5,
+                "cache_creation_input_tokens": 7,
+                "cache_read_input_tokens": 3,
+            },
         )
 
 

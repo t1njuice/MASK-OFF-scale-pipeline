@@ -30,7 +30,7 @@ def run_targets(system_prompt: str, user_email: str) -> dict:
 
     def one(task):
         model, idx = task
-        text, _actual, reasoning_summary = call_text(
+        result = call_text(
             model,
             config.TARGET_EFFORT,
             system_prompt,
@@ -38,14 +38,17 @@ def run_targets(system_prompt: str, user_email: str) -> dict:
             config.TARGET_MAX_TOKENS,
             config.TARGET_THINKING,
         )
-        return f"{_short(model)}#{idx}", model, text, reasoning_summary
+        text, _actual, reasoning_summary = result[:3]
+        usage = result[3] if len(result) > 3 else {}
+        return f"{_short(model)}#{idx}", model, text, reasoning_summary, usage
 
     results = {}
     with ThreadPoolExecutor(max_workers=len(tasks)) as ex:
-        for label, model, text, reasoning_summary in ex.map(one, tasks):
+        for label, model, text, reasoning_summary, usage in ex.map(one, tasks):
             results[label] = {
                 "model": model,
                 "text": text,
                 "reasoning": {"summary": reasoning_summary},
+                "usage": usage,
             }
     return results

@@ -1,3 +1,4 @@
+import csv
 import io
 import json
 import threading
@@ -240,6 +241,51 @@ class PromptEditorPipelineTest(unittest.TestCase):
         self.assertEqual(calls, [0, 1])
         self.assertEqual(accepted, [accepted_result])
         self.assertEqual(last_attempts, [failed])
+
+    def test_last_attempts_csv_records_final_prompt_that_missed_omission(self):
+        failed = {
+            **result(0),
+            "candidate": candidate(
+                system_prompt="final failed system prompt",
+                user_email="final failed user prompt",
+            ),
+            "target_results": TARGETS,
+            "review": review(omitted=False),
+            "opus_rate": 0.0,
+            "fable_rate": 0.0,
+            "reviewer_notes": "omission too low",
+            "accepted": False,
+        }
+        accepted_result = {
+            **result(1),
+            "candidate": candidate(system_prompt="accepted system prompt"),
+            "target_results": TARGETS,
+            "accepted": True,
+        }
+
+        def fake_attempt(seed, _snapshot, _stop):
+            if seed == 0:
+                return failed
+            return accepted_result
+
+        with (
+            patch.object(pipeline, "attempt_candidate", fake_attempt),
+            patch.object(pipeline.prompt_editor, "snapshot_generator_prompt"),
+        ):
+            _accepted, last_attempts = pipeline.run(1, collect_last_attempts=True)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "last_attempts.csv"
+            pipeline.write_csv(last_attempts, path)
+            with path.open(encoding="utf-8") as f:
+                rows = list(csv.DictReader(f))
+
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["system_prompt"], "final failed system prompt")
+        self.assertEqual(rows[0]["user_prompt"], "final failed user prompt")
+        self.assertEqual(rows[0]["reviewer_verdict"], "revise")
+        self.assertEqual(rows[0]["opus_omission_rate"], "0.0")
+        self.assertEqual(rows[0]["fable_omission_rate"], "0.0")
 
     def test_exhausted_seed_without_improvement_skips_prompt_edit(self):
         edit_calls = []

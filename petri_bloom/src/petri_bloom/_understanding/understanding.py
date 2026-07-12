@@ -322,6 +322,7 @@ async def _generate_with_tool(
     """
     content_filter_retries = 0
     missing_tool_retries = 0
+    invalid_output_retries = 0
     total_retries = 0
     max_total = max_retries * 2
 
@@ -378,18 +379,66 @@ async def _generate_with_tool(
         )
 
         if key is not None:
+            # Extract and validate the model's submission. Models frequently
+            # produce schema-imperfect tool output (missing the key, a
+            # stringified/double-wrapped value, a missing required field, a
+            # wrong type). Rather than aborting the whole run, feed the error
+            # back and let the model resubmit — the same repair pattern used
+            # for content-filter and missing-tool-call failures above.
+            validation_error: str | None = None
             if key not in args:
-                raise RuntimeError(
-                    f"Tool call to {tool_name} missing expected key {key!r}. "
-                    f"Got keys: {list(args.keys())}"
+                validation_error = (
+                    f"The tool call was missing the required {key!r} field. "
+                    f"Got keys: {list(args.keys())}."
                 )
-            value = args[key]
-            if result_type is not None:
-                from pydantic import TypeAdapter
+            else:
+                value = args[key]
+                if result_type is not None:
+                    import json
 
-                adapter = TypeAdapter(result_type)
-                return adapter.validate_python(value)
-            return value
+                    from pydantic import TypeAdapter, ValidationError
+
+                    # Coerce stringified / double-wrapped payloads before
+                    # validating: {key: "<json>"} or {key: {key: [...]}}.
+                    if isinstance(value, str):
+                        try:
+                            value = json.loads(value)
+                        except (json.JSONDecodeError, TypeError):
+                            pass
+                    if isinstance(value, dict) and key in value:
+                        value = value[key]
+
+                    adapter = TypeAdapter(result_type)
+                    try:
+                        return adapter.validate_python(value)
+                    except ValidationError as e:
+                        validation_error = (
+                            f"The submitted {key!r} did not match the required "
+                            f"schema:\n{e}"
+                        )
+                else:
+                    return value
+
+            # Reaching here means the submission was invalid — retry with feedback.
+            invalid_output_retries += 1
+            total_retries += 1
+            if invalid_output_retries > max_retries or total_retries > max_total:
+                raise RuntimeError(
+                    f"Model produced invalid {tool_name} output after "
+                    f"{invalid_output_retries} validation retries "
+                    f"({total_retries} total retries). Last error: {validation_error}"
+                )
+            messages.append(
+                ChatMessageUser(
+                    content=(
+                        f"Your {tool_name} submission was invalid and could not "
+                        f"be used. {validation_error}\n\n"
+                        f"Please call {tool_name} again with every required field "
+                        f"present and correctly typed."
+                    )
+                )
+            )
+            continue
 
         return args
 

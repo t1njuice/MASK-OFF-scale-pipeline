@@ -1387,7 +1387,6 @@ dependencies = [
     { name = "marimo" },
     { name = "nest-asyncio2" },
     { name = "openai" },
-    { name = "petri-bloom" },
     { name = "polars" },
     { name = "pydantic" },
     { name = "python-dotenv" },
@@ -1416,7 +1415,6 @@ requires-dist = [
     { name = "marimo", specifier = ">=0.23.13" },
     { name = "nest-asyncio2" },
     { name = "openai", specifier = ">=2.40.0" },
-    { name = "petri-bloom", specifier = ">=0.2.6" },
     { name = "polars", specifier = ">=1.42.1" },
     { name = "pydantic", specifier = ">=2.13.0" },
     { name = "python-dotenv" },
@@ -1832,29 +1830,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/5a/82/42f767fc1c1143d6fd36efb827202a2d997a375e160a71eb2888a925aac1/pathspec-1.1.1.tar.gz", hash = "sha256:17db5ecd524104a120e173814c90367a96a98d07c45b2e10c2f3919fff91bf5a", size = 135180, upload-time = "2026-04-27T01:46:08.907Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/f1/d9/7fb5aa316bc299258e68c73ba3bddbc499654a07f151cba08f6153988714/pathspec-1.1.1-py3-none-any.whl", hash = "sha256:a00ce642f577bf7f473932318056212bc4f8bfdf53128c78bbd5af0b9b20b189", size = 57328, upload-time = "2026-04-27T01:46:07.06Z" },
-]
-
-[[package]]
-name = "petri-bloom"
-version = "0.2.6"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "anthropic" },
-    { name = "anyio" },
-    { name = "click" },
-    { name = "google-genai" },
-    { name = "inspect-ai" },
-    { name = "inspect-petri" },
-    { name = "nest-asyncio2" },
-    { name = "openai" },
-    { name = "pydantic" },
-    { name = "python-dotenv" },
-    { name = "pyyaml" },
-    { name = "rich" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/e6/dc/29b1d6b6d7d7ac8b0f9da4a38cb3e5bb909886dfaf97ed2de99c7f20097d/petri_bloom-0.2.6.tar.gz", hash = "sha256:56b340106ae6ea2dc96fcb43d8d7aead9e54413c0b003ad5c6c83daa68d670df", size = 247232, upload-time = "2026-06-08T12:26:53.518Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/c0/bd/ca8ab1acecc6eac32eded5c2435578ac59b2b12420a2c0fd3bb9399d18ec/petri_bloom-0.2.6-py3-none-any.whl", hash = "sha256:d10ffa764a23aef844df89cd402e3c048e2db529bcdb0b7e63ac77c97e4e7be8", size = 294773, upload-time = "2026-06-08T12:26:51.699Z" },
 ]
 
 [[package]]

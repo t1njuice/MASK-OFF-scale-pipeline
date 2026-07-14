@@ -10,7 +10,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 PETRI_BLOOM_SRC = REPO_ROOT / "petri_bloom" / "src"
 DEFAULT_BEHAVIOR = REPO_ROOT / "model_omission"
-DEFAULT_MODEL = "openrouter/anthropic/claude-opus-4-8"
+DEFAULT_MODEL = "openrouter/sakana/fugu-ultra"
 
 
 def parse_args() -> argparse.Namespace:

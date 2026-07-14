@@ -23,7 +23,7 @@ from .prompts import format_system_message
 def bloom_audit(
     behavior: str | Path | Behavior,
     *,
-    max_turns: int = 15,
+    max_turns: int = 1,
     enable_prefill: bool = False,
     enable_rollback: bool = False,
     compaction: bool | int | float | CompactionStrategy = True,

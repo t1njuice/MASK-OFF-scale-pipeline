@@ -18,6 +18,8 @@
 True
 >>> percent(0.5), percent(None)
 ('50%', 'not recorded')
+>>> clamp_index(-2, 3), clamp_index(9, 3), clamp_index(0, 0)
+(0, 2, 0)
 """
 
 import marimo
@@ -78,6 +80,13 @@ def event_kind(record):
     if all(key in record for key in ("candidate", "target_responses", "review")):
         return "reviewed_attempt"
     return "unknown"
+
+
+@app.function(hide_code=True)
+def clamp_index(index, count):
+    if count <= 0:
+        return 0
+    return max(0, min(int(index), count - 1))
 
 
 @app.function(hide_code=True)
@@ -296,6 +305,120 @@ def render_event(record):
         ],
         gap=1,
     )
+
+
+@app.cell
+def _():
+    from pathlib import Path
+
+    import marimo as mo
+
+    return Path, mo
+
+
+@app.cell
+def _(mo):
+    get_event_index, set_event_index = mo.state(0)
+    return get_event_index, set_event_index
+
+
+@app.cell
+def _(mo):
+    mo.md("""
+    # MASK-OFF generation event viewer
+
+    Walk through each recorded JSONL event in file order. One reviewed-attempt event contains the candidate, all target samples, reviewer output, and the resulting ACCEPT/REVISE decision.
+    """)
+    return
+
+
+@app.cell
+def _(Path, mo, set_event_index):
+    logs = discover_logs(Path(__file__).resolve().parent)
+    mo.stop(
+        not logs,
+        mo.md("No `*run_log.jsonl` files were found beside this viewer.").callout(
+            kind="warn"
+        ),
+    )
+    log_picker = mo.ui.dropdown(
+        options={path.name: str(path) for path in logs},
+        value=logs[0].name,
+        searchable=True,
+        label="Run log",
+        on_change=lambda _value: set_event_index(0),
+        full_width=True,
+    )
+    log_picker
+    return (log_picker,)
+
+
+@app.cell
+def _(log_picker, mo):
+    events = load_events(log_picker.value)
+    mo.stop(
+        not events,
+        mo.md("The selected log contains no non-empty events.").callout(kind="warn"),
+    )
+    return (events,)
+
+
+@app.cell
+def _(events, get_event_index, mo, set_event_index):
+    event_count = len(events)
+    current_index = clamp_index(get_event_index(), event_count)
+
+    def move(delta):
+        def on_click(click_count):
+            set_event_index(
+                lambda index: clamp_index(index + delta, event_count)
+            )
+            return click_count + 1
+
+        return on_click
+
+    previous_button = mo.ui.button(
+        value=0,
+        on_click=move(-1),
+        label="← Previous",
+        disabled=current_index == 0,
+    )
+    next_button = mo.ui.button(
+        value=0,
+        on_click=move(1),
+        label="Next →",
+        kind="success",
+        disabled=current_index == event_count - 1,
+    )
+    event_slider = mo.ui.slider(
+        start=0,
+        stop=event_count - 1,
+        step=1,
+        value=current_index,
+        show_value=True,
+        include_input=True,
+        label="Event index",
+        on_change=lambda value: set_event_index(int(value)),
+        full_width=True,
+    )
+
+    mo.hstack(
+        [
+            previous_button,
+            event_slider,
+            next_button,
+            mo.md(f"**Event {current_index + 1} of {event_count}**"),
+        ],
+        align="center",
+        widths=[0, 1, 0, 0],
+    )
+    return (current_index,)
+
+
+@app.cell
+def _(current_index, events):
+    render_event(events[current_index])
+    return
 
 
 if __name__ == "__main__":

@@ -430,16 +430,15 @@ def _(events, get_event_index, mo, set_event_index):
         full_width=True,
     )
 
-    mo.hstack(
+    navigation = mo.hstack(
         [
             previous_button,
-            event_slider,
-            next_button,
             mo.md(f"**Event {current_index + 1} of {event_count}**"),
+            next_button,
         ],
         align="center",
-        widths=[0, 1, 0, 0],
     )
+    mo.vstack([navigation, event_slider])
     return (current_index,)
 
 

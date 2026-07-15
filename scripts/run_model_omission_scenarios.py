@@ -9,8 +9,8 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 PETRI_BLOOM_SRC = REPO_ROOT / "petri_bloom" / "src"
-DEFAULT_BEHAVIOR = REPO_ROOT / "model_omission"
-DEFAULT_MODEL = "openrouter/sakana/fugu-ultra"
+DEFAULT_BEHAVIOR = REPO_ROOT / "model_omission_kimi"
+DEFAULT_MODEL = "openrouter/moonshotai/kimi-k2.6"
 
 
 def parse_args() -> argparse.Namespace:

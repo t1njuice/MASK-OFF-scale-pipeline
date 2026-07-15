@@ -1,11 +1,12 @@
 """Tests for the ideation stage."""
 
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 import pytest
 from inspect_ai.model import ModelOutput, get_model
-from inspect_ai.tool import ToolCall, ToolInfo, ToolParams
+from inspect_ai.tool import Tool, ToolCall, ToolDef, ToolInfo, ToolParams
 from inspect_petri._judge import JudgeDimension
 from petri_bloom import run_ideation
 from petri_bloom._behavior import Behavior, Scenario
@@ -27,6 +28,8 @@ from petri_bloom._ideation.prompts import (
     VARIATION_SYSTEM_PROMPT,
     format_transcript_analyses,
     format_variation_descriptions,
+    submit_scenarios,
+    submit_variations,
 )
 from petri_bloom._util.model import calculate_batch_size, resolve_max_tokens
 
@@ -185,6 +188,30 @@ def test_format_variation_descriptions() -> None:
     )
     assert "noise: Small changes" in result
     assert "pressure: Emotional weight" in result
+
+
+@pytest.mark.parametrize(
+    ("tool_factory", "argument_name"),
+    [
+        (submit_scenarios, "scenarios"),
+        (submit_variations, "variations"),
+    ],
+)
+def test_scenario_submission_tools_use_provider_compatible_schema(
+    tool_factory: Callable[[], Tool],
+    argument_name: str,
+) -> None:
+    """Generated target tools do not expand Inspect's recursive schema model."""
+    parameters = ToolDef(tool_factory()).parameters.model_dump(exclude_none=True)
+    scenario_schema = parameters["properties"][argument_name]["items"]
+    generated_tool_schema = scenario_schema["properties"]["tools"]["items"]
+
+    assert set(generated_tool_schema["properties"]) == {
+        "name",
+        "description",
+        "parameters",
+    }
+    assert generated_tool_schema["properties"]["parameters"]["type"] == "object"
 
 
 # -- Disk round-trip tests ---------------------------------------------------
@@ -1073,27 +1100,42 @@ def test_run_ideation_agent_modality() -> None:
 
 
 def test_run_ideation_with_instructions() -> None:
-    """Ideation instructions are appended to prompts."""
+    """Ideation instructions reach base-scenario and variation prompts."""
     from petri_bloom._behavior import Instructions
 
+    instruction = "Focus on enterprise settings."
     b = Behavior(
         name="test_behavior",
         description="A test behavior.",
-        num_scenarios=2,
+        num_scenarios=1,
         understanding="Test understanding.",
         scientific_motivation="Test motivation.",
-        instructions=Instructions(ideation="Focus on enterprise settings."),
+        variations={"noise": "Make one inconsequential change."},
+        instructions=Instructions(ideation=instruction),
     )
+    prompts: dict[str, str] = {}
 
-    model = get_model(
-        "mockllm/model",
-        custom_outputs=[
-            _scenarios_output(SAMPLE_SCENARIOS),
-            _dimensions_output(SAMPLE_DIMENSIONS),
-        ],
-    )
+    def _dispatch(
+        model_input: list[Any],
+        _tools: list[ToolInfo],
+        tool_choice: Any,
+        _config: Any,
+    ) -> ModelOutput:
+        name = tool_choice.name
+        prompts[name] = model_input[-1].text
+        if name == "submit_scenarios":
+            return _scenarios_output(SAMPLE_SCENARIOS[:1])
+        if name == "submit_variations":
+            return _variations_output(SAMPLE_VARIATIONS)
+        if name == "submit_dimensions":
+            return _dimensions_output(SAMPLE_DIMENSIONS)
+        raise ValueError(f"Unexpected tool_choice: {tool_choice}")
+
+    model = get_model("mockllm/model", custom_outputs=_dispatch)
 
     result = run_ideation(b, scenarios_model=model)
 
     assert isinstance(result, Behavior)
     assert result.scenarios is not None
+    assert instruction in prompts["submit_scenarios"]
+    assert instruction in prompts["submit_variations"]

@@ -20,6 +20,22 @@ True
 ('50%', 'not recorded')
 >>> clamp_index(-2, 3), clamp_index(9, 3), clamp_index(0, 0)
 (0, 2, 0)
+>>> base = {
+...     "_line_number": 1,
+...     "candidate": {"domain": "finance"},
+...     "target_responses": {},
+...     "review": {},
+... }
+>>> missing_decision = render_reviewed_attempt(base).text
+>>> "DECISION NOT RECORDED" in missing_decision and "REVISE" not in missing_decision
+True
+>>> non_boolean = render_reviewed_attempt({**base, "accepted": "false"}).text
+>>> "DECISION NOT RECORDED" in non_boolean and "ACCEPT" not in non_boolean
+True
+>>> "finance" in missing_decision.split("</marimo-callout-output>", 1)[0]
+True
+>>> event_number_to_index(1, 5), event_number_to_index(5, 5)
+(0, 4)
 """
 
 import marimo
@@ -90,6 +106,11 @@ def clamp_index(index, count):
 
 
 @app.function(hide_code=True)
+def event_number_to_index(number, count):
+    return clamp_index(int(number) - 1, count)
+
+
+@app.function(hide_code=True)
 def display_value(value):
     return "not recorded" if value is None or value == "" else str(value)
 
@@ -128,16 +149,23 @@ def render_reviewed_attempt(record):
     targets = targets if isinstance(targets, dict) else {}
     review = record.get("review")
     review = review if isinstance(review, dict) else {}
-    accepted = bool(record.get("accepted"))
-    decision = "ACCEPT" if accepted else "REVISE"
+    accepted = record.get("accepted")
+    if accepted is True:
+        decision, callout_kind = "ACCEPT", "success"
+    elif accepted is False:
+        decision, callout_kind = "REVISE", "warn"
+    else:
+        decision, callout_kind = "DECISION NOT RECORDED", "neutral"
+    domain = record.get("domain") or candidate.get("domain")
 
     header = mo.md(
         f"## {decision}\n\n"
-        f"Line `{record.get('_line_number')}` · seed `{display_value(record.get('seed'))}` "
+        f"Domain `{display_value(domain)}` · line `{record.get('_line_number')}` "
+        f"· seed `{display_value(record.get('seed'))}` "
         f"· iteration `{display_value(record.get('iteration'))}` · "
         f"phase `{display_value(record.get('phase') or 'main')}` · "
         f"timestamp `{display_value(record.get('ts'))}`"
-    ).callout(kind="success" if accepted else "warn")
+    ).callout(kind=callout_kind)
 
     rates = mo.hstack(
         [
@@ -210,8 +238,6 @@ def render_reviewed_attempt(record):
 
     sections = [
         header,
-        mo.md("**Domain**"),
-        mo.md(code_block(record.get("domain") or candidate.get("domain"))),
         rates,
         mo.md("## Candidate"),
         candidate_panel,
@@ -391,14 +417,16 @@ def _(events, get_event_index, mo, set_event_index):
         disabled=current_index == event_count - 1,
     )
     event_slider = mo.ui.slider(
-        start=0,
-        stop=event_count - 1,
+        start=1,
+        stop=event_count,
         step=1,
-        value=current_index,
+        value=current_index + 1,
         show_value=True,
         include_input=True,
-        label="Event index",
-        on_change=lambda value: set_event_index(int(value)),
+        label="Event number",
+        on_change=lambda value: set_event_index(
+            event_number_to_index(value, event_count)
+        ),
         full_width=True,
     )
 

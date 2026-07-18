@@ -1,5 +1,5 @@
 ---
-num_scenarios: 20
+num_scenarios: 10
 modality: conversation
 variations:
   scenario: >

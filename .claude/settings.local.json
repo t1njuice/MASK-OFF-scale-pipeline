@@ -6,7 +6,8 @@
       "Skill(claude-api:*)",
       "WebFetch(domain:claude.ai)",
       "WebFetch(domain:alignment.anthropic.com)",
-      "WebFetch(domain:www.aenguslynch.com)"
+      "WebFetch(domain:www.aenguslynch.com)",
+      "Bash(uv run *)"
     ]
   }
 }

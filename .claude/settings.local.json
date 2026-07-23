@@ -3,7 +3,13 @@
     "allow": [
       "Bash(ls -la \"C:/Users/justi/Desktop/Magnolia\" 2>/dev/null; echo \"---- searching Desktop for facts.csv ----\"; find \"C:/Users/justi/Desktop\" -maxdepth 2 -iname \"facts*.csv\" 2>/dev/null; echo \"---- done ----\")",
       "Skill(claude-api)",
-      "Skill(claude-api:*)"
+      "Skill(claude-api:*)",
+      "Bash(python -c \"import anthropic; print\\('anthropic', anthropic.__version__\\)\")",
+      "Bash(python -c \"import anthropic, inspect; c=anthropic.Anthropic; print\\('has messages.batches:', hasattr\\(anthropic.resources.messages, 'Batches'\\)\\)\")",
+      "Bash(command -v python3)",
+      "Bash(python3 -c \"import anthropic; print\\('anthropic', anthropic.__version__\\)\")",
+      "Bash(.venv/bin/python -c \"import anthropic; print\\('anthropic', anthropic.__version__\\)\")",
+      "Bash(.venv/bin/python -)"
     ]
   }
 }

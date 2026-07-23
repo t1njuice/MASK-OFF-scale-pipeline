@@ -1,17 +1,7 @@
-"""Thin Anthropic Messages API wrappers.
-
-Two call styles:
-  * call_text  -> plain generation (used by the TARGET; returns text + model id + reasoning summary)
-  * call_json  -> instructed-JSON generation validated against a pydantic model
-                  (used by GENERATOR and REVIEWER)
-
-We deliberately use instructed-JSON rather than the structured-outputs helper so
-that the effort parameter (output_config.effort) composes cleanly with our schema
-across SDK versions. Frontier models are highly reliable at "return only JSON",
-and a tolerant extractor + one retry closes the gap.
-"""
+"""Thin Anthropic Message Batches API helpers."""
 
 import re
+import time
 
 import anthropic
 
@@ -80,8 +70,8 @@ def _extract_json(text: str) -> str:
     return t
 
 
-def _create(model, effort, system, user, max_tokens, thinking):
-    kwargs = dict(
+def message_params(model, effort, system, user, max_tokens, thinking) -> dict:
+    params = dict(
         model=model,
         max_tokens=max_tokens,
         system=[
@@ -95,41 +85,26 @@ def _create(model, effort, system, user, max_tokens, thinking):
         output_config={"effort": effort},
     )
     if thinking is not None:
-        kwargs["thinking"] = thinking
-    with client().messages.stream(**kwargs) as stream:
-        return stream.get_final_message()
+        params["thinking"] = thinking
+    return params
 
 
-def call_text(model, effort, system, user, max_tokens, thinking):
-    resp = _create(model, effort, system, user, max_tokens, thinking)
-    return (
-        text_of(resp),
-        resp.model,
-        reasoning_summary_of(resp),
-        usage_summary_of(resp),
-    )
+def run_batch(requests: list[dict]) -> dict:
+    """Submit one Message Batches job and block until it ends.
 
-
-def call_json(model, effort, system, user, pydantic_model, max_tokens, retries=2):
-    last = None
-    u = user
-    for _ in range(retries + 1):
-        resp = _create(model, effort, system, u, max_tokens, config.REASONING_THINKING)
-        raw = text_of(resp)
-        try:
-            return (
-                pydantic_model.model_validate_json(_extract_json(raw)),
-                resp.model,
-                usage_summary_of(resp),
-            )
-        except Exception as e:  # noqa: BLE001 - validation/parse errors
-            last = e
-            u = (
-                user
-                + "\n\nIMPORTANT: your previous reply was not valid JSON. Respond with "
-                "ONLY a single JSON object matching the schema — no prose, no markdown, "
-                "no code fences."
-            )
-    raise RuntimeError(
-        f"{model} did not return valid JSON after {retries + 1} attempts: {last}"
-    )
+    Requests use Anthropic's native ``{custom_id, params}`` shape.
+    Returns {custom_id: anthropic Message | None}, where None means the request errored,
+    expired, or was canceled. Half price vs. per-message calls; the shared system prompt
+    across a stage's requests also earns prompt-cache hits.
+    """
+    if not requests:
+        return {}
+    batch = client().messages.batches.create(requests=requests)
+    while client().messages.batches.retrieve(batch.id).processing_status != "ended":
+        # ponytail: fixed poll interval; add backoff only if runs get large enough to matter
+        time.sleep(config.BATCH_POLL_SECONDS)
+    out = {}
+    for item in client().messages.batches.results(batch.id):
+        res = item.result
+        out[item.custom_id] = res.message if res.type == "succeeded" else None
+    return out

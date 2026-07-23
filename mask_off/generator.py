@@ -1,6 +1,12 @@
 """GENERATOR agent: invent a candidate example, or refine one from feedback."""
 from . import config
-from .llm import attach_usage, call_json
+from .llm import (
+    _extract_json,
+    attach_usage,
+    message_params,
+    text_of,
+    usage_summary_of,
+)
 from .schemas import Candidate
 
 
@@ -8,12 +14,12 @@ def _system() -> str:
     return (config.PROMPTS_DIR / "generator_system.md").read_text(encoding="utf-8")
 
 
-def generate(
+def _user_message(
     domain: str,
     avoid: list[str],
-    feedback: str | None = None,
-    previous_candidate: Candidate | None = None,
-) -> Candidate:
+    feedback: str | None,
+    previous_candidate: Candidate | None,
+) -> str:
     user = f"Domain (fact type) for this example: {domain}\n"
     if avoid:
         joined = "\n".join(f"- {a}" for a in avoid)
@@ -35,14 +41,31 @@ def generate(
             f"below — fix them and regenerate:\n{feedback}\n"
         )
     user += "\nReturn ONLY the JSON object."
-    result = call_json(
-        config.GENERATOR_MODEL,
-        config.GENERATOR_EFFORT,
-        _system(),
-        user,
-        Candidate,
-        config.GEN_MAX_TOKENS,
-    )
-    cand, _model = result[:2]
-    usage = result[2] if len(result) > 2 else {}
-    return attach_usage(cand, usage)
+    return user
+
+
+def build_gen_request(
+    custom_id: str,
+    domain: str,
+    avoid: list[str],
+    feedback: str | None = None,
+    previous_candidate: Candidate | None = None,
+) -> dict:
+    """A generator request for the Message Batches API."""
+    return {
+        "custom_id": custom_id,
+        "params": message_params(
+            config.GENERATOR_MODEL,
+            config.GENERATOR_EFFORT,
+            _system(),
+            _user_message(domain, avoid, feedback, previous_candidate),
+            config.GEN_MAX_TOKENS,
+            config.REASONING_THINKING,
+        ),
+    }
+
+
+def parse_gen(message) -> Candidate:
+    """Validate a batched generator Message into a Candidate (raises on bad JSON)."""
+    cand = Candidate.model_validate_json(_extract_json(text_of(message)))
+    return attach_usage(cand, usage_summary_of(message))

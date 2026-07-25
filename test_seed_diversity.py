@@ -17,6 +17,7 @@ from seed_diversity import (
     pair_type,
     parse_taxonomy,
     pca_coordinates,
+    tag_agreement,
     taxonomy_embedding_rows,
 )
 
@@ -137,6 +138,34 @@ neighbours = nearest_neighbours(
     0,
 )
 assert neighbours == [("near", 0.9), ("middle", 0.5), ("far", 0.1)]
+
+
+categories = ["Medical / healthcare", "Finance / fiduciary harm"]
+assert tag_agreement(None, "Medical / healthcare", categories) == "missing"
+assert (
+    tag_agreement(
+        "indirect_harm_to_other_humans",
+        "Medical / healthcare",
+        categories,
+    )
+    == "not comparable"
+)
+assert (
+    tag_agreement(
+        "Medical / healthcare",
+        "Medical / healthcare",
+        categories,
+    )
+    == "agree"
+)
+assert (
+    tag_agreement(
+        "Finance / fiduciary harm",
+        "Medical / healthcare",
+        categories,
+    )
+    == "disagree"
+)
 
 
 repeated = ["same institution and assistant role"] * 100

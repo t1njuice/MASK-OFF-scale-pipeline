@@ -19,6 +19,19 @@ def short_label(category):
 
 
 @app.function(hide_code=True)
+def tag_agreement(tag, predicted_category, categories):
+    if tag is None:
+        return "missing"
+    categories_by_key = {
+        short_label(category).casefold(): category for category in categories
+    }
+    tag_category = categories_by_key.get(short_label(tag).casefold())
+    if tag_category is None:
+        return "not comparable"
+    return "agree" if tag_category == predicted_category else "disagree"
+
+
+@app.function(hide_code=True)
 def pair_type(left_tag, right_tag, has_tags):
     if not has_tags:
         return "All pairs"
@@ -266,6 +279,19 @@ def _(Path, mo, pl, seed_folder, setting_key, variation_tag):
 
 
 @app.cell
+def _(Path, mo, parse_taxonomy, taxonomy_embedding_rows):
+    _taxonomy_path = Path(__file__).with_name("seed_subcategories.md")
+    taxonomy = parse_taxonomy(_taxonomy_path.read_text(encoding="utf-8"))
+    taxonomy_rows = taxonomy_embedding_rows(taxonomy)
+    category_names = list(taxonomy)
+    mo.md(
+        f"Loaded **{len(category_names)}** categories and "
+        f"**{len(taxonomy_rows)}** subcategories from `{_taxonomy_path.name}`."
+    )
+    return category_names, taxonomy, taxonomy_rows
+
+
+@app.cell
 def _(mo, pl, seeds):
     _settings = seeds["setting"].to_list()
     lexical_metrics = pl.DataFrame(
@@ -301,18 +327,41 @@ def _(mo, pl, seeds):
 
 
 @app.cell
-def _(Path, folder, mo, np, seeds):
+def _(
+    Path,
+    category_names,
+    folder,
+    mo,
+    np,
+    seeds,
+    taxonomy_rows,
+):
     _cache_path = Path(__file__).with_name(".embed_cache.json")
-    embedding_matrix = np.asarray(
-        embed_texts(seeds["setting"].to_list(), _cache_path),
+    _seed_texts = seeds["setting"].to_list()
+    _subcategory_texts = [row["embedding_text"] for row in taxonomy_rows]
+    _all_texts = _seed_texts + category_names + _subcategory_texts
+    _all_embeddings = np.asarray(
+        embed_texts(_all_texts, _cache_path),
         dtype=float,
     )
+
+    _seed_end = len(_seed_texts)
+    _category_end = _seed_end + len(category_names)
+    embedding_matrix = _all_embeddings[:_seed_end]
+    category_embeddings = _all_embeddings[_seed_end:_category_end]
+    subcategory_embedding_matrix = _all_embeddings[_category_end:]
     similarities = cosine_matrix(embedding_matrix)
     mo.md(
-        f"Embedded **{len(seeds)}** parsed seeds from `{folder.name}` "
-        f"into **{embedding_matrix.shape[1]}** dimensions."
+        f"Embedded **{len(seeds)}** parsed seeds from `{folder.name}`, "
+        f"**{len(category_names)}** categories, and "
+        f"**{len(taxonomy_rows)}** subcategories."
     )
-    return embedding_matrix, similarities
+    return (
+        category_embeddings,
+        embedding_matrix,
+        similarities,
+        subcategory_embedding_matrix,
+    )
 
 
 @app.cell
@@ -434,6 +483,159 @@ def _(mo, np, pairs, pl, seeds, similarities):
             ),
         ]
     )
+    return
+
+
+@app.cell
+def _(
+    category_assignments,
+    category_embeddings,
+    category_names,
+    cosine_matrix,
+    embedding_matrix,
+    nearest_neighbours,
+    pca_coordinates,
+    pl,
+    seeds,
+    short_label,
+    tag_agreement,
+):
+    _assignments = category_assignments(
+        embedding_matrix,
+        category_embeddings,
+    )
+    _rows = []
+    _seed_records = seeds.to_dicts()
+
+    for _category_index, _category in enumerate(category_names):
+        _indices = [
+            index
+            for index, assignment in enumerate(_assignments)
+            if assignment[0] == _category_index
+        ]
+        if not _indices:
+            continue
+
+        _local_embeddings = embedding_matrix[_indices]
+        _coordinates = pca_coordinates(_local_embeddings)
+        _local_similarities = cosine_matrix(_local_embeddings)
+        _local_names = [_seed_records[index]["filename"] for index in _indices]
+
+        for _position, _seed_index in enumerate(_indices):
+            _record = _seed_records[_seed_index]
+            _neighbour = (
+                nearest_neighbours(
+                    _local_names,
+                    _local_similarities,
+                    _position,
+                )[0]
+                if len(_indices) > 1
+                else (None, None)
+            )
+            _rows.append(
+                {
+                    **_record,
+                    "predicted_category": _category,
+                    "category_short": short_label(_category),
+                    "tag_agreement": tag_agreement(
+                        _record["tag"],
+                        _category,
+                        category_names,
+                    ),
+                    "category_score": _assignments[_seed_index][1],
+                    "category_margin": _assignments[_seed_index][2],
+                    "nearest_in_category": _neighbour[0],
+                    "nearest_cosine": _neighbour[1],
+                    "pc1": float(_coordinates[_position, 0]),
+                    "pc2": float(_coordinates[_position, 1]),
+                }
+            )
+
+    seed_category_points = pl.DataFrame(_rows)
+    return (seed_category_points,)
+
+
+@app.cell
+def _(alt, mo, seed_category_points):
+    _chart = (
+        alt.Chart(seed_category_points)
+        .mark_circle(size=90)
+        .encode(
+            x=alt.X("pc1:Q", title=None, axis=None),
+            y=alt.Y("pc2:Q", title=None, axis=None),
+            color=alt.Color(
+                "category_short:N",
+                title="Predicted category",
+                legend=None,
+            ),
+            facet=alt.Facet(
+                "category_short:N",
+                columns=3,
+                title=None,
+                header=alt.Header(labelLimit=220),
+            ),
+            tooltip=[
+                alt.Tooltip("filename:N", title="File"),
+                alt.Tooltip("predicted_category:N", title="Predicted category"),
+                alt.Tooltip("tag:N", title="Existing variation"),
+                alt.Tooltip("setting:N", title="Setting/role"),
+                alt.Tooltip("nearest_in_category:N", title="Closest seed"),
+                alt.Tooltip(
+                    "nearest_cosine:Q",
+                    title="Closest cosine",
+                    format=".3f",
+                ),
+            ],
+        )
+        .properties(width=220, height=160)
+        .resolve_scale(x="independent", y="independent")
+    )
+    seed_category_chart = mo.ui.altair_chart(_chart)
+    mo.vstack(
+        [
+            mo.md(
+                "## Seeds within predicted categories\n\n"
+                "Each panel has its own PCA projection. Use the numeric cosine "
+                "values in the selected-seed details as evidence."
+            ),
+            seed_category_chart,
+        ]
+    )
+    return (seed_category_chart,)
+
+
+@app.cell
+def _(mo, pl, seed_category_chart):
+    _selected = seed_category_chart.value
+    if len(_selected) == 0:
+        _details = mo.callout(
+            "Select a seed point to inspect its filename and nearest neighbour.",
+            kind="info",
+        )
+    else:
+        _row = _selected.iloc[0].to_dict()
+        _details = mo.ui.table(
+            pl.DataFrame(
+                [
+                    {
+                        "filename": _row["filename"],
+                        "predicted_category": _row["predicted_category"],
+                        "existing_tag": _row["tag"],
+                        "tag_agreement": _row["tag_agreement"],
+                        "category_score": round(_row["category_score"], 3),
+                        "runner_up_margin": round(_row["category_margin"], 3),
+                        "nearest_in_category": _row["nearest_in_category"],
+                        "nearest_cosine": (
+                            round(_row["nearest_cosine"], 3)
+                            if _row["nearest_cosine"] is not None
+                            else None
+                        ),
+                    }
+                ]
+            ),
+            pagination=False,
+        )
+    _details
     return
 
 

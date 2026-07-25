@@ -30,6 +30,49 @@ def pair_type(left_tag, right_tag, has_tags):
 
 
 @app.function(hide_code=True)
+def parse_taxonomy(text):
+    taxonomy = {}
+    category = None
+    for line in text.splitlines():
+        if line.startswith("# "):
+            category = line[2:].strip()
+            if not category or category in taxonomy:
+                raise ValueError("Taxonomy categories must be unique and non-empty.")
+            taxonomy[category] = []
+        elif line.startswith("- "):
+            if category is None:
+                raise ValueError("Taxonomy item appears before its category.")
+            subcategory = line[2:].strip()
+            if not subcategory:
+                raise ValueError("Taxonomy subcategories must be non-empty.")
+            taxonomy[category].append(subcategory)
+        elif line.strip():
+            raise ValueError(f"Unexpected taxonomy line: {line}")
+
+    if len(taxonomy) != 14:
+        raise ValueError("Taxonomy must contain exactly 14 categories.")
+    if any(len(subcategories) != 40 for subcategories in taxonomy.values()):
+        raise ValueError("Every taxonomy category must contain exactly 40 items.")
+    labels = [item for items in taxonomy.values() for item in items]
+    if len(set(labels)) != 560:
+        raise ValueError("Taxonomy subcategories must be unique.")
+    return taxonomy
+
+
+@app.function(hide_code=True)
+def taxonomy_embedding_rows(taxonomy):
+    return [
+        {
+            "category": category,
+            "subcategory": subcategory,
+            "embedding_text": f"{category}: {subcategory}",
+        }
+        for category, subcategories in taxonomy.items()
+        for subcategory in subcategories
+    ]
+
+
+@app.function(hide_code=True)
 def cosine_matrix(embeddings):
     import numpy as np
 

@@ -640,6 +640,150 @@ def _(mo, pl, seed_category_chart):
 
 
 @app.cell
+def _(mo, taxonomy):
+    subcategory_selector = mo.ui.dropdown(
+        options=list(taxonomy),
+        value=list(taxonomy)[0],
+        label="Top-level category",
+        full_width=True,
+    )
+    mo.vstack(
+        [
+            mo.md(
+                "## Subcategory semantic similarity\n\n"
+                "Each point is one taxonomy subcategory. The projection is "
+                "approximate; the selected point's cosine ranking is exact."
+            ),
+            subcategory_selector,
+        ]
+    )
+    return (subcategory_selector,)
+
+
+@app.cell
+def _(
+    cosine_matrix,
+    mo,
+    np,
+    pca_coordinates,
+    pl,
+    subcategory_embedding_matrix,
+    subcategory_selector,
+    taxonomy_rows,
+):
+    _category = subcategory_selector.value
+    _indices = [
+        index
+        for index, row in enumerate(taxonomy_rows)
+        if row["category"] == _category
+    ]
+    _rows = [taxonomy_rows[index] for index in _indices]
+    _embeddings = subcategory_embedding_matrix[_indices]
+    _coordinates = pca_coordinates(_embeddings)
+    selected_subcategory_similarities = cosine_matrix(_embeddings)
+    selected_subcategory_labels = [row["subcategory"] for row in _rows]
+    subcategory_points = pl.DataFrame(
+        {
+            "category": [_category] * len(_rows),
+            "subcategory": selected_subcategory_labels,
+            "pc1": _coordinates[:, 0],
+            "pc2": _coordinates[:, 1],
+        }
+    )
+
+    _pairwise = selected_subcategory_similarities[
+        np.triu_indices(len(_rows), k=1)
+    ]
+    subcategory_summary = pl.DataFrame(
+        [
+            {
+                "subcategories": len(_rows),
+                "mean_similarity": round(float(_pairwise.mean()), 3),
+                "median_similarity": round(float(np.median(_pairwise)), 3),
+                "p90_similarity": round(float(np.quantile(_pairwise, 0.9)), 3),
+                "mean_cosine_distance": round(
+                    float(1.0 - _pairwise.mean()),
+                    3,
+                ),
+            }
+        ]
+    )
+    mo.ui.table(subcategory_summary, pagination=False)
+    return (
+        selected_subcategory_labels,
+        selected_subcategory_similarities,
+        subcategory_points,
+    )
+
+
+@app.cell
+def _(alt, mo, subcategory_points):
+    _chart = (
+        alt.Chart(subcategory_points)
+        .mark_circle(size=105, color="#fb7185")
+        .encode(
+            x=alt.X("pc1:Q", title="PCA 1"),
+            y=alt.Y("pc2:Q", title="PCA 2"),
+            tooltip=[
+                alt.Tooltip("subcategory:N", title="Subcategory"),
+                alt.Tooltip("category:N", title="Category"),
+            ],
+        )
+        .properties(
+            title="Subcategory embedding projection",
+            height=480,
+        )
+    )
+    subcategory_chart = mo.ui.altair_chart(_chart)
+    subcategory_chart
+    return (subcategory_chart,)
+
+
+@app.cell
+def _(
+    mo,
+    nearest_neighbours,
+    pl,
+    selected_subcategory_labels,
+    selected_subcategory_similarities,
+    subcategory_chart,
+):
+    _selected = subcategory_chart.value
+    if len(_selected) == 0:
+        _details = mo.callout(
+            "Select a subcategory point to see its three closest labels.",
+            kind="info",
+        )
+    else:
+        _selected_label = _selected.iloc[0]["subcategory"]
+        _selected_index = selected_subcategory_labels.index(_selected_label)
+        _neighbours = nearest_neighbours(
+            selected_subcategory_labels,
+            selected_subcategory_similarities,
+            _selected_index,
+        )
+        _details = mo.vstack(
+            [
+                mo.md(f"### {_selected_label}"),
+                mo.ui.table(
+                    pl.DataFrame(
+                        [
+                            {
+                                "nearest_subcategory": label,
+                                "cosine_similarity": round(similarity, 3),
+                            }
+                            for label, similarity in _neighbours
+                        ]
+                    ),
+                    pagination=False,
+                ),
+            ]
+        )
+    _details
+    return
+
+
+@app.cell
 def _(alt, embedding_matrix, mo, pca_coordinates, pl, seeds):
     _coordinates = pca_coordinates(embedding_matrix)
     scatter_data = pl.DataFrame(

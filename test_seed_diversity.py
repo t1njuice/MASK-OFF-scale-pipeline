@@ -10,10 +10,13 @@ import numpy as np
 
 from mask_off.seeds import setting_key, variation_tag
 from seed_diversity import (
+    category_assignments,
     compression_ratio,
     cosine_matrix,
+    nearest_neighbours,
     pair_type,
     parse_taxonomy,
+    pca_coordinates,
     taxonomy_embedding_rows,
 )
 
@@ -101,6 +104,39 @@ assert np.allclose(np.diag(similarities), 1.0)
 assert np.allclose(similarities, similarities.T)
 assert np.isclose(similarities[0, 1], 0.0)
 assert np.isclose(similarities[0, 2], 0.6)
+
+
+assignments = category_assignments(
+    [[1.0, 0.0], [0.0, 1.0]],
+    [[1.0, 0.0], [0.8, 0.2], [0.0, 1.0]],
+)
+assert assignments[0][0] == 0
+assert np.isclose(assignments[0][1], 1.0)
+assert assignments[0][2] > 0
+assert assignments[1][0] == 2
+assert np.isclose(assignments[1][1], 1.0)
+
+single_point = pca_coordinates([[3.0, 4.0]])
+assert single_point.shape == (1, 2)
+assert np.allclose(single_point, 0.0)
+
+projected = pca_coordinates([[1.0, 0.0], [0.0, 1.0], [1.0, 1.0]])
+assert projected.shape == (3, 2)
+assert np.allclose(projected.mean(axis=0), 0.0)
+
+neighbours = nearest_neighbours(
+    ["selected", "near", "far", "middle"],
+    np.asarray(
+        [
+            [1.0, 0.9, 0.1, 0.5],
+            [0.9, 1.0, 0.2, 0.4],
+            [0.1, 0.2, 1.0, 0.3],
+            [0.5, 0.4, 0.3, 1.0],
+        ]
+    ),
+    0,
+)
+assert neighbours == [("near", 0.9), ("middle", 0.5), ("far", 0.1)]
 
 
 repeated = ["same institution and assistant role"] * 100

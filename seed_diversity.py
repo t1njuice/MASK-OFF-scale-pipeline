@@ -82,6 +82,54 @@ def cosine_matrix(embeddings):
 
 
 @app.function(hide_code=True)
+def category_assignments(item_embeddings, category_embeddings):
+    import numpy as np
+
+    items = np.asarray(item_embeddings, dtype=float)
+    categories = np.asarray(category_embeddings, dtype=float)
+    items /= np.linalg.norm(items, axis=1, keepdims=True)
+    categories /= np.linalg.norm(categories, axis=1, keepdims=True)
+    scores = items @ categories.T
+    ranking = np.argsort(scores, axis=1)[:, ::-1]
+    return [
+        (
+            int(order[0]),
+            float(scores[index, order[0]]),
+            float(scores[index, order[0]] - scores[index, order[1]]),
+        )
+        for index, order in enumerate(ranking)
+    ]
+
+
+@app.function(hide_code=True)
+def pca_coordinates(embeddings):
+    import numpy as np
+
+    matrix = np.asarray(embeddings, dtype=float)
+    if len(matrix) == 1:
+        return np.zeros((1, 2))
+    normalized = matrix / np.linalg.norm(matrix, axis=1, keepdims=True)
+    centered = normalized - normalized.mean(axis=0)
+    _, _, components = np.linalg.svd(centered, full_matrices=False)
+    coordinates = centered @ components[:2].T
+    if coordinates.shape[1] == 1:
+        coordinates = np.column_stack([coordinates, np.zeros(len(matrix))])
+    return coordinates
+
+
+@app.function(hide_code=True)
+def nearest_neighbours(labels, similarities, selected_index):
+    import numpy as np
+
+    ranking = np.argsort(similarities[selected_index])[::-1]
+    return [
+        (labels[index], float(similarities[selected_index, index]))
+        for index in ranking
+        if index != selected_index
+    ][:3]
+
+
+@app.function(hide_code=True)
 def embed_texts(texts, cache_path):
     import hashlib
     import json
@@ -390,15 +438,8 @@ def _(mo, np, pairs, pl, seeds, similarities):
 
 
 @app.cell
-def _(alt, embedding_matrix, mo, np, pl, seeds):
-    _normalized = embedding_matrix / np.linalg.norm(
-        embedding_matrix,
-        axis=1,
-        keepdims=True,
-    )
-    _centered = _normalized - _normalized.mean(axis=0)
-    _, _, _components = np.linalg.svd(_centered, full_matrices=False)
-    _coordinates = _centered @ _components[:2].T
+def _(alt, embedding_matrix, mo, pca_coordinates, pl, seeds):
+    _coordinates = pca_coordinates(embedding_matrix)
     scatter_data = pl.DataFrame(
         {
             "filename": seeds["filename"],

@@ -9,7 +9,7 @@ from unittest import TestCase, main
 from unittest.mock import patch
 import warnings
 
-from mask_off import config, pipeline
+from mask_off import config, generator, pipeline
 from mask_off.schemas import Candidate, ConstraintCheck, Constraints, Review
 from tempfile import TemporaryDirectory
 
@@ -418,3 +418,25 @@ class TestLessonsInlineLabels(TestCase):
         self.assertTrue(got[0].endswith("certification consequence."))
         self.assertTrue(got[1].startswith("Avoid: the word 'toxic'"))
         self.assertFalse(any("Preserve" in g for g in got))
+
+
+class TestLeverVocabulary(TestCase):
+    """Levers are a shared enum, not prose, so generator and reviewer agree."""
+
+    def test_every_lever_snaps_to_itself(self):
+        for lever in config.LEVERS:
+            with self.subTest(lever=lever):
+                self.assertEqual(generator.canonical_lever(lever), lever)
+
+    def test_snapping_tolerates_case_and_whitespace_drift(self):
+        self.assertEqual(
+            generator.canonical_lever("  Narrow Procedural Ask  "),
+            "narrow procedural ask",
+        )
+
+    def test_unknown_lever_passes_through_stripped(self):
+        # A bad label is a reporting defect, not a reason to discard a candidate.
+        self.assertEqual(generator.canonical_lever("  invented lever "), "invented lever")
+
+    def test_lever_names_are_unique(self):
+        self.assertEqual(len(config.LEVERS), len(set(config.LEVERS)))

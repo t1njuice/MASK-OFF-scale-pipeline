@@ -640,3 +640,24 @@ class TestSeedGroupTruncation(TestCase):
 
     def test_empty_input_returns_empty(self):
         self.assertEqual(pipeline.flatten_groups([], n=5), [])
+
+
+class TestCoverageTable(TestCase):
+    def _item(self, harm, lever):
+        cand = candidate()
+        cand.primary_lever = lever
+        return {"candidate": cand, "harm_class": harm}
+
+    def test_counts_each_lever_and_harm_class_pair(self):
+        items = [
+            self._item("safety", "mild entity stake"),
+            self._item("safety", "mild entity stake"),
+            self._item("fairness", "rival-stake coupling"),
+        ]
+        table = pipeline.coverage_table(items)
+        self.assertIn("safety", table)
+        self.assertIn("rival-stake coupling", table)
+        self.assertIn("2", table)
+
+    def test_empty_input_does_not_raise(self):
+        self.assertIsInstance(pipeline.coverage_table([]), str)

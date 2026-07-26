@@ -64,6 +64,12 @@ VARIANT_ROUNDS = 2
 # Expected dataset items per accepted seed: 1 anchor + ~1.38 variants, measured
 # over 13 seeds. Thin — retune from the first run under the new variant prompt.
 ITEMS_PER_SEED = 2.4
+# Share of launched seeds that ever reach a first acceptance, measured over 175
+# historical run-seeds. Only a fraction of launched seeds yield anything, so the
+# seed budget has to divide by this as well as by ITEMS_PER_SEED. Measured under
+# the old accept gate (effectively 1-of-2 samples); retune after the first run
+# under K_SAMPLES=6 with the >=3/6 threshold, where it is expected to fall.
+SEED_ACCEPTANCE_RATE = 0.303
 OVERSUBSCRIBE = 2.0
 
 TIMEOUT = 60

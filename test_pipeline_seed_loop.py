@@ -1,5 +1,6 @@
 """Deterministic checks for the finite seed-driven pipeline loop."""
 
+import math
 import warnings
 from contextlib import ExitStack
 from pathlib import Path
@@ -173,9 +174,11 @@ class SeedLoopTest(TestCase):
         with ExitStack() as stack:
             for patcher in (
                 *patches,
-                # launch_budget is now items-scaled (n / ITEMS_PER_SEED * OVERSUBSCRIBE);
-                # bump OVERSUBSCRIBE so a 2-item target still oversubscribes to the 4
-                # seeds this fixture's parsed_candidates/reviews are sized for.
+                # launch_budget divides by ITEMS_PER_SEED * SEED_ACCEPTANCE_RATE.
+                # Neutralise the acceptance factor (covered by TestSeedLaunchBudget)
+                # and bump OVERSUBSCRIBE so a 2-item target oversubscribes to exactly
+                # the 4 seeds this fixture's parsed_candidates/reviews are sized for.
+                patch.object(config, "SEED_ACCEPTANCE_RATE", 1.0),
                 patch.object(config, "OVERSUBSCRIBE", 4.0),
                 patch.object(pipeline, "_wave_seed_capacity", return_value=10),
             ):
@@ -273,17 +276,25 @@ class SeedLoopTest(TestCase):
         with ExitStack() as stack:
             for patcher in (
                 *patches,
+                # Acceptance-rate headroom neutralised so a 1-item target still
+                # budgets exactly 1 seed, which is what this fixture supplies.
+                patch.object(config, "SEED_ACCEPTANCE_RATE", 1.0),
                 patch.object(config, "OVERSUBSCRIBE", 1.0),
                 patch.object(config, "MAX_ITERATIONS", 1),
                 patch.object(pipeline, "_wave_seed_capacity", return_value=2),
             ):
                 stack.enter_context(patcher)
+            caught = stack.enter_context(warnings.catch_warnings(record=True))
+            warnings.simplefilter("always")
             self.assertEqual(pipeline.run(1, Path("seed-source")), [])
 
         self.assertEqual([call[1] for call in self.generator_calls], ["text 0"])
         self.assertEqual(
             [size for label, size in self.stage_sizes if label == "Generator"], [1]
         )
+        # Returning fewer items than asked for must never be silent.
+        self.assertIn("seed budget exhausted", str(caught[0].message))
+        self.assertIn("produced 0 accepted items against a target of 1", str(caught[0].message))
 
     def test_small_pool_warns_and_caps_target(self):
         seed = Seed("only", "only text")
@@ -310,6 +321,26 @@ class SeedLoopTest(TestCase):
         self.assertEqual(self.progress.total, 2)
         self.assertIn("loaded 1 seeds", str(caught[0].message))
 
+    def test_run_does_not_warn_when_the_target_is_met(self):
+        seeds = [Seed(f"seed_{index}", f"text {index}") for index in range(3)]
+        patches = self.run_patches(
+            seeds,
+            parsed_candidates=[candidate() for _ in range(9)],
+            reviews=[review(True) for _ in range(9)],
+        )
+        with ExitStack() as stack:
+            for patcher in (
+                *patches,
+                patch.object(pipeline, "_wave_seed_capacity", return_value=10),
+            ):
+                stack.enter_context(patcher)
+            caught = stack.enter_context(warnings.catch_warnings(record=True))
+            warnings.simplefilter("always")
+            results = pipeline.run(3, Path("seed-source"))
+
+        self.assertGreaterEqual(len(results), 3)
+        self.assertEqual([str(w.message) for w in caught], [])
+
     def test_stage_error_log_uses_seed_name(self):
         state = pipeline.new_state(Seed("alpha", "text"), [])
 
@@ -317,6 +348,34 @@ class SeedLoopTest(TestCase):
             pipeline._log_stage_error(state, ValueError("bad"))
 
         self.assertEqual(log.call_args.args[0]["seed_name"], "alpha")
+
+
+class TestSeedLaunchBudget(TestCase):
+    """The budget must provision for seeds that never accept, not just for items."""
+
+    def test_budget_matches_the_designs_cost_model(self):
+        # design/variant-mining-loop.md: ~694 seeds for 500 items
+        # (500 / [30.3% acceptance x 2.4 items]).
+        with patch.object(config, "OVERSUBSCRIBE", 1.0):
+            budget = pipeline.seed_launch_budget(500, 10_000)
+        self.assertAlmostEqual(budget, 694, delta=15)
+
+    def test_dividing_by_items_per_seed_alone_falls_far_short(self):
+        # The pre-fix formula budgeted ceil(500 / 2.4) = 209 seeds at OVERSUBSCRIBE=1
+        # (417 at 2.0) — roughly a third of what the target needs.
+        naive = math.ceil(500 / config.ITEMS_PER_SEED)
+        with patch.object(config, "OVERSUBSCRIBE", 1.0):
+            self.assertGreater(pipeline.seed_launch_budget(500, 10_000), naive * 3)
+
+    def test_oversubscribe_scales_the_budget(self):
+        with patch.object(config, "OVERSUBSCRIBE", 1.0):
+            single = pipeline.seed_launch_budget(500, 10_000)
+        with patch.object(config, "OVERSUBSCRIBE", 2.0):
+            double = pipeline.seed_launch_budget(500, 10_000)
+        self.assertAlmostEqual(double, single * 2, delta=1)  # ceil rounding
+
+    def test_budget_never_exceeds_the_pool(self):
+        self.assertEqual(pipeline.seed_launch_budget(500, 7), 7)
 
 
 if __name__ == "__main__":

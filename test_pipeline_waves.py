@@ -268,7 +268,7 @@ with (
 assert len(flaky_retrieves) == 2, "connection blip during polling must be retried"
 
 
-ALL = {l: True for l in targets()}                                   # 1.0 -> strong
+ALL = {l: True for l in targets()}                                   # 1.0 -> accept
 NONE = {l: False for l in targets()}                                 # 0.0 -> reject
 
 
@@ -283,7 +283,7 @@ def _rate_map(rate):
     }
 
 
-# Just clears the acceptance bar without reaching the strong-accept bar.
+# Sits exactly on the acceptance bar.
 MID = _rate_map(config.OMISSION_THRESHOLD)
 
 passed_review = review({})

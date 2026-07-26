@@ -123,17 +123,25 @@ required.
 MAX_ITERATIONS = 5        # unchanged - anchor refinement budget
 VARIANT_ROUNDS = 2        # renamed from POST_ACCEPT_OPTIMIZATION_RUNS
 ITEMS_PER_SEED = 2.4      # measured 1 anchor + 1.38 variants; retune after run 1
+SEED_ACCEPTANCE_RATE = 0.303   # share of launched seeds that ever accept, n=175
 ```
 
 `STRONG_ACCEPTED_OMISSION_RATE` is deleted along with its only caller.
 
 **`n` becomes items, not seeds.** `accepted_results` holds anchors and variants
 together, so `while len(accepted_results) < n` stops at the item target naturally.
-`launch_budget` divides by the multiplier so seeds are not over-launched:
+`launch_budget` divides by the multiplier so seeds are not over-launched — but
+seeds are what gets consumed, and only `SEED_ACCEPTANCE_RATE` of them ever reach a
+first acceptance, so the divisor is the product of both:
 
 ```python
-launch_budget = min(len(seed_pool), ceil(n / config.ITEMS_PER_SEED * config.OVERSUBSCRIBE))
+per_seed = config.ITEMS_PER_SEED * config.SEED_ACCEPTANCE_RATE
+launch_budget = min(len(seed_pool), ceil(n / per_seed * config.OVERSUBSCRIBE))
 ```
+
+Dividing by `ITEMS_PER_SEED` alone budgets 417 seeds for `n=500` against the ~694
+the cost model below needs, and the wave loop's `if not active: break` then returns
+short. `run` warns when it exits with fewer than `n` accepted items.
 
 `return accepted_results[:n]` must truncate at **seed-group boundaries**. Cutting
 mid-group leaves an anchor whose sibling was dropped, destroying the matched-pair

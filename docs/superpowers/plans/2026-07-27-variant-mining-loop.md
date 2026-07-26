@@ -11,12 +11,130 @@
 ## Global Constraints
 
 - No new third-party dependencies.
-- Run tests with: `uv run --with pytest python -m pytest test_pipeline_cli.py -q`
+- Run tests with: `uv run --with pytest python -m pytest -q` — the **whole suite**. There are six test files (`test_generator.py`, `test_pipeline_cli.py`, `test_pipeline_seed_loop.py`, `test_pipeline_waves.py`, `test_seed_diversity.py`, `test_seeds.py`), and three of them are module-level assertion scripts rather than `unittest` classes, so a broken assert fails at *collection* and takes the run down. Running only `test_pipeline_cli.py` hides breakage in the other five. Task 0 makes the suite green; every task after it must keep it green.
 - Anything importing `mask_off` must run under `uv run python` — the system Python has no `anthropic` installed and will `ModuleNotFoundError`.
 - Tests make no API calls. Follow the existing mocking pattern in `test_pipeline_cli.py` (`patch.object(pipeline, "run_batch", ...)`).
 - Backward compatibility with the ~80 existing files in `output/` is explicitly NOT required. Renames may break reading old run logs and CSVs.
 - `mask_off/prompts/*.md` are LLM prompts, not code. Edits to them must keep the JSON template at the bottom of `reviewer_system.md` exactly in sync with `Constraints.model_fields` in `mask_off/schemas.py` — `pipeline.CONSTRAINT_NAMES` is derived from the model, and a mismatch breaks review parsing at runtime.
 - Source of truth for design decisions: `design/variant-mining-loop.md`.
+
+---
+
+### Task 0: Green the test suite
+
+Three test files fail at collection before any plan work starts. Until they pass, no later task has a working gate. None of this is caused by the variant-mining design; it is baseline repair.
+
+**Files:**
+- Modify: `test_pipeline_waves.py:43-53,270-274`
+- Modify: `test_seeds.py:105-106`
+- Modify: `test_seed_diversity.py:13,110-118`
+
+**Interfaces:**
+- Consumes: nothing
+- Produces: a green `uv run --with pytest python -m pytest -q`
+
+- [ ] **Step 1: Confirm the three failures**
+
+Run: `uv run --with pytest python -m pytest -q`
+Expected: FAIL — 3 collection errors: `test_pipeline_waves.py` (`AssertionError: accept->optimize`), `test_seeds.py` (`AssertionError: 1048`), `test_seed_diversity.py` (`ImportError: cannot import name 'category_assignments'`).
+
+- [ ] **Step 2: Make `test_pipeline_waves.py` derive from config instead of hardcoding rates**
+
+Its `targets()` helper hardcodes three samples per model and its `THIRD` fixture assumes `OMISSION_THRESHOLD == 1/3`. Both were true at commit `6e7a05b`; the threshold has since moved to `1/2` and `K_SAMPLES` to `6`, so `THIRD` now produces 0.333 against a 0.5 bar and the candidate is rejected rather than accepted. Hardcoding re-breaks on every config change — derive instead.
+
+Replace `targets()`:
+
+```python
+def targets():
+    return {
+        f"{m}#{i}": {
+            "model": f"claude-{m}",
+            "text": "resp",
+            "reasoning": {"summary": ""},
+            "usage": {},
+        }
+        for m in ("opus", "fable")
+        for i in range(1, config.K_SAMPLES + 1)
+    }
+```
+
+Replace the `ALL` / `NONE` / `THIRD` fixture block:
+
+```python
+ALL = {l: True for l in targets()}                                   # 1.0 -> strong
+NONE = {l: False for l in targets()}                                 # 0.0 -> reject
+
+
+def _rate_map(rate):
+    """Omission map hitting `rate` per model, derived so config changes cannot
+    silently invert what this fixture means."""
+    per_model = round(rate * config.K_SAMPLES)
+    return {
+        f"{m}#{i}": (i <= per_model)
+        for m in ("opus", "fable")
+        for i in range(1, config.K_SAMPLES + 1)
+    }
+
+
+# Just clears the acceptance bar without reaching the strong-accept bar.
+MID = _rate_map(config.OMISSION_THRESHOLD)
+```
+
+Then replace every later use of `THIRD` with `MID`, and update the comment on assertion 2 to read `# 2) accepted but not strong -> enter optimization, best captured`.
+
+- [ ] **Step 3: Update the stale corpus asserts in `test_seeds.py`**
+
+The `grok_omission` corpus grew from 87 seeds to 1048 during the scaling run.
+
+```python
+grok = load_seeds(Path(__file__).parent / "grok_omission")
+assert len(grok) == 1048, len(grok)
+assert len({fact_key(seed.text) for seed in grok}) == 971
+```
+
+Note on the second number: 78 of the 1048 seeds write every section on one physical line, and `_FACT_LINE` is anchored with `^` under `re.MULTILINE`, so `fact_key` returns `None` for all 78 and they collapse into a single `None` member of the set. 971 is therefore 970 real fact keys plus one `None`. **Do not "fix" `_FACT_LINE` in this task** — it is pre-existing behaviour with unknown consumers, and changing it is out of scope here. Add this comment above the assert so the number is not mistaken for a clean count:
+
+```python
+# 971 = 970 distinct facts + one None: `_FACT_LINE` is line-anchored and 78 seeds
+# run every section together on one line, so fact_key returns None for those.
+```
+
+- [ ] **Step 4: Drop the removed-function test in `test_seed_diversity.py`**
+
+`category_assignments` was a nearest-centroid helper for the k-means clustering the notebook deliberately dropped in favour of grouping by the existing `variation:` tags. The function is gone on purpose; the test should go with it.
+
+Delete `    category_assignments,` from the import list at line 13, and delete this entire block (lines 110-118), leaving the surrounding asserts intact:
+
+```python
+assignments = category_assignments(
+    [[1.0, 0.0], [0.0, 1.0]],
+    [[1.0, 0.0], [0.8, 0.2], [0.0, 1.0]],
+)
+assert assignments[0][0] == 0
+assert np.isclose(assignments[0][1], 1.0)
+assert assignments[0][2] > 0
+assert assignments[1][0] == 2
+assert np.isclose(assignments[1][1], 1.0)
+```
+
+- [ ] **Step 5: Run the whole suite**
+
+Run: `uv run --with pytest python -m pytest -q`
+Expected: PASS, zero collection errors.
+
+If `test_pipeline_waves.py` still fails on the strong-accept assertion, report it — do not delete the assertion. Task 7 removes that code path deliberately and owns updating that test; Task 0 only restores the baseline.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add test_pipeline_waves.py test_seeds.py test_seed_diversity.py
+git commit -m "test: green the suite before variant-mining work
+
+test_pipeline_waves derived its rates from a 1/3 threshold that has since
+moved to 1/2; it now derives from config. test_seeds asserted the
+pre-scaling corpus size. test_seed_diversity tested category_assignments,
+removed when the notebook dropped k-means."
+```
 
 ---
 
@@ -30,6 +148,9 @@
 - Modify: `mask_off/pipeline.py:37,267-283,290,341,349,364,405,438-441,515,577,580,642-648,656-658,715,742`
 - Modify: `output/output_viewer.py:25,159,163`
 - Test: `test_pipeline_cli.py:23,249`
+- Test: `test_generator.py` (6 references)
+- Test: `test_pipeline_seed_loop.py` (10 references)
+- Test: `test_pipeline_waves.py:38` (1 reference, in the `cand()` helper)
 
 **Interfaces:**
 - Consumes: nothing (first task)
@@ -55,7 +176,7 @@ And at `test_pipeline_cli.py:249`, inside `SampleCsvTests`, change `domain="Medi
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `uv run --with pytest python -m pytest test_pipeline_cli.py -q`
+Run: `uv run --with pytest python -m pytest -q`
 Expected: FAIL with `pydantic_core._pydantic_core.ValidationError` — `Field required [type=missing, input_value=..., input_type=dict]` for `domain`, plus `Extra inputs are not permitted` for `pressure_axis`.
 
 - [ ] **Step 3: Rename the schema field**
@@ -256,18 +377,18 @@ And in the docstring at line 25: `...     "candidate": {"pressure_axis": "financ
 
 - [ ] **Step 7: Run tests to verify they pass**
 
-Run: `uv run --with pytest python -m pytest test_pipeline_cli.py -q`
-Expected: PASS, 18 tests.
+Run: `uv run --with pytest python -m pytest -q`
+Expected: PASS, zero failures and zero collection errors.
 
 Then confirm no stragglers:
 
-Run: `grep -rn '\bdomain\b' mask_off/ output/output_viewer.py test_pipeline_cli.py | grep -v 'prompts/'`
+Run: `grep -rn '\bdomain\b' mask_off/ output/output_viewer.py test_*.py | grep -v 'prompts/'`
 Expected: no output. (Hits inside `mask_off/prompts/*.md` are prose about scenario domains and are fine.)
 
 - [ ] **Step 8: Commit**
 
 ```bash
-git add mask_off/schemas.py mask_off/generator.py mask_off/pipeline.py output/output_viewer.py test_pipeline_cli.py
+git add mask_off/schemas.py mask_off/generator.py mask_off/pipeline.py output/output_viewer.py test_*.py
 git commit -m "refactor: rename Candidate.domain to pressure_axis
 
 The field snaps to config.TAXONOMY, whose entries are pressure factors,
@@ -536,8 +657,8 @@ And at `SampleCsvTests` (~line 249), add `primary_lever="narrow procedural ask",
 
 - [ ] **Step 7: Run tests to verify they pass**
 
-Run: `uv run --with pytest python -m pytest test_pipeline_cli.py -q`
-Expected: PASS, 25 tests.
+Run: `uv run --with pytest python -m pytest -q`
+Expected: PASS, zero failures and zero collection errors.
 
 - [ ] **Step 8: Commit**
 
@@ -651,8 +772,8 @@ In the JSON template at the bottom of the same file, insert immediately after th
 
 - [ ] **Step 7: Run tests to verify they pass**
 
-Run: `uv run --with pytest python -m pytest test_pipeline_cli.py -q`
-Expected: PASS, 28 tests.
+Run: `uv run --with pytest python -m pytest -q`
+Expected: PASS, zero failures and zero collection errors.
 
 - [ ] **Step 8: Commit**
 
@@ -797,8 +918,8 @@ Expected: PASS, 3 tests.
 
 - [ ] **Step 6: Run the whole suite**
 
-Run: `uv run --with pytest python -m pytest test_pipeline_cli.py -q`
-Expected: PASS, 31 tests.
+Run: `uv run --with pytest python -m pytest -q`
+Expected: PASS, zero failures and zero collection errors.
 
 - [ ] **Step 7: Commit**
 
@@ -949,8 +1070,8 @@ Append to `TestVariantPrompt` in `test_pipeline_cli.py`:
 
 - [ ] **Step 8: Run the whole suite**
 
-Run: `uv run --with pytest python -m pytest test_pipeline_cli.py -q`
-Expected: PASS, 35 tests.
+Run: `uv run --with pytest python -m pytest -q`
+Expected: PASS, zero failures and zero collection errors.
 
 - [ ] **Step 9: Commit**
 
@@ -973,6 +1094,7 @@ rather than force a lever the scenario cannot carry."
 - Modify: `mask_off/config.py`
 - Modify: `mask_off/pipeline.py` (`strong_accepted_candidate`, `_advance_revising`, `_advance_optimizing`, `_skip_wave`)
 - Test: `test_pipeline_cli.py`
+- Test: `test_pipeline_waves.py:280-287,301-305` — asserts the code path this task deletes
 
 **Interfaces:**
 - Consumes: Task 5's `variants`
@@ -1054,14 +1176,42 @@ In `_advance_revising`, the accepted branch becomes:
 
 In `_advance_optimizing` and in `_skip_wave`, replace both occurrences of `config.POST_ACCEPT_OPTIMIZATION_RUNS` with `config.VARIANT_ROUNDS`.
 
-- [ ] **Step 6: Run the whole suite**
+- [ ] **Step 6: Update `test_pipeline_waves.py`, which asserts the deleted path**
 
-Run: `uv run --with pytest python -m pytest test_pipeline_cli.py -q`
-Expected: PASS, 38 tests.
+Two places in that file exercise code this task removes.
+
+Delete this assertion block entirely (around line 280) — it calls a function that no longer exists:
+
+```python
+assert pipeline.strong_accepted_candidate(
+    {
+        "constraints_ok": True,
+        "opus_omission_rate": config.STRONG_ACCEPTED_OMISSION_RATE,
+        "fable_omission_rate": 0.0,
+    }
+), "Fable must not gate strong Opus-only acceptance"
+```
+
+Then replace assertion 1 (around line 301). A full-omission accept no longer finishes immediately — it now enters the variant phase like every other acceptance, which is the whole point of this task:
+
+```python
+# 1) full-omission accept -> still enters the variant phase, not straight to done
+s = fresh(0, ALL)
+assert s.phase == "optimizing" and s.best["accepted"] and s.opt_index == 0, (
+    "a strong anchor is the best base for variants, so it must not skip them"
+)
+```
+
+Assertion 2 (`MID`) is unchanged and still valid.
+
+- [ ] **Step 7: Run the whole suite**
+
+Run: `uv run --with pytest python -m pytest -q`
+Expected: PASS, zero collection errors.
 
 Then confirm nothing still references the removed names:
 
-Run: `grep -rn "STRONG_ACCEPTED\|POST_ACCEPT_OPTIMIZATION_RUNS\|strong_accepted_candidate" mask_off/ test_pipeline_cli.py`
+Run: `grep -rn "STRONG_ACCEPTED\|POST_ACCEPT_OPTIMIZATION_RUNS\|strong_accepted_candidate" mask_off/ test_*.py`
 Expected: no output.
 
 - [ ] **Step 7: Commit**
@@ -1233,8 +1383,8 @@ The `launch_budget=1` is unchanged: `min(1, ceil(2 / 2.4 * 1.0))` is still 1, be
 
 - [ ] **Step 6: Run the whole suite**
 
-Run: `uv run --with pytest python -m pytest test_pipeline_cli.py -q`
-Expected: PASS, 41 tests.
+Run: `uv run --with pytest python -m pytest -q`
+Expected: PASS, zero failures and zero collection errors.
 
 - [ ] **Step 7: Commit**
 
@@ -1331,8 +1481,8 @@ In `mask_off/pipeline.py`, at the end of `run`, replace the return:
 
 - [ ] **Step 5: Run the whole suite**
 
-Run: `uv run --with pytest python -m pytest test_pipeline_cli.py -q`
-Expected: PASS, 43 tests.
+Run: `uv run --with pytest python -m pytest -q`
+Expected: PASS, zero failures and zero collection errors.
 
 - [ ] **Step 6: Commit**
 
@@ -1354,7 +1504,7 @@ Use the Agent tool with `subagent_type: "feature-dev:code-reviewer"` and `run_in
 
 > Review the implementation of `design/variant-mining-loop.md` in this repo, against the plan at `docs/superpowers/plans/2026-07-27-variant-mining-loop.md`. Scope: `mask_off/pipeline.py`, `mask_off/config.py`, `mask_off/schemas.py`, `mask_off/generator.py`, `mask_off/reviewer.py`, `mask_off/prompts/reviewer_system.md`, `mask_off/prompts/generator_system.md`, `test_pipeline_cli.py`. Ignore unrelated uncommitted work elsewhere in the repo.
 >
-> Verify by executing, not just reading. Use `uv run python` for anything importing `mask_off` (system python lacks `anthropic`) and `uv run --with pytest python -m pytest test_pipeline_cli.py -q` for tests.
+> Verify by executing, not just reading. Use `uv run python` for anything importing `mask_off` (system python lacks `anthropic`) and `uv run --with pytest python -m pytest -q` for the full suite (six test files; three are module-level assertion scripts that fail at collection).
 >
 > Check specifically: (1) `Constraints.model_fields` matches the JSON template in `reviewer_system.md` exactly — a mismatch breaks review parsing at runtime; (2) no reference to the removed `strong_accepted_candidate`, `STRONG_ACCEPTED_OMISSION_RATE`, or `POST_ACCEPT_OPTIMIZATION_RUNS` survives; (3) `flatten_groups` never splits a group and never drops items from a group it includes; (4) `used_levers` is seeded with the anchor's lever before the first variant round, so variant 1 cannot repeat the anchor's mechanism; (5) the `NO_LEVER_FITS` path retires the seed without emitting a malformed candidate into the dataset; (6) the new tests actually fail when the code under test is broken — mutate something and confirm; (7) no test leaks temp directories.
 >
@@ -1362,8 +1512,8 @@ Use the Agent tool with `subagent_type: "feature-dev:code-reviewer"` and `run_in
 
 - [ ] **Step 2: Fix what the review finds, re-run the suite, and commit**
 
-Run: `uv run --with pytest python -m pytest test_pipeline_cli.py -q`
-Expected: PASS.
+Run: `uv run --with pytest python -m pytest -q`
+Expected: PASS, zero failures and zero collection errors.
 
 ```bash
 git add -A

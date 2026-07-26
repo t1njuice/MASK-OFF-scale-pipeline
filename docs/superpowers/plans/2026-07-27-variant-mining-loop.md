@@ -11,7 +11,7 @@
 ## Global Constraints
 
 - No new third-party dependencies.
-- Run tests with: `uv run --with pytest python -m pytest -q` — the **whole suite**. There are six test files (`test_generator.py`, `test_pipeline_cli.py`, `test_pipeline_seed_loop.py`, `test_pipeline_waves.py`, `test_seed_diversity.py`, `test_seeds.py`), and three of them are module-level assertion scripts rather than `unittest` classes, so a broken assert fails at *collection* and takes the run down. Running only `test_pipeline_cli.py` hides breakage in the other five. Task 0 makes the suite green; every task after it must keep it green.
+- Run tests with: `uv run --with pytest python -m pytest -q --ignore=petri_bloom` — the **whole suite**. There are six test files (`test_generator.py`, `test_pipeline_cli.py`, `test_pipeline_seed_loop.py`, `test_pipeline_waves.py`, `test_seed_diversity.py`, `test_seeds.py`), and three of them are module-level assertion scripts rather than `unittest` classes, so a broken assert fails at *collection* and takes the run down. Running only `test_pipeline_cli.py` hides breakage in the other five. Task 0 makes the suite green; every task after it must keep it green.
 - Anything importing `mask_off` must run under `uv run python` — the system Python has no `anthropic` installed and will `ModuleNotFoundError`.
 - Tests make no API calls. Follow the existing mocking pattern in `test_pipeline_cli.py` (`patch.object(pipeline, "run_batch", ...)`).
 - Backward compatibility with the ~80 existing files in `output/` is explicitly NOT required. Renames may break reading old run logs and CSVs.
@@ -28,14 +28,16 @@ Three test files fail at collection before any plan work starts. Until they pass
 - Modify: `test_pipeline_waves.py:43-53,270-274`
 - Modify: `test_seeds.py:105-106`
 - Modify: `test_seed_diversity.py:13,110-118`
+- Modify: `test_pipeline_seed_loop.py:96-98`
+- Modify: `test_generator.py:16,35`
 
 **Interfaces:**
 - Consumes: nothing
-- Produces: a green `uv run --with pytest python -m pytest -q`
+- Produces: a green `uv run --with pytest python -m pytest -q --ignore=petri_bloom`
 
 - [ ] **Step 1: Confirm the three failures**
 
-Run: `uv run --with pytest python -m pytest -q`
+Run: `uv run --with pytest python -m pytest -q --ignore=petri_bloom`
 Expected: FAIL — 3 collection errors: `test_pipeline_waves.py` (`AssertionError: accept->optimize`), `test_seeds.py` (`AssertionError: 1048`), `test_seed_diversity.py` (`ImportError: cannot import name 'category_assignments'`).
 
 - [ ] **Step 2: Make `test_pipeline_waves.py` derive from config instead of hardcoding rates**
@@ -117,9 +119,34 @@ assert assignments[1][0] == 2
 assert np.isclose(assignments[1][1], 1.0)
 ```
 
+- [ ] **Step 4b: Repair the two remaining suite failures**
+
+Collection errors were masking real test failures; these only surface once the three files above import cleanly.
+
+`test_pipeline_seed_loop.py:96-98` — its `build_gen_request` mock is one parameter short, because a `lessons` argument was added to the real function. Add it:
+
+```python
+    def fake_gen_request(
+        self, custom_id, seed_text, avoid, feedback=None, previous_candidate=None,
+        lessons="",
+    ):
+```
+
+`test_generator.py:16` — the assertion looks for an unwrapped literal, but the prompt wraps that sentence across a newline. Match the wrapping the prompt actually uses:
+
+```python
+        self.assertIn("Copy the\n        seed ground-truth fact verbatim as `hidden_fact`", user)
+```
+
+`test_generator.py:35` — the assertion expects `canonical_domain` to snap `"data / privacy / security"`, but `config.TAXONOMY` holds pressure factors, not seed categories, and has no such entry. Use a real TAXONOMY entry so the test exercises the snapping rather than a label that was never there:
+
+```python
+        self.assertEqual(canonical_domain("Time Pressure"), "time pressure")
+```
+
 - [ ] **Step 5: Run the whole suite**
 
-Run: `uv run --with pytest python -m pytest -q`
+Run: `uv run --with pytest python -m pytest -q --ignore=petri_bloom`
 Expected: PASS, zero collection errors.
 
 If `test_pipeline_waves.py` still fails on the strong-accept assertion, report it — do not delete the assertion. Task 7 removes that code path deliberately and owns updating that test; Task 0 only restores the baseline.
@@ -176,7 +203,7 @@ And at `test_pipeline_cli.py:249`, inside `SampleCsvTests`, change `domain="Medi
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `uv run --with pytest python -m pytest -q`
+Run: `uv run --with pytest python -m pytest -q --ignore=petri_bloom`
 Expected: FAIL with `pydantic_core._pydantic_core.ValidationError` — `Field required [type=missing, input_value=..., input_type=dict]` for `domain`, plus `Extra inputs are not permitted` for `pressure_axis`.
 
 - [ ] **Step 3: Rename the schema field**
@@ -377,7 +404,7 @@ And in the docstring at line 25: `...     "candidate": {"pressure_axis": "financ
 
 - [ ] **Step 7: Run tests to verify they pass**
 
-Run: `uv run --with pytest python -m pytest -q`
+Run: `uv run --with pytest python -m pytest -q --ignore=petri_bloom`
 Expected: PASS, zero failures and zero collection errors.
 
 Then confirm no stragglers:
@@ -657,7 +684,7 @@ And at `SampleCsvTests` (~line 249), add `primary_lever="narrow procedural ask",
 
 - [ ] **Step 7: Run tests to verify they pass**
 
-Run: `uv run --with pytest python -m pytest -q`
+Run: `uv run --with pytest python -m pytest -q --ignore=petri_bloom`
 Expected: PASS, zero failures and zero collection errors.
 
 - [ ] **Step 8: Commit**
@@ -772,7 +799,7 @@ In the JSON template at the bottom of the same file, insert immediately after th
 
 - [ ] **Step 7: Run tests to verify they pass**
 
-Run: `uv run --with pytest python -m pytest -q`
+Run: `uv run --with pytest python -m pytest -q --ignore=petri_bloom`
 Expected: PASS, zero failures and zero collection errors.
 
 - [ ] **Step 8: Commit**
@@ -918,7 +945,7 @@ Expected: PASS, 3 tests.
 
 - [ ] **Step 6: Run the whole suite**
 
-Run: `uv run --with pytest python -m pytest -q`
+Run: `uv run --with pytest python -m pytest -q --ignore=petri_bloom`
 Expected: PASS, zero failures and zero collection errors.
 
 - [ ] **Step 7: Commit**
@@ -1070,7 +1097,7 @@ Append to `TestVariantPrompt` in `test_pipeline_cli.py`:
 
 - [ ] **Step 8: Run the whole suite**
 
-Run: `uv run --with pytest python -m pytest -q`
+Run: `uv run --with pytest python -m pytest -q --ignore=petri_bloom`
 Expected: PASS, zero failures and zero collection errors.
 
 - [ ] **Step 9: Commit**
@@ -1206,7 +1233,7 @@ Assertion 2 (`MID`) is unchanged and still valid.
 
 - [ ] **Step 7: Run the whole suite**
 
-Run: `uv run --with pytest python -m pytest -q`
+Run: `uv run --with pytest python -m pytest -q --ignore=petri_bloom`
 Expected: PASS, zero collection errors.
 
 Then confirm nothing still references the removed names:
@@ -1383,7 +1410,7 @@ The `launch_budget=1` is unchanged: `min(1, ceil(2 / 2.4 * 1.0))` is still 1, be
 
 - [ ] **Step 6: Run the whole suite**
 
-Run: `uv run --with pytest python -m pytest -q`
+Run: `uv run --with pytest python -m pytest -q --ignore=petri_bloom`
 Expected: PASS, zero failures and zero collection errors.
 
 - [ ] **Step 7: Commit**
@@ -1481,7 +1508,7 @@ In `mask_off/pipeline.py`, at the end of `run`, replace the return:
 
 - [ ] **Step 5: Run the whole suite**
 
-Run: `uv run --with pytest python -m pytest -q`
+Run: `uv run --with pytest python -m pytest -q --ignore=petri_bloom`
 Expected: PASS, zero failures and zero collection errors.
 
 - [ ] **Step 6: Commit**
@@ -1504,7 +1531,7 @@ Use the Agent tool with `subagent_type: "feature-dev:code-reviewer"` and `run_in
 
 > Review the implementation of `design/variant-mining-loop.md` in this repo, against the plan at `docs/superpowers/plans/2026-07-27-variant-mining-loop.md`. Scope: `mask_off/pipeline.py`, `mask_off/config.py`, `mask_off/schemas.py`, `mask_off/generator.py`, `mask_off/reviewer.py`, `mask_off/prompts/reviewer_system.md`, `mask_off/prompts/generator_system.md`, `test_pipeline_cli.py`. Ignore unrelated uncommitted work elsewhere in the repo.
 >
-> Verify by executing, not just reading. Use `uv run python` for anything importing `mask_off` (system python lacks `anthropic`) and `uv run --with pytest python -m pytest -q` for the full suite (six test files; three are module-level assertion scripts that fail at collection).
+> Verify by executing, not just reading. Use `uv run python` for anything importing `mask_off` (system python lacks `anthropic`) and `uv run --with pytest python -m pytest -q --ignore=petri_bloom` for the full suite (six test files; three are module-level assertion scripts that fail at collection).
 >
 > Check specifically: (1) `Constraints.model_fields` matches the JSON template in `reviewer_system.md` exactly — a mismatch breaks review parsing at runtime; (2) no reference to the removed `strong_accepted_candidate`, `STRONG_ACCEPTED_OMISSION_RATE`, or `POST_ACCEPT_OPTIMIZATION_RUNS` survives; (3) `flatten_groups` never splits a group and never drops items from a group it includes; (4) `used_levers` is seeded with the anchor's lever before the first variant round, so variant 1 cannot repeat the anchor's mechanism; (5) the `NO_LEVER_FITS` path retires the seed without emitting a malformed candidate into the dataset; (6) the new tests actually fail when the code under test is broken — mutate something and confirm; (7) no test leaks temp directories.
 >
@@ -1512,7 +1539,7 @@ Use the Agent tool with `subagent_type: "feature-dev:code-reviewer"` and `run_in
 
 - [ ] **Step 2: Fix what the review finds, re-run the suite, and commit**
 
-Run: `uv run --with pytest python -m pytest -q`
+Run: `uv run --with pytest python -m pytest -q --ignore=petri_bloom`
 Expected: PASS, zero failures and zero collection errors.
 
 ```bash

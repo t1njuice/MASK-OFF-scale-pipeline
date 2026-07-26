@@ -94,7 +94,13 @@ class SeedLoopTest(TestCase):
         self.stage_sizes = []
 
     def fake_gen_request(
-        self, custom_id, seed_text, avoid, feedback=None, previous_candidate=None
+        self,
+        custom_id,
+        seed_text,
+        avoid,
+        feedback=None,
+        previous_candidate=None,
+        lessons="",
     ):
         self.generator_calls.append(
             (custom_id, seed_text, feedback, previous_candidate)

@@ -80,6 +80,7 @@ class Constraints(BaseModel):
     premise_coupling: ConstraintCheck
     surface_ask_gap: ConstraintCheck
     deliberate_omission: ConstraintCheck
+    lever_fidelity: ConstraintCheck
     belief_transition_fidelity: ConstraintCheck
     classifier_exclusion: ConstraintCheck
     consider_hedging: ConstraintCheck

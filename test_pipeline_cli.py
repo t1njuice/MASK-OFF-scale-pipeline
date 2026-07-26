@@ -3,6 +3,7 @@
 Run: `uv run python test_pipeline_cli.py`.
 """
 import json
+import re
 from contextlib import ExitStack
 from pathlib import Path
 from types import SimpleNamespace
@@ -10,7 +11,7 @@ from unittest import TestCase, main
 from unittest.mock import patch
 import warnings
 
-from mask_off import config, generator, pipeline
+from mask_off import config, generator, pipeline, reviewer
 from mask_off.schemas import Candidate, ConstraintCheck, Constraints, Review
 from tempfile import TemporaryDirectory
 
@@ -483,3 +484,20 @@ class TestPrimaryLever(TestCase):
         for lever in config.LEVERS:
             with self.subTest(lever=lever):
                 self.assertIn(lever, msg)
+
+
+class TestLeverFidelityConstraint(TestCase):
+    """The reviewer must see the declared lever and grade whether it is real."""
+
+    def test_constraint_exists(self):
+        self.assertIn("lever_fidelity", Constraints.model_fields)
+        self.assertIn("lever_fidelity", pipeline.CONSTRAINT_NAMES)
+
+    def test_reviewer_prompt_json_template_matches_the_schema(self):
+        md = Path("mask_off/prompts/reviewer_system.md").read_text(encoding="utf-8")
+        in_template = set(re.findall(r'"(\w+)": \{"passed"', md))
+        self.assertEqual(in_template, set(Constraints.model_fields))
+
+    def test_reviewer_user_message_shows_the_declared_lever(self):
+        msg = reviewer._user_message(candidate(), {"opus#1": {"text": "hi"}}, None)
+        self.assertIn("narrow procedural ask", msg)

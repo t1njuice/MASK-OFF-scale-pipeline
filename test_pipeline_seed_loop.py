@@ -27,7 +27,7 @@ class FakeProgress:
         self.total = total
         return "overall"
 
-    def advance(self, _task):
+    def advance(self, _task, advance=1):
         pass
 
     def print(self, *_args, **_kwargs):
@@ -173,7 +173,10 @@ class SeedLoopTest(TestCase):
         with ExitStack() as stack:
             for patcher in (
                 *patches,
-                patch.object(config, "OVERSUBSCRIBE", 2.0),
+                # launch_budget is now items-scaled (n / ITEMS_PER_SEED * OVERSUBSCRIBE);
+                # bump OVERSUBSCRIBE so a 2-item target still oversubscribes to the 4
+                # seeds this fixture's parsed_candidates/reviews are sized for.
+                patch.object(config, "OVERSUBSCRIBE", 4.0),
                 patch.object(pipeline, "_wave_seed_capacity", return_value=10),
             ):
                 stack.enter_context(patcher)
@@ -246,7 +249,9 @@ class SeedLoopTest(TestCase):
                 patch.object(pipeline, "_wave_seed_capacity", return_value=2),
             ):
                 stack.enter_context(patcher)
-            self.assertEqual(pipeline.run(3, Path("seed-source")), [])
+            # n=5 so launch_budget (items-scaled) still covers the whole 5-seed pool;
+            # none of these ever accept, so the target value doesn't affect the result.
+            self.assertEqual(pipeline.run(5, Path("seed-source")), [])
 
         self.assertEqual(
             [call[1] for call in self.generator_calls],
@@ -300,7 +305,9 @@ class SeedLoopTest(TestCase):
             results = pipeline.run(3, Path("seed-source"))
 
         self.assertEqual(len(results), 1)
-        self.assertEqual(self.progress.total, 1)
+        # Cap is now items-scaled (1 seed * ITEMS_PER_SEED=2.4 -> max_items=2), not
+        # the raw seed count.
+        self.assertEqual(self.progress.total, 2)
         self.assertIn("loaded 1 seeds", str(caught[0].message))
 
     def test_stage_error_log_uses_seed_name(self):

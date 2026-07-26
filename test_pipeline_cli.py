@@ -56,7 +56,7 @@ class FakeProgress:
         self.total = total
         return "overall"
 
-    def advance(self, _task):
+    def advance(self, _task, advance=1):
         pass
 
     def print(self, message, **_kwargs):
@@ -173,12 +173,12 @@ class PipelineCliTest(TestCase):
                 patch.object(config, "OVERSUBSCRIBE", 1.0),
             ):
                 stack.enter_context(patcher)
-            self.assertEqual(pipeline.run(2, Path("behaviors")), [])
+            self.assertEqual(pipeline.run(5, Path("behaviors")), [])
 
-        self.assertIn("loaded 1 seeds", str(caught[0].message))
+        self.assertIn("can produce at most ~2 items", str(caught[0].message))
         self.assertEqual(
             progress.messages[0],
-            "Loaded 1 seeds from behaviors; launch_budget=1 to reach 1.",
+            "Loaded 1 seeds from behaviors; launch_budget=1 to reach 2.",
         )
 
 
@@ -622,3 +622,21 @@ class TestVariantConfig(TestCase):
         ), patch.object(pipeline, "format_attempt_summary", return_value="summary"):
             pipeline._advance_revising(state, accepted_review())
         self.assertEqual(state.phase, "optimizing")
+
+
+class TestSeedGroupTruncation(TestCase):
+    """A group is an anchor plus its variants; cutting one in half is worse than
+    returning a couple of extra items."""
+
+    def test_a_group_is_never_split(self):
+        groups = [[{"id": 1}, {"id": 2}], [{"id": 3}, {"id": 4}, {"id": 5}]]
+        got = pipeline.flatten_groups(groups, n=3)
+        self.assertEqual([r["id"] for r in got], [1, 2, 3, 4, 5])
+
+    def test_groups_beyond_the_target_are_dropped_whole(self):
+        groups = [[{"id": 1}, {"id": 2}], [{"id": 3}], [{"id": 4}]]
+        got = pipeline.flatten_groups(groups, n=2)
+        self.assertEqual([r["id"] for r in got], [1, 2])
+
+    def test_empty_input_returns_empty(self):
+        self.assertEqual(pipeline.flatten_groups([], n=5), [])

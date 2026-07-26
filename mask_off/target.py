@@ -27,10 +27,10 @@ def _labels() -> list[tuple[str, str]]:
 
 
 def build_target_requests(cand_id: str, system_prompt: str, user_email: str) -> list[dict]:
-    """K_SAMPLES x TARGET_MODELS batch requests; custom_id = f'{cand_id}::{label}'."""
+    """Build API-safe batch requests for every target sample."""
     return [
         {
-            "custom_id": f"{cand_id}::{label}",
+            "custom_id": f"{cand_id}__{label.replace('#', '_')}",
             "params": message_params(
                 model,
                 config.TARGET_EFFORT,
@@ -50,13 +50,14 @@ def regroup_targets(cand_id: str, messages: dict) -> dict:
     A None message (errored/expired sample) becomes an empty response, which
     compute_rates already skips.
     """
-    prefix = f"{cand_id}::"
+    prefix = f"{cand_id}__"
     results = {}
     for custom_id, message in messages.items():
         if not custom_id.startswith(prefix):
             continue
-        label = custom_id[len(prefix):]
-        model = _MODEL_BY_SHORT[label.split("#")[0]]
+        short, sample = custom_id[len(prefix):].rsplit("_", 1)
+        label = f"{short}#{sample}"
+        model = _MODEL_BY_SHORT[short]
         if message is None:
             results[label] = {
                 "model": model,

@@ -5,41 +5,9 @@ app = marimo.App(width="full")
 
 
 @app.function(hide_code=True)
-def compression_ratio(texts):
-    import gzip
-
-    raw = "\n".join(texts).encode("utf-8")
-    return len(raw) / len(gzip.compress(raw, mtime=0))
-
-
-@app.function(hide_code=True)
 def short_label(category):
     """Legend-sized name: TAXONOMY entries carry long parenthetical guidance."""
     return category.split("(")[0].strip()
-
-
-@app.function(hide_code=True)
-def tag_agreement(tag, predicted_category, categories):
-    if tag is None:
-        return "missing"
-    categories_by_key = {
-        short_label(category).casefold(): category for category in categories
-    }
-    tag_category = categories_by_key.get(short_label(tag).casefold())
-    if tag_category is None:
-        return "not comparable"
-    return "agree" if tag_category == predicted_category else "disagree"
-
-
-@app.function(hide_code=True)
-def pair_type(left_tag, right_tag, has_tags):
-    if not has_tags:
-        return "All pairs"
-    if left_tag is None or right_tag is None:
-        return "Missing variation"
-    if left_tag == right_tag:
-        return "Same variation"
-    return "Different variation"
 
 
 @app.function(hide_code=True)
@@ -86,32 +54,30 @@ def taxonomy_embedding_rows(taxonomy):
 
 
 @app.function(hide_code=True)
-def cosine_matrix(embeddings):
-    import numpy as np
+def category_lookup(taxonomy_rows):
+    """Return a function mapping a variation tag to its parent category."""
+    import difflib
+    import re
 
-    matrix = np.asarray(embeddings, dtype=float)
-    normalized = matrix / np.linalg.norm(matrix, axis=1, keepdims=True)
-    return normalized @ normalized.T
+    def normalize(text):
+        text = text.lower().replace("’", "'")
+        text = text.replace("“", '"').replace("”", '"')
+        return re.sub(r"[^a-z0-9]+", " ", text).strip()
 
+    by_normalized = {
+        normalize(row["subcategory"]): row["category"] for row in taxonomy_rows
+    }
 
-@app.function(hide_code=True)
-def category_assignments(item_embeddings, category_embeddings):
-    import numpy as np
+    def lookup(tag):
+        key = normalize(tag)
+        if key in by_normalized:
+            return by_normalized[key]
+        # A couple of tags were spelling-corrected after the taxonomy file was
+        # written ("sope creep"), so fall back to the closest label.
+        match = difflib.get_close_matches(key, by_normalized, n=1, cutoff=0.85)
+        return by_normalized[match[0]] if match else "(unmapped)"
 
-    items = np.asarray(item_embeddings, dtype=float)
-    categories = np.asarray(category_embeddings, dtype=float)
-    items /= np.linalg.norm(items, axis=1, keepdims=True)
-    categories /= np.linalg.norm(categories, axis=1, keepdims=True)
-    scores = items @ categories.T
-    ranking = np.argsort(scores, axis=1)[:, ::-1]
-    return [
-        (
-            int(order[0]),
-            float(scores[index, order[0]]),
-            float(scores[index, order[0]] - scores[index, order[1]]),
-        )
-        for index, order in enumerate(ranking)
-    ]
+    return lookup
 
 
 @app.function(hide_code=True)
@@ -128,18 +94,6 @@ def pca_coordinates(embeddings):
     if coordinates.shape[1] == 1:
         coordinates = np.column_stack([coordinates, np.zeros(len(matrix))])
     return coordinates
-
-
-@app.function(hide_code=True)
-def nearest_neighbours(labels, similarities, selected_index):
-    import numpy as np
-
-    ranking = np.argsort(similarities[selected_index])[::-1]
-    return [
-        (labels[index], float(similarities[selected_index, index]))
-        for index in ranking
-        if index != selected_index
-    ][:3]
 
 
 @app.function(hide_code=True)
@@ -161,24 +115,94 @@ def embed_texts(texts, cache_path):
     }
     if missing:
         load_dotenv(cache_path.with_name(".env"))
-        response = OpenAI().embeddings.create(
-            model="text-embedding-3-small",
-            input=list(missing.values()),
-        )
-        results = sorted(response.data, key=lambda result: result.index)
-        cache.update(
-            {
-                key: result.embedding
-                for key, result in zip(missing, results, strict=True)
-            }
-        )
-        cache_path.write_text(json.dumps(cache), encoding="utf-8")
+        client = OpenAI()
+        # The endpoint rejects a request over 300k tokens or 2048 inputs. Split
+        # on a rough 4-chars-per-token estimate with headroom, so seed-length
+        # texts (~300 tokens each) batch without a tokeniser dependency.
+        batches, batch, tokens = [], [], 0
+        for key, text in missing.items():
+            estimate = len(text) // 4 + 1
+            if batch and (tokens + estimate > 200_000 or len(batch) >= 1000):
+                batches.append(batch)
+                batch, tokens = [], 0
+            batch.append((key, text))
+            tokens += estimate
+        if batch:
+            batches.append(batch)
+
+        for batch in batches:
+            response = client.embeddings.create(
+                model="text-embedding-3-small",
+                input=[text for _, text in batch],
+            )
+            results = sorted(response.data, key=lambda result: result.index)
+            cache.update(
+                {
+                    key: result.embedding
+                    for (key, _), result in zip(batch, results, strict=True)
+                }
+            )
+            # Persist per batch so a mid-run failure keeps the earlier calls.
+            cache_path.write_text(json.dumps(cache), encoding="utf-8")
 
     return [cache[key] for key in keys]
 
 
+@app.function
+def spherical_kmeans(matrix, clusters, restarts=10, seed=7):
+    """Cosine k-means on unit-norm rows; returns (labels, centres)."""
+    import numpy as np
+
+    best = None
+    for restart in range(restarts):
+        rng = np.random.default_rng(seed + restart)
+        centres = [matrix[rng.integers(len(matrix))]]
+        while len(centres) < clusters:
+            similarity = matrix @ np.vstack(centres).T
+            distance = 1.0 - similarity.max(axis=1)
+            weights = np.square(np.clip(distance, 0.0, None))
+            weights /= weights.sum()
+            centres.append(matrix[rng.choice(len(matrix), p=weights)])
+        centres = np.vstack(centres)
+        labels = np.full(len(matrix), -1, dtype=int)
+
+        for _iteration in range(100):
+            scores = matrix @ centres.T
+            next_labels = scores.argmax(axis=1)
+            # Steal the worst-fitting point for any cluster that emptied out,
+            # so the returned label set always covers every requested cluster.
+            available = np.ones(len(matrix), dtype=bool)
+            for missing in set(range(clusters)) - set(next_labels):
+                assigned = scores[np.arange(len(matrix)), next_labels]
+                replacement = np.argmin(np.where(available, assigned, np.inf))
+                next_labels[replacement] = missing
+                available[replacement] = False
+            if np.array_equal(labels, next_labels):
+                break
+            labels = next_labels
+
+            next_centres = []
+            for cluster in range(clusters):
+                members = matrix[labels == cluster]
+                if len(members) == 0:
+                    centre = matrix[scores.max(axis=1).argmin()]
+                else:
+                    centre = members.mean(axis=0)
+                    centre /= np.linalg.norm(centre)
+                next_centres.append(centre)
+            centres = np.vstack(next_centres)
+
+        scores = matrix @ centres.T
+        objective = float(scores[np.arange(len(matrix)), labels].sum())
+        if best is None or objective > best[0]:
+            best = (objective, labels.copy(), centres.copy())
+
+    return best[1], best[2]
+
+
 @app.cell
 def _():
+    from collections import Counter
     from pathlib import Path
 
     import altair as alt
@@ -186,19 +210,354 @@ def _():
     import numpy as np
     import polars as pl
 
+    from mask_off.seeds import _without_frontmatter as strip_frontmatter
     from mask_off.seeds import setting_key, variation_tag
 
-    return Path, alt, mo, np, pl, setting_key, variation_tag
+    return (
+        Counter,
+        Path,
+        alt,
+        mo,
+        np,
+        pl,
+        setting_key,
+        strip_frontmatter,
+        variation_tag,
+    )
 
 
 @app.cell
 def _(mo):
     mo.md(r"""
-    # Seed setting/role diversity
+    # Unsupervised subcategory clusters
 
-    Compare one seed folder at a time. The embedding distribution gives the
-    overview; the nearest-neighbour tables identify seeds worth rewriting.
+    The taxonomy's raw subcategory labels are embedded and clustered by cosine
+    similarity. The supplied category headings are used only after clustering,
+    to name each group and score its purity.
     """)
+    return
+
+
+@app.cell
+def _(Path, mo):
+    _taxonomy_path = Path(__file__).with_name("seed_subcategories.md")
+    taxonomy = parse_taxonomy(_taxonomy_path.read_text(encoding="utf-8"))
+    taxonomy_rows = taxonomy_embedding_rows(taxonomy)
+    category_names = list(taxonomy)
+    mo.md(
+        f"Loaded **{len(category_names)}** categories and "
+        f"**{len(taxonomy_rows)}** subcategories from `{_taxonomy_path.name}`."
+    )
+    return category_names, taxonomy_rows
+
+
+@app.cell
+def _(Path, category_names, mo, np, pl, taxonomy_rows):
+    _raw_subcategories = [row["subcategory"] for row in taxonomy_rows]
+    _source_categories = [row["category"] for row in taxonomy_rows]
+    _cache_path = Path(__file__).with_name(".embed_cache.json")
+    _raw_embeddings = np.asarray(
+        embed_texts(_raw_subcategories, _cache_path),
+        dtype=float,
+    )
+    _raw_embeddings /= np.linalg.norm(
+        _raw_embeddings,
+        axis=1,
+        keepdims=True,
+    )
+    _pairwise_similarities = _raw_embeddings @ _raw_embeddings.T
+    np.fill_diagonal(_pairwise_similarities, -np.inf)
+    _nearest_indices = _pairwise_similarities.argmax(axis=1)
+
+    def _spherical_kmeans(_matrix, _clusters, _restarts=10, _seed=7):
+        _best = None
+        for _restart in range(_restarts):
+            _rng = np.random.default_rng(_seed + _restart)
+            _centres = [_matrix[_rng.integers(len(_matrix))]]
+            while len(_centres) < _clusters:
+                _similarity = _matrix @ np.vstack(_centres).T
+                _distance = 1.0 - _similarity.max(axis=1)
+                _weights = np.square(np.clip(_distance, 0.0, None))
+                _weights /= _weights.sum()
+                _centres.append(_matrix[_rng.choice(len(_matrix), p=_weights)])
+            _centres = np.vstack(_centres)
+            _labels = np.full(len(_matrix), -1, dtype=int)
+
+            for _iteration in range(100):
+                _scores = _matrix @ _centres.T
+                _next_labels = _scores.argmax(axis=1)
+                _missing_clusters = set(range(_clusters)) - set(_next_labels)
+                _available = np.ones(len(_matrix), dtype=bool)
+                for _missing_cluster in _missing_clusters:
+                    _assigned_scores = _scores[
+                        np.arange(len(_matrix)),
+                        _next_labels,
+                    ]
+                    _replacement = np.argmin(
+                        np.where(_available, _assigned_scores, np.inf)
+                    )
+                    _next_labels[_replacement] = _missing_cluster
+                    _available[_replacement] = False
+                if np.array_equal(_labels, _next_labels):
+                    break
+                _labels = _next_labels
+
+                _next_centres = []
+                for _cluster in range(_clusters):
+                    _members = _matrix[_labels == _cluster]
+                    if len(_members) == 0:
+                        _replacement = _scores.max(axis=1).argmin()
+                        _centre = _matrix[_replacement]
+                    else:
+                        _centre = _members.mean(axis=0)
+                        _centre /= np.linalg.norm(_centre)
+                    _next_centres.append(_centre)
+                _centres = np.vstack(_next_centres)
+
+            _scores = _matrix @ _centres.T
+            _objective = float(
+                _scores[np.arange(len(_matrix)), _labels].sum()
+            )
+            if _best is None or _objective > _best[0]:
+                _best = (_objective, _labels.copy(), _centres.copy())
+
+        return _best[1], _best[2]
+
+    _cluster_ids, _cluster_centres = _spherical_kmeans(
+        _raw_embeddings,
+        len(category_names),
+    )
+    _cluster_scores = _raw_embeddings @ _cluster_centres.T
+    _cluster_coordinates = pca_coordinates(_raw_embeddings)
+    _cluster_labels = {}
+    _summary_rows = []
+    for _cluster_id in range(len(category_names)):
+        _member_indices = np.flatnonzero(_cluster_ids == _cluster_id)
+        _counts = {
+            _category: sum(
+                _source_categories[_index] == _category
+                for _index in _member_indices
+            )
+            for _category in category_names
+        }
+        _ranked_categories = sorted(
+            _counts.items(),
+            key=lambda _item: (
+                -_item[1],
+                category_names.index(_item[0]),
+            ),
+        )
+        _cluster_label, _largest_group = _ranked_categories[0]
+        _cluster_labels[_cluster_id] = _cluster_label
+        _composition = ", ".join(
+            f"{short_label(_category)}: {_count}"
+            for _category, _count in _ranked_categories
+            if _count
+        )
+        _summary_rows.append(
+            {
+                "cluster": _cluster_id + 1,
+                "majority_category": _cluster_label,
+                "subcategories": len(_member_indices),
+                "purity": round(_largest_group / len(_member_indices), 3),
+                "category_composition": _composition,
+            }
+        )
+
+    subcategory_clusters = pl.DataFrame(
+        [
+            {
+                "subcategory": _subcategory,
+                "source_category": _source_category,
+                "cluster": int(_cluster_id) + 1,
+                "majority_category": _cluster_labels[int(_cluster_id)],
+                "matches_majority": (
+                    _source_category == _cluster_labels[int(_cluster_id)]
+                ),
+                "cosine_to_centroid": round(
+                    float(_cluster_scores[_index, _cluster_id]),
+                    3,
+                ),
+                "pc1": float(_cluster_coordinates[_index, 0]),
+                "pc2": float(_cluster_coordinates[_index, 1]),
+                "nearest_subcategory": _raw_subcategories[
+                    _nearest_indices[_index]
+                ],
+                "nearest_source_category": _source_categories[
+                    _nearest_indices[_index]
+                ],
+                "nearest_neighbor_cosine": round(
+                    float(
+                        _pairwise_similarities[
+                            _index,
+                            _nearest_indices[_index],
+                        ]
+                    ),
+                    3,
+                ),
+            }
+            for _index, (_subcategory, _source_category, _cluster_id) in enumerate(
+                zip(
+                    _raw_subcategories,
+                    _source_categories,
+                    _cluster_ids,
+                    strict=True,
+                )
+            )
+        ]
+    ).sort(["cluster", "cosine_to_centroid"], descending=[False, True])
+    _cluster_summary = pl.DataFrame(_summary_rows).sort("cluster")
+
+    mo.vstack(
+        [
+            mo.md(
+                "## Unsupervised subcategory clusters\n\n"
+                "The raw subcategory text is clustered into 14 semantic groups "
+                "with cosine-based spherical k-means. The supplied category "
+                "headings are used only after clustering to name each group "
+                "and calculate purity, so they cannot leak into the features. "
+                "The first run embeds the raw labels through OpenAI and stores "
+                "them in the existing local cache."
+            ),
+            mo.ui.table(
+                _cluster_summary,
+                pagination=False,
+                wrapped_columns=["category_composition"],
+            ),
+            mo.ui.table(
+                subcategory_clusters,
+                page_size=25,
+                wrapped_columns=[
+                    "subcategory",
+                    "source_category",
+                    "majority_category",
+                ],
+            ),
+        ]
+    )
+    return (subcategory_clusters,)
+
+
+@app.cell
+def _(alt, mo, pl, subcategory_clusters):
+    mo.stop(
+        subcategory_clusters.is_empty(),
+        mo.callout("No clustered subcategories to visualize.", kind="info"),
+    )
+
+    _clusters = sorted(subcategory_clusters["cluster"].unique().to_list())
+    _base_names = {
+        row["cluster"]: short_label(row["majority_category"])
+        for row in (
+            subcategory_clusters.select("cluster", "majority_category")
+            .unique()
+            .to_dicts()
+        )
+    }
+    _base_name_totals = {
+        name: list(_base_names.values()).count(name)
+        for name in set(_base_names.values())
+    }
+    _base_name_seen = {name: 0 for name in _base_name_totals}
+    _cluster_names = {}
+    for _cluster in _clusters:
+        _base_name = _base_names[_cluster]
+        _base_name_seen[_base_name] += 1
+        _suffix = chr(64 + _base_name_seen[_base_name])
+        _cluster_names[_cluster] = (
+            f"{_base_name} ({_suffix})"
+            if _base_name_totals[_base_name] > 1
+            else _base_name
+        )
+    _cluster_order = [_cluster_names[cluster] for cluster in _clusters]
+    _plot_data = subcategory_clusters.with_columns(
+        pl.col("cluster")
+        .replace_strict(_cluster_names)
+        .alias("cluster_name")
+    )
+    _cluster_diagram = (
+        alt.Chart(_plot_data.filter(pl.col("nearest_neighbor_cosine") <= 0.5))
+        .mark_circle(
+            opacity=0.72,
+            stroke="#ffffff",
+            strokeWidth=0.4,
+        )
+        .encode(
+            x=alt.X(
+                "pc1:Q",
+                title="PCA 1",
+                scale=alt.Scale(zero=False),
+            ),
+            y=alt.Y(
+                "pc2:Q",
+                title="PCA 2",
+                scale=alt.Scale(zero=False),
+            ),
+            color=alt.Color(
+                "cluster_name:N",
+                title="Category-like cluster name",
+                sort=_cluster_order,
+                scale=alt.Scale(scheme="tableau20"),
+                legend=alt.Legend(
+                    columns=2,
+                    orient="right",
+                    symbolLimit=20,
+                ),
+            ),
+            size=alt.Size(
+                "nearest_neighbor_cosine:Q",
+                title="Nearest-neighbour cosine",
+                scale=alt.Scale(zero=False, range=[28, 150]),
+            ),
+            tooltip=[
+                alt.Tooltip("subcategory:N", title="Subcategory"),
+                alt.Tooltip("source_category:N", title="Original category"),
+                alt.Tooltip("cluster_name:N", title="Cluster name"),
+                alt.Tooltip(
+                    "majority_category:N",
+                    title="Cluster majority",
+                ),
+                alt.Tooltip(
+                    "nearest_subcategory:N",
+                    title="Nearest subcategory",
+                ),
+                alt.Tooltip(
+                    "nearest_source_category:N",
+                    title="Nearest original category",
+                ),
+                alt.Tooltip(
+                    "nearest_neighbor_cosine:Q",
+                    title="Nearest-neighbour cosine",
+                    format=".3f",
+                ),
+            ],
+        )
+        .properties(
+            title="Subcategory clusters",
+            width=500,
+            height=540,
+        )
+        .configure_axis(
+            domainColor="#9ca3af",
+            gridColor="#e5e7eb",
+            labelColor="#374151",
+            titleColor="#111827",
+        )
+        .configure_view(stroke="#d1d5db")
+    )
+
+    mo.vstack(
+        [
+            mo.md(
+                "## Cluster map\n\n"
+                "Colour identifies the semantic cluster; larger points have a "
+                "more similar nearest neighbour. PCA is only a 2D view - "
+                "clustering and pairwise similarity use the full embedding "
+                "vectors."
+            ),
+            mo.ui.altair_chart(_cluster_diagram),
+        ]
+    )
     return
 
 
@@ -209,622 +568,377 @@ def _(mo):
         label="Seed folder",
         full_width=True,
     )
-    seed_folder
-    return (seed_folder,)
-
-
-@app.cell
-def _(Path, mo, pl, seed_folder, setting_key, variation_tag):
-    folder = Path(seed_folder.value).expanduser()
-    if not folder.is_absolute():
-        folder = (Path(__file__).parent / folder).resolve()
-
-    mo.stop(
-        not folder.is_dir(),
-        mo.callout(f"Seed folder does not exist: `{folder}`", kind="danger"),
-    )
-    _paths = sorted(folder.glob("*.md"))
-    mo.stop(
-        not _paths,
-        mo.callout(f"No Markdown seeds found in: `{folder}`", kind="danger"),
-    )
-
-    _records = []
-    _unparsed = []
-    for _path in _paths:
-        _text = _path.read_text(encoding="utf-8")
-        _setting = setting_key(_text)
-        if _setting is None:
-            _unparsed.append(_path.name)
-        else:
-            _records.append(
-                {
-                    "filename": _path.name,
-                    "tag": variation_tag(_text),
-                    "setting": _setting,
-                }
-            )
-
-    mo.stop(
-        not _records,
-        mo.callout("No settings or roles could be parsed.", kind="danger"),
-    )
-    mo.stop(
-        len(_records) < 2,
-        mo.callout(
-            "At least two parsed seeds are required to measure diversity.",
-            kind="danger",
-        ),
-    )
-    seeds = pl.DataFrame(_records)
-    unparsed = pl.DataFrame({"filename": _unparsed})
-    _status = mo.callout(
-        f"Loaded **{len(seeds)}** settings from `{folder}`.",
-        kind="success",
-    )
-    mo.vstack(
-        [_status]
-        if unparsed.is_empty()
-        else [
-            _status,
-            mo.callout(
-                "These files were not embedded because their setting marker "
-                "was not recognised:",
-                kind="warn",
-            ),
-            mo.ui.table(unparsed, pagination=False),
-        ]
-    )
-    return folder, seeds
-
-
-@app.cell
-def _(Path, mo, parse_taxonomy, taxonomy_embedding_rows):
-    _taxonomy_path = Path(__file__).with_name("seed_subcategories.md")
-    taxonomy = parse_taxonomy(_taxonomy_path.read_text(encoding="utf-8"))
-    taxonomy_rows = taxonomy_embedding_rows(taxonomy)
-    category_names = list(taxonomy)
-    mo.md(
-        f"Loaded **{len(category_names)}** categories and "
-        f"**{len(taxonomy_rows)}** subcategories from `{_taxonomy_path.name}`."
-    )
-    return category_names, taxonomy, taxonomy_rows
-
-
-@app.cell
-def _(mo, pl, seeds):
-    _settings = seeds["setting"].to_list()
-    lexical_metrics = pl.DataFrame(
-        {
-            "metric": [
-                "Gzip compression ratio (↓ more diverse)",
-                "Mean setting length (words)",
-            ],
-            "value": [
-                round(compression_ratio(_settings), 3),
-                round(
-                    sum(len(text.split()) for text in _settings) / len(_settings),
-                    1,
-                ),
-            ],
-        }
+    seed_embed_field = mo.ui.dropdown(
+        options=["Whole seed", "Setting/role only"],
+        value="Whole seed",
+        label="Text to embed",
     )
     mo.vstack(
         [
             mo.md(
-                "## Paper-aligned lexical diversity check\n\n"
-                "Following [Shaib et al. (2024)]"
-                "(https://arxiv.org/html/2403.00553v1), gzip compression ratio "
-                "is reported with text length. Higher compression means more "
-                "repeated wording. Compare folders or revisions only when "
-                "their typical lengths are similar; the embedding analysis "
-                "below remains the semantic check."
+                "## Seed groups by variation\n\n"
+                "The seeds already carry their subcategory in the `variation:` "
+                "frontmatter, so there is nothing to discover with k-means: each "
+                "tag is its own group. Embedding measures how far apart the seeds "
+                "*within* a subcategory landed — a high mean pairwise cosine means "
+                "that subcategory produced near-duplicates."
             ),
-            mo.ui.table(lexical_metrics, pagination=False),
+            seed_folder,
+            seed_embed_field,
         ]
     )
-    return
+    return seed_embed_field, seed_folder
 
 
 @app.cell
 def _(
     Path,
-    category_names,
-    folder,
     mo,
-    np,
-    seeds,
-    taxonomy_rows,
+    pl,
+    seed_embed_field,
+    seed_folder,
+    setting_key,
+    strip_frontmatter,
+    variation_tag,
 ):
-    _cache_path = Path(__file__).with_name(".embed_cache.json")
-    _seed_texts = seeds["setting"].to_list()
-    _subcategory_texts = [row["embedding_text"] for row in taxonomy_rows]
-    _all_texts = _seed_texts + category_names + _subcategory_texts
-    _all_embeddings = np.asarray(
-        embed_texts(_all_texts, _cache_path),
+    _folder = Path(seed_folder.value).expanduser()
+    if not _folder.is_absolute():
+        _folder = (Path(__file__).parent / _folder).resolve()
+    mo.stop(
+        not _folder.is_dir(),
+        mo.callout(f"Seed folder does not exist: `{_folder}`", kind="danger"),
+    )
+
+    import yaml
+
+    def _clean_tag(raw):
+        # A handful of tags reach the frontmatter still YAML-quoted or
+        # escaped (\xE9), because variation_tag splits on ':' rather than
+        # parsing. Round-trip them so the group reads as its subcategory.
+        if raw is None:
+            return "(untagged)"
+        try:
+            parsed = yaml.safe_load(raw)
+        except yaml.YAMLError:
+            return raw
+        return parsed if isinstance(parsed, str) and parsed else raw
+
+    _records = []
+    _skipped = []
+    for _path in sorted(_folder.glob("*.md")):
+        _raw = _path.read_text(encoding="utf-8")
+        _body = strip_frontmatter(_raw)
+        _text = _body if seed_embed_field.value == "Whole seed" else setting_key(_raw)
+        if not _text or not _text.strip():
+            _skipped.append(_path.name)
+            continue
+        _records.append(
+            {
+                "seed": _path.stem,
+                "variation": _clean_tag(variation_tag(_raw)),
+                "text": " ".join(_text.split()),
+            }
+        )
+
+    mo.stop(
+        not _records,
+        mo.callout(f"No usable seeds in `{_folder}`.", kind="danger"),
+    )
+    seed_records = pl.DataFrame(_records)
+    _loaded = mo.callout(
+        f"Loaded **{len(seed_records)}** seeds from `{_folder.name}`.",
+        kind="success",
+    )
+    mo.vstack(
+        [_loaded]
+        if not _skipped
+        else [
+            _loaded,
+            mo.callout(
+                "Skipped (no text for the selected field): "
+                + ", ".join(_skipped),
+                kind="warn",
+            ),
+        ]
+    )
+    return (seed_records,)
+
+
+@app.cell
+def _(Path, mo, np, pl, seed_records):
+    _embeddings = np.asarray(
+        embed_texts(
+            seed_records["text"].to_list(),
+            Path(__file__).with_name(".embed_cache.json"),
+        ),
         dtype=float,
     )
+    _embeddings /= np.linalg.norm(_embeddings, axis=1, keepdims=True)
+    _pairwise = _embeddings @ _embeddings.T
+    np.fill_diagonal(_pairwise, -np.inf)
+    _nearest = _pairwise.argmax(axis=1)
 
-    _seed_end = len(_seed_texts)
-    _category_end = _seed_end + len(category_names)
-    embedding_matrix = _all_embeddings[:_seed_end]
-    category_embeddings = _all_embeddings[_seed_end:_category_end]
-    subcategory_embedding_matrix = _all_embeddings[_category_end:]
-    similarities = cosine_matrix(embedding_matrix)
-    mo.md(
-        f"Embedded **{len(seeds)}** parsed seeds from `{folder.name}`, "
-        f"**{len(category_names)}** categories, and "
-        f"**{len(taxonomy_rows)}** subcategories."
-    )
-    return (
-        category_embeddings,
-        embedding_matrix,
-        similarities,
-        subcategory_embedding_matrix,
-    )
-
-
-@app.cell
-def _(pl, seeds, similarities):
-    _names = seeds["filename"].to_list()
-    _tags = seeds["tag"].to_list()
-    _settings = seeds["setting"].to_list()
-    _has_tags = any(tag is not None for tag in _tags)
-    _pair_rows = []
-    for _left in range(len(seeds)):
-        for _right in range(_left + 1, len(seeds)):
-            _pair_rows.append(
-                {
-                    "left": _names[_left],
-                    "left_tag": _tags[_left],
-                    "left_setting": _settings[_left],
-                    "right": _names[_right],
-                    "right_tag": _tags[_right],
-                    "right_setting": _settings[_right],
-                    "pair_type": pair_type(
-                        _tags[_left],
-                        _tags[_right],
-                        _has_tags,
-                    ),
-                    "similarity": float(similarities[_left, _right]),
-                }
-            )
-
-    pairs = pl.DataFrame(_pair_rows)
-    summary = (
-        pairs.group_by("pair_type")
-        .agg(
-            pl.len().alias("pairs"),
-            pl.col("similarity").mean().round(3).alias("mean"),
-            pl.col("similarity").median().round(3).alias("median"),
-            pl.col("similarity").quantile(0.9).round(3).alias("p90"),
-        )
-        .sort("pair_type")
-    )
-    return pairs, summary
-
-
-@app.cell
-def _(alt, mo, pairs, summary):
-    histogram = (
-        alt.Chart(pairs)
-        .mark_bar(opacity=0.55)
-        .encode(
-            x=alt.X(
-                "similarity:Q",
-                bin=alt.Bin(maxbins=30),
-                title="Cosine similarity",
-            ),
-            y=alt.Y("count():Q", stack=None, title="Pair count"),
-            color=alt.Color("pair_type:N", title="Pair type"),
-            tooltip=[
-                alt.Tooltip("pair_type:N", title="Pair type"),
-                alt.Tooltip("count():Q", title="Pairs"),
-            ],
-        )
-        .properties(title="Pairwise setting/role similarity", height=320)
-    )
-    mo.vstack(
-        [
-            mo.md("## Similarity distribution"),
-            histogram,
-            mo.ui.table(summary, pagination=False),
-        ]
-    )
-    return
-
-
-@app.cell
-def _(mo, np, pairs, pl, seeds, similarities):
-    _without_diagonal = similarities.copy()
-    np.fill_diagonal(_without_diagonal, -np.inf)
-    _nearest_indices = _without_diagonal.argmax(axis=1)
-    _names = seeds["filename"].to_list()
-    _tags = seeds["tag"].to_list()
-    _settings = seeds["setting"].to_list()
-    _ranking_rows = [
-        {
-            "filename": _names[_index],
-            "tag": _tags[_index],
-            "setting": _settings[_index],
-            "nearest_neighbour": _names[_nearest],
-            "nearest_setting": _settings[_nearest],
-            "cosine": float(similarities[_index, _nearest]),
-        }
-        for _index, _nearest in enumerate(_nearest_indices)
-    ]
-    redundancy = pl.DataFrame(_ranking_rows).sort("cosine", descending=True)
-    top_pairs = (
-        pairs.sort("similarity", descending=True)
-        .head(20)
-        .select(
-            "left",
-            "left_tag",
-            "left_setting",
-            "right",
-            "right_tag",
-            "right_setting",
-            "similarity",
-        )
-    )
-    mo.vstack(
-        [
-            mo.md("## Redundancy ranking"),
-            mo.ui.table(
-                redundancy,
-                page_size=20,
-                wrapped_columns=["setting", "nearest_setting"],
-            ),
-            mo.md("### 20 most-similar pairs"),
-            mo.ui.table(
-                top_pairs,
-                pagination=False,
-                wrapped_columns=["left_setting", "right_setting"],
-            ),
-        ]
-    )
-    return
-
-
-@app.cell
-def _(
-    category_assignments,
-    category_embeddings,
-    category_names,
-    cosine_matrix,
-    embedding_matrix,
-    nearest_neighbours,
-    pca_coordinates,
-    pl,
-    seeds,
-    short_label,
-    tag_agreement,
-):
-    _assignments = category_assignments(
-        embedding_matrix,
-        category_embeddings,
-    )
-    _rows = []
-    _seed_records = seeds.to_dicts()
-
-    for _category_index, _category in enumerate(category_names):
-        _indices = [
-            index
-            for index, assignment in enumerate(_assignments)
-            if assignment[0] == _category_index
-        ]
-        if not _indices:
-            continue
-
-        _local_embeddings = embedding_matrix[_indices]
-        _coordinates = pca_coordinates(_local_embeddings)
-        _local_similarities = cosine_matrix(_local_embeddings)
-        _local_names = [_seed_records[index]["filename"] for index in _indices]
-
-        for _position, _seed_index in enumerate(_indices):
-            _record = _seed_records[_seed_index]
-            _neighbour = (
-                nearest_neighbours(
-                    _local_names,
-                    _local_similarities,
-                    _position,
-                )[0]
-                if len(_indices) > 1
-                else (None, None)
-            )
-            _rows.append(
-                {
-                    **_record,
-                    "predicted_category": _category,
-                    "category_short": short_label(_category),
-                    "tag_agreement": tag_agreement(
-                        _record["tag"],
-                        _category,
-                        category_names,
-                    ),
-                    "category_score": _assignments[_seed_index][1],
-                    "category_margin": _assignments[_seed_index][2],
-                    "nearest_in_category": _neighbour[0],
-                    "nearest_cosine": _neighbour[1],
-                    "pc1": float(_coordinates[_position, 0]),
-                    "pc2": float(_coordinates[_position, 1]),
-                }
-            )
-
-    seed_category_points = pl.DataFrame(_rows)
-    return (seed_category_points,)
-
-
-@app.cell
-def _(alt, mo, seed_category_points):
-    _chart = (
-        alt.Chart(seed_category_points)
-        .mark_circle(size=90)
-        .encode(
-            x=alt.X("pc1:Q", title=None, axis=None),
-            y=alt.Y("pc2:Q", title=None, axis=None),
-            color=alt.Color(
-                "category_short:N",
-                title="Predicted category",
-                legend=None,
-            ),
-            facet=alt.Facet(
-                "category_short:N",
-                columns=3,
-                title=None,
-                header=alt.Header(labelLimit=220),
-            ),
-            tooltip=[
-                alt.Tooltip("filename:N", title="File"),
-                alt.Tooltip("predicted_category:N", title="Predicted category"),
-                alt.Tooltip("tag:N", title="Existing variation"),
-                alt.Tooltip("setting:N", title="Setting/role"),
-                alt.Tooltip("nearest_in_category:N", title="Closest seed"),
-                alt.Tooltip(
-                    "nearest_cosine:Q",
-                    title="Closest cosine",
-                    format=".3f",
-                ),
-            ],
-        )
-        .properties(width=220, height=160)
-        .resolve_scale(x="independent", y="independent")
-    )
-    seed_category_chart = mo.ui.altair_chart(_chart)
-    mo.vstack(
-        [
-            mo.md(
-                "## Seeds within predicted categories\n\n"
-                "Each panel has its own PCA projection. Use the numeric cosine "
-                "values in the selected-seed details as evidence."
-            ),
-            seed_category_chart,
-        ]
-    )
-    return (seed_category_chart,)
-
-
-@app.cell
-def _(mo, pl, seed_category_chart):
-    _selected = seed_category_chart.value
-    if len(_selected) == 0:
-        _details = mo.callout(
-            "Select a seed point to inspect its filename and nearest neighbour.",
-            kind="info",
-        )
-    else:
-        _row = _selected.iloc[0].to_dict()
-        _details = mo.ui.table(
-            pl.DataFrame(
-                [
-                    {
-                        "filename": _row["filename"],
-                        "predicted_category": _row["predicted_category"],
-                        "existing_tag": _row["tag"],
-                        "tag_agreement": _row["tag_agreement"],
-                        "category_score": round(_row["category_score"], 3),
-                        "runner_up_margin": round(_row["category_margin"], 3),
-                        "nearest_in_category": _row["nearest_in_category"],
-                        "nearest_cosine": (
-                            round(_row["nearest_cosine"], 3)
-                            if _row["nearest_cosine"] is not None
-                            else None
-                        ),
-                    }
-                ]
-            ),
-            pagination=False,
-        )
-    _details
-    return
-
-
-@app.cell
-def _(mo, taxonomy):
-    subcategory_selector = mo.ui.dropdown(
-        options=list(taxonomy),
-        value=list(taxonomy)[0],
-        label="Top-level category",
-        full_width=True,
-    )
-    mo.vstack(
-        [
-            mo.md(
-                "## Subcategory semantic similarity\n\n"
-                "Each point is one taxonomy subcategory. The projection is "
-                "approximate; the selected point's cosine ranking is exact."
-            ),
-            subcategory_selector,
-        ]
-    )
-    return (subcategory_selector,)
-
-
-@app.cell
-def _(
-    cosine_matrix,
-    mo,
-    np,
-    pca_coordinates,
-    pl,
-    subcategory_embedding_matrix,
-    subcategory_selector,
-    taxonomy_rows,
-):
-    _category = subcategory_selector.value
-    _indices = [
-        index
-        for index, row in enumerate(taxonomy_rows)
-        if row["category"] == _category
-    ]
-    _rows = [taxonomy_rows[index] for index in _indices]
-    _embeddings = subcategory_embedding_matrix[_indices]
+    _names = seed_records["seed"].to_list()
+    _variations = seed_records["variation"].to_list()
     _coordinates = pca_coordinates(_embeddings)
-    selected_subcategory_similarities = cosine_matrix(_embeddings)
-    selected_subcategory_labels = [row["subcategory"] for row in _rows]
-    subcategory_points = pl.DataFrame(
-        {
-            "category": [_category] * len(_rows),
-            "subcategory": selected_subcategory_labels,
-            "pc1": _coordinates[:, 0],
-            "pc2": _coordinates[:, 1],
-        }
-    )
 
-    _pairwise = selected_subcategory_similarities[
-        np.triu_indices(len(_rows), k=1)
-    ]
-    subcategory_summary = pl.DataFrame(
-        [
+    _members_by_variation = {}
+    for _index, _variation in enumerate(_variations):
+        _members_by_variation.setdefault(_variation, []).append(_index)
+
+    _summary_rows = []
+    _centroid_cosine = {}
+    for _variation, _members in _members_by_variation.items():
+        _block = _pairwise[np.ix_(_members, _members)]
+        # The diagonal is -inf, so read the pairs off the upper triangle.
+        _pairs = _block[np.triu_indices(len(_members), k=1)]
+        _centroid = _embeddings[_members].mean(axis=0)
+        _centroid /= np.linalg.norm(_centroid)
+        for _member in _members:
+            _centroid_cosine[_member] = float(_embeddings[_member] @ _centroid)
+        _summary_rows.append(
             {
-                "subcategories": len(_rows),
-                "mean_similarity": round(float(_pairwise.mean()), 3),
-                "median_similarity": round(float(np.median(_pairwise)), 3),
-                "p90_similarity": round(float(np.quantile(_pairwise, 0.9)), 3),
-                "mean_cosine_distance": round(
-                    float(1.0 - _pairwise.mean()),
+                "variation": _variation,
+                "seeds": len(_members),
+                "mean_pairwise_cosine": (
+                    round(float(_pairs.mean()), 3) if len(_pairs) else None
+                ),
+                "max_pairwise_cosine": (
+                    round(float(_pairs.max()), 3) if len(_pairs) else None
+                ),
+                # How often the closest seed anywhere in the set is one of
+                # this group's own: 1.0 means the subcategory is self-contained.
+                "self_nearest_rate": round(
+                    sum(_nearest[_member] in set(_members) for _member in _members)
+                    / len(_members),
                     3,
                 ),
             }
-        ]
-    )
-    mo.ui.table(subcategory_summary, pagination=False)
-    return (
-        selected_subcategory_labels,
-        selected_subcategory_similarities,
-        subcategory_points,
-    )
-
-
-@app.cell
-def _(alt, mo, subcategory_points):
-    _chart = (
-        alt.Chart(subcategory_points)
-        .mark_circle(size=105, color="#fb7185")
-        .encode(
-            x=alt.X("pc1:Q", title="PCA 1"),
-            y=alt.Y("pc2:Q", title="PCA 2"),
-            tooltip=[
-                alt.Tooltip("subcategory:N", title="Subcategory"),
-                alt.Tooltip("category:N", title="Category"),
-            ],
         )
-        .properties(
-            title="Subcategory embedding projection",
-            height=480,
-        )
-    )
-    subcategory_chart = mo.ui.altair_chart(_chart)
-    subcategory_chart
-    return (subcategory_chart,)
 
-
-@app.cell
-def _(
-    mo,
-    nearest_neighbours,
-    pl,
-    selected_subcategory_labels,
-    selected_subcategory_similarities,
-    subcategory_chart,
-):
-    _selected = subcategory_chart.value
-    if len(_selected) == 0:
-        _details = mo.callout(
-            "Select a subcategory point to see its three closest labels.",
-            kind="info",
-        )
-    else:
-        _selected_label = _selected.iloc[0]["subcategory"]
-        _selected_index = selected_subcategory_labels.index(_selected_label)
-        _neighbours = nearest_neighbours(
-            selected_subcategory_labels,
-            selected_subcategory_similarities,
-            _selected_index,
-        )
-        _details = mo.vstack(
-            [
-                mo.md(f"### {_selected_label}"),
-                mo.ui.table(
-                    pl.DataFrame(
-                        [
-                            {
-                                "nearest_subcategory": label,
-                                "cosine_similarity": round(similarity, 3),
-                            }
-                            for label, similarity in _neighbours
-                        ]
-                    ),
-                    pagination=False,
+    seed_groups = pl.DataFrame(
+        [
+            {
+                "seed": _name,
+                "variation": _variation,
+                "cosine_to_group_centroid": round(_centroid_cosine[_index], 3),
+                "nearest_seed": _names[_nearest[_index]],
+                "nearest_variation": _variations[_nearest[_index]],
+                "nearest_is_same_variation": (
+                    _variations[_nearest[_index]] == _variation
                 ),
-            ]
-        )
-    _details
-    return
+                "nearest_cosine": round(float(_pairwise[_index, _nearest[_index]]), 3),
+                "pc1": float(_coordinates[_index, 0]),
+                "pc2": float(_coordinates[_index, 1]),
+            }
+            for _index, (_name, _variation) in enumerate(
+                zip(_names, _variations, strict=True)
+            )
+        ]
+    ).sort(["variation", "cosine_to_group_centroid"], descending=[False, True])
 
-
-@app.cell
-def _(alt, embedding_matrix, mo, pca_coordinates, pl, seeds):
-    _coordinates = pca_coordinates(embedding_matrix)
-    scatter_data = pl.DataFrame(
-        {
-            "filename": seeds["filename"],
-            "tag": [
-                tag if tag is not None else "(none)"
-                for tag in seeds["tag"].to_list()
-            ],
-            "setting": seeds["setting"],
-            "pc1": _coordinates[:, 0],
-            "pc2": _coordinates[:, 1],
-        }
-    )
-    scatter = (
-        alt.Chart(scatter_data)
-        .mark_circle(size=90)
-        .encode(
-            x=alt.X("pc1:Q", title="PCA 1"),
-            y=alt.Y("pc2:Q", title="PCA 2"),
-            color=alt.Color("tag:N", title="Variation"),
-            tooltip=[
-                alt.Tooltip("filename:N", title="File"),
-                alt.Tooltip("tag:N", title="Variation"),
-                alt.Tooltip("setting:N", title="Setting/role"),
-            ],
-        )
-        .properties(title="PCA sketch of setting/role embeddings", height=420)
-        .interactive()
+    seed_group_summary = pl.DataFrame(_summary_rows).sort(
+        "mean_pairwise_cosine", descending=True, nulls_last=True
     )
     mo.vstack(
         [
             mo.md(
-                "## PCA scatter\n\n"
-                "Orientation only: a 2D projection of this small sample can "
-                "manufacture structure that is not present in the rankings."
+                f"**{len(seed_group_summary)}** variation groups over "
+                f"**{len(seed_groups)}** seeds. Sorted tightest first — the top "
+                "rows are the subcategories whose seeds repeat each other."
             ),
-            scatter,
+            mo.ui.table(seed_group_summary, page_size=25),
+            mo.ui.table(seed_groups, page_size=25),
+        ]
+    )
+    return seed_group_summary, seed_groups
+
+
+@app.cell
+def _(alt, mo, seed_group_summary):
+    # One point per variation rather than per seed: 260 colours would be an
+    # unreadable legend, and the question here is which groups are too tight.
+    _chart = (
+        alt.Chart(seed_group_summary.drop_nulls("mean_pairwise_cosine"))
+        .mark_circle(opacity=0.72, stroke="#ffffff", strokeWidth=0.4)
+        .encode(
+            x=alt.X(
+                "mean_pairwise_cosine:Q",
+                title="Mean pairwise cosine within the variation",
+                scale=alt.Scale(zero=False),
+            ),
+            y=alt.Y(
+                "max_pairwise_cosine:Q",
+                title="Closest pair within the variation",
+                scale=alt.Scale(zero=False),
+            ),
+            color=alt.Color(
+                "self_nearest_rate:Q",
+                title="Nearest seed is in-group",
+                scale=alt.Scale(scheme="viridis"),
+            ),
+            size=alt.Size("seeds:Q", title="Seeds", scale=alt.Scale(range=[30, 120])),
+            tooltip=[
+                alt.Tooltip("variation:N", title="Variation"),
+                alt.Tooltip("seeds:Q", title="Seeds"),
+                alt.Tooltip(
+                    "mean_pairwise_cosine:Q", title="Mean pairwise", format=".3f"
+                ),
+                alt.Tooltip(
+                    "max_pairwise_cosine:Q", title="Closest pair", format=".3f"
+                ),
+                alt.Tooltip(
+                    "self_nearest_rate:Q", title="In-group nearest", format=".2f"
+                ),
+            ],
+        )
+        .properties(title="Within-variation seed spread", width=760, height=540)
+        .configure_axis(
+            domainColor="#9ca3af",
+            gridColor="#e5e7eb",
+            labelColor="#374151",
+            titleColor="#111827",
+        )
+        .configure_view(stroke="#d1d5db")
+    )
+    mo.vstack(
+        [
+            mo.md(
+                "### Within-variation spread\n\n"
+                "Each point is one subcategory. Up and to the right means its "
+                "seeds repeat each other; bright colour means its seeds are also "
+                "closer to each other than to anything else in the set. Points "
+                "low and left got genuinely distinct scenarios from one tag."
+            ),
+            mo.ui.altair_chart(_chart),
         ]
     )
     return
+
+
+@app.cell
+def _(Path, alt, mo, np, pl, seed_records, taxonomy_rows):
+    _lookup = category_lookup(taxonomy_rows)
+    _variations = seed_records["variation"].to_list()
+    _categories = [
+        "(untagged)" if _variation == "(untagged)" else _lookup(_variation)
+        for _variation in _variations
+    ]
+
+    _embeddings = np.asarray(
+        embed_texts(
+            seed_records["text"].to_list(),
+            Path(__file__).with_name(".embed_cache.json"),
+        ),
+        dtype=float,
+    )
+    _embeddings /= np.linalg.norm(_embeddings, axis=1, keepdims=True)
+    _pairwise = _embeddings @ _embeddings.T
+    np.fill_diagonal(_pairwise, -np.inf)
+    _nearest = _pairwise.argmax(axis=1)
+    _coordinates = pca_coordinates(_embeddings)
+
+    _members_by_category = {}
+    for _index, _category in enumerate(_categories):
+        _members_by_category.setdefault(_category, []).append(_index)
+
+    _summary_rows = []
+    for _category, _members in _members_by_category.items():
+        _block = _pairwise[np.ix_(_members, _members)]
+        _pairs = _block[np.triu_indices(len(_members), k=1)]
+        _summary_rows.append(
+            {
+                "category": short_label(_category),
+                "seeds": len(_members),
+                "subcategories": len(
+                    {_variations[_member] for _member in _members}
+                ),
+                "mean_pairwise_cosine": (
+                    round(float(_pairs.mean()), 3) if len(_pairs) else None
+                ),
+                # Low rate means the category's seeds sit closer to other
+                # categories than to their own — the domains are bleeding.
+                "self_nearest_rate": round(
+                    sum(_nearest[_member] in set(_members) for _member in _members)
+                    / len(_members),
+                    3,
+                ),
+            }
+        )
+
+    seed_category_summary = pl.DataFrame(_summary_rows).sort(
+        "mean_pairwise_cosine", descending=True, nulls_last=True
+    )
+    seed_categories = pl.DataFrame(
+        [
+            {
+                "seed": _seed,
+                "category": short_label(_category),
+                "variation": _variation,
+                "nearest_category": short_label(_categories[_nearest[_index]]),
+                "nearest_is_same_category": (
+                    _categories[_nearest[_index]] == _category
+                ),
+                "pc1": float(_coordinates[_index, 0]),
+                "pc2": float(_coordinates[_index, 1]),
+            }
+            for _index, (_seed, _category, _variation) in enumerate(
+                zip(
+                    seed_records["seed"].to_list(),
+                    _categories,
+                    _variations,
+                    strict=True,
+                )
+            )
+        ]
+    )
+
+    _order = seed_category_summary["category"].to_list()
+    _map = (
+        alt.Chart(seed_categories)
+        .mark_circle(opacity=0.6, stroke="#ffffff", strokeWidth=0.3)
+        .encode(
+            x=alt.X("pc1:Q", title="PCA 1", scale=alt.Scale(zero=False)),
+            y=alt.Y("pc2:Q", title="PCA 2", scale=alt.Scale(zero=False)),
+            color=alt.Color(
+                "category:N",
+                title="Category",
+                sort=_order,
+                scale=alt.Scale(scheme="tableau20"),
+                legend=alt.Legend(columns=1, orient="right", symbolLimit=20),
+            ),
+            tooltip=[
+                alt.Tooltip("seed:N", title="Seed"),
+                alt.Tooltip("category:N", title="Category"),
+                alt.Tooltip("variation:N", title="Variation"),
+                alt.Tooltip("nearest_category:N", title="Nearest seed's category"),
+            ],
+        )
+        .properties(title="Seeds by category", width=760, height=560)
+        .configure_axis(
+            domainColor="#9ca3af",
+            gridColor="#e5e7eb",
+            labelColor="#374151",
+            titleColor="#111827",
+        )
+        .configure_view(stroke="#d1d5db")
+    )
+
+    mo.vstack(
+        [
+            mo.md(
+                "## Seeds by category\n\n"
+                "The same seeds rolled up from their variation tag to the parent "
+                "heading in `seed_subcategories.md`. Tight categories repeat "
+                "themselves across subcategories; a low in-group nearest rate "
+                "means the category's seeds resemble a neighbouring domain more "
+                "than their own."
+            ),
+            mo.ui.table(seed_category_summary, pagination=False),
+            mo.ui.altair_chart(_map),
+        ]
+    )
+    return seed_categories, seed_category_summary
 
 
 if __name__ == "__main__":

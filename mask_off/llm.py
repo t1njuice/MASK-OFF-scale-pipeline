@@ -1,9 +1,18 @@
 """Thin Anthropic Message Batches API helpers."""
 
+import json
 import re
 import time
 
 import anthropic
+from rich.progress import (
+    BarColumn,
+    MofNCompleteColumn,
+    Progress,
+    TaskProgressColumn,
+    TextColumn,
+    TimeRemainingColumn,
+)
 
 from . import config
 
@@ -78,7 +87,12 @@ def message_params(model, effort, system, user, max_tokens, thinking) -> dict:
             {
                 "type": "text",
                 "text": system,
-                "cache_control": {"type": "ephemeral", "ttl": "5m"},
+                # 1h rather than 5m: a wave's generator, target, and reviewer
+                # batches run minutes to hours apart, so a 5-minute entry never
+                # survives to the next wave and the ~10K-token system prompt is
+                # rewritten almost every iteration. The 1h write costs 2x base
+                # instead of 1.25x, so it pays for itself after two reads.
+                "cache_control": {"type": "ephemeral", "ttl": "1h"},
             }
         ],
         messages=[{"role": "user", "content": user}],
@@ -89,22 +103,130 @@ def message_params(model, effort, system, user, max_tokens, thinking) -> dict:
     return params
 
 
-def run_batch(requests: list[dict]) -> dict:
-    """Submit one Message Batches job and block until it ends.
+def _buffer_batches(requests: list[dict]) -> list[list[dict]]:
+    """Split requests before either Message Batch cap is crossed."""
+    batches = []
+    buffered = []
+    buffered_bytes = len(b'{"requests":[]}')
+    for request in requests:
+        request_bytes = len(
+            json.dumps(
+                request,
+                ensure_ascii=False,
+                separators=(",", ":"),
+            ).encode("utf-8")
+        )
+        if request_bytes + len(b'{"requests":[]}') > config.MAX_BATCH_BYTES:
+            raise ValueError(f"request {request['custom_id']} exceeds the batch byte cap")
+        if buffered and (
+            len(buffered) >= config.MAX_BATCH_REQUESTS
+            or buffered_bytes + request_bytes + 1 > config.MAX_BATCH_BYTES
+        ):
+            batches.append(buffered)
+            buffered = []
+            buffered_bytes = len(b'{"requests":[]}')
+        buffered_bytes += request_bytes + (1 if buffered else 0)
+        buffered.append(request)
+    if buffered:
+        batches.append(buffered)
+    return batches
+
+
+def batch_progress() -> Progress:
+    """The standard live display. rich allows one at a time — callers that run several
+    stages (the wave loop) create it once and pass it into each run_batch call."""
+    return Progress(
+        TextColumn("{task.description}"),
+        BarColumn(),
+        MofNCompleteColumn(),
+        TaskProgressColumn(),
+        TimeRemainingColumn(),
+        transient=True,
+    )
+
+
+def _connection_retry(call, progress: Progress):
+    """Wait out local network blips: the batch is already paid for server-side, so
+    abandoning the run on a dropped connection loses money for nothing."""
+    while True:
+        try:
+            return call()
+        except anthropic.APIConnectionError as exc:  # includes APITimeoutError
+            progress.console.print(
+                f"connection error, retrying in {config.BATCH_POLL_SECONDS}s: {exc}",
+                markup=False,
+                highlight=False,
+            )
+            time.sleep(config.BATCH_POLL_SECONDS)
+
+
+def run_batch(requests: list[dict], label: str, progress: Progress | None = None) -> dict:
+    """Submit capped Message Batches jobs and block until they end.
 
     Requests use Anthropic's native ``{custom_id, params}`` shape.
     Returns {custom_id: anthropic Message | None}, where None means the request errored,
     expired, or was canceled. Half price vs. per-message calls; the shared system prompt
-    across a stage's requests also earns prompt-cache hits.
+    across a stage's requests also earns prompt-cache hits. Pass ``progress`` to nest
+    this stage's bars under an existing live display.
     """
     if not requests:
         return {}
-    batch = client().messages.batches.create(requests=requests)
-    while client().messages.batches.retrieve(batch.id).processing_status != "ended":
-        # ponytail: fixed poll interval; add backoff only if runs get large enough to matter
-        time.sleep(config.BATCH_POLL_SECONDS)
+    if progress is None:
+        with batch_progress() as progress:
+            return run_batch(requests, label, progress)
+    batches = client().messages.batches
+    buffered_batches = _buffer_batches(requests)
+    # submit every chunk first so they all process server-side concurrently
+    submitted = [
+        _connection_retry(
+            lambda buffered=buffered: batches.create(requests=buffered), progress
+        )
+        for buffered in buffered_batches
+    ]
+    tasks = [
+        progress.add_task(
+            label if len(submitted) == 1 else f"{label} {index}/{len(submitted)}",
+            total=len(buffered),
+        )
+        for index, buffered in enumerate(buffered_batches, start=1)
+    ]
+    try:
+        for batch, task in zip(submitted, tasks):
+            while True:
+                status = _connection_retry(
+                    lambda: batches.retrieve(batch.id), progress
+                )
+                counts = status.request_counts
+                progress.update(
+                    task,
+                    completed=counts.succeeded
+                    + counts.errored
+                    + counts.canceled
+                    + counts.expired,
+                    refresh=True,
+                )
+                if status.processing_status == "ended":
+                    break
+                # ponytail: fixed polling; add backoff only if runs become large
+                time.sleep(config.BATCH_POLL_SECONDS)
+    except KeyboardInterrupt:
+        for batch in submitted:
+            try:
+                batches.cancel(batch.id)
+            except Exception:  # noqa: BLE001 - already-ended chunks can't be canceled
+                pass
+        raise
+    finally:
+        for task in tasks:
+            progress.remove_task(task)
     out = {}
-    for item in client().messages.batches.results(batch.id):
-        res = item.result
-        out[item.custom_id] = res.message if res.type == "succeeded" else None
+    for batch in submitted:
+        results = _connection_retry(
+            lambda batch=batch: [
+                (item.custom_id, item.result) for item in batches.results(batch.id)
+            ],
+            progress,
+        )
+        for custom_id, res in results:
+            out[custom_id] = res.message if res.type == "succeeded" else None
     return out

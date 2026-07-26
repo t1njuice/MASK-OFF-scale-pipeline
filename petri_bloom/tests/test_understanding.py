@@ -7,6 +7,7 @@ import pytest
 import yaml
 from inspect_ai.model import ModelOutput, get_model
 from inspect_ai.tool import ToolCall
+from pydantic import BaseModel
 from petri_bloom import run_understanding
 from petri_bloom._behavior import Behavior, Instructions, TranscriptAnalysis
 from petri_bloom._behavior.behavior import (
@@ -118,6 +119,25 @@ def _content_filter_output() -> ModelOutput:
     """Create a ModelOutput that was refused by content filter."""
     output = ModelOutput.from_content(model="mockllm", content="")
     output.choices[0].stop_reason = "content_filter"
+    return output
+
+
+class _RequiredItem(BaseModel):
+    name: str
+    description: str
+
+
+def _items_output(items: list[dict[str, str]]) -> ModelOutput:
+    """Create a ModelOutput with typed items in a tool call."""
+    output = ModelOutput.from_content(model="mockllm", content="")
+    output.choices[0].message.tool_calls = [
+        ToolCall(
+            id=_next_call_id(),
+            function="submit_understanding",
+            type="function",
+            arguments={"items": items},
+        )
+    ]
     return output
 
 
@@ -268,6 +288,40 @@ async def test_generate_with_tool_retries_content_filter() -> None:
     )
 
     assert "behavior_understanding" in args
+
+
+@pytest.mark.anyio
+async def test_generate_with_tool_retries_invalid_typed_arguments() -> None:
+    """Retries when typed tool arguments fail validation."""
+    from inspect_ai.model import ChatMessageSystem, ChatMessageUser, GenerateConfig
+    from petri_bloom._understanding.prompts import submit_understanding
+
+    model = get_model(
+        "mockllm/model",
+        custom_outputs=[
+            _items_output([{"name": "missing-description"}]),
+            _items_output([{"name": "complete", "description": "Valid item"}]),
+        ],
+    )
+    messages: list[Any] = [
+        ChatMessageSystem(content="system"),
+        ChatMessageUser(content="user"),
+    ]
+
+    items = await _generate_with_tool(
+        model=model,
+        messages=messages,
+        tool=submit_understanding(),
+        tool_name="submit_understanding",
+        config=GenerateConfig(),
+        key="items",
+        result_type=list[_RequiredItem],
+    )
+
+    assert items == [_RequiredItem(name="complete", description="Valid item")]
+    assert messages[4].role == "user"
+    assert "malformed" in messages[4].text
+    assert "JSON schema" in messages[4].text
 
 
 @pytest.mark.anyio

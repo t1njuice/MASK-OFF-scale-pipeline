@@ -17,6 +17,7 @@ from inspect_ai.model import (
     get_model,
 )
 from inspect_ai.tool import Tool, ToolFunction
+from pydantic import TypeAdapter, ValidationError
 
 from petri_bloom._behavior import Behavior, TranscriptAnalysis
 from petri_bloom._behavior.example import render_for_prompt
@@ -293,9 +294,10 @@ async def _generate_with_tool(
 ) -> _T | dict[str, Any]:
     """Generate with forced tool call, retrying on failures.
 
-    Handles two failure modes with independent retry counters:
+    Handles three failure modes with independent retry counters:
     - Content filter refusal (stop_reason == "content_filter")
     - Missing tool call (model responds with text instead)
+    - Invalid typed tool arguments
 
     On success, appends the assistant message and tool result to
     `messages` to maintain the conversation thread.
@@ -322,8 +324,10 @@ async def _generate_with_tool(
     """
     content_filter_retries = 0
     missing_tool_retries = 0
+    validation_retries = 0
     total_retries = 0
-    max_total = max_retries * 2
+    max_total = max_retries * 3
+    adapter = TypeAdapter(result_type) if result_type is not None else None
 
     while True:
         output: ModelOutput = await model.generate(
@@ -367,7 +371,49 @@ async def _generate_with_tool(
         tc = output.message.tool_calls[0]
         args: dict[str, Any] = dict(tc.arguments)
 
-        # Append to conversation thread
+        if key is not None:
+            if key not in args:
+                raise RuntimeError(
+                    f"Tool call to {tool_name} missing expected key {key!r}. "
+                    f"Got keys: {list(args.keys())}"
+                )
+            value = args[key]
+            if adapter is not None:
+                try:
+                    value = adapter.validate_python(value)
+                except ValidationError as exc:
+                    validation_retries += 1
+                    total_retries += 1
+                    if (
+                        validation_retries > max_retries
+                        or total_retries > max_total
+                    ):
+                        raise RuntimeError(
+                            f"Model returned invalid arguments for {tool_name} after "
+                            f"{validation_retries} validation retries "
+                            f"({total_retries} total retries)."
+                        ) from exc
+                    messages.append(output.message)
+                    messages.append(
+                        ChatMessageTool(
+                            content=f"Invalid arguments: {exc}",
+                            tool_call_id=tc.id,
+                            function=tc.function,
+                        )
+                    )
+                    messages.append(
+                        ChatMessageUser(
+                            content=(
+                                "The output was malformed. Refer to the tool's JSON "
+                                f"schema and call {tool_name} again with every required "
+                                "field in the correct shape."
+                            )
+                        )
+                    )
+                    continue
+        else:
+            value = args
+
         messages.append(output.message)
         messages.append(
             ChatMessageTool(
@@ -376,22 +422,7 @@ async def _generate_with_tool(
                 function=tc.function,
             )
         )
-
-        if key is not None:
-            if key not in args:
-                raise RuntimeError(
-                    f"Tool call to {tool_name} missing expected key {key!r}. "
-                    f"Got keys: {list(args.keys())}"
-                )
-            value = args[key]
-            if result_type is not None:
-                from pydantic import TypeAdapter
-
-                adapter = TypeAdapter(result_type)
-                return adapter.validate_python(value)
-            return value
-
-        return args
+        return value
 
 
 def _write_understanding(

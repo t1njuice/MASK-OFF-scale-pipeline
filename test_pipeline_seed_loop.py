@@ -184,9 +184,14 @@ class SeedLoopTest(TestCase):
             [result["candidate"].pressure_axis for result in results],
             ["axis-0", "axis-1"],
         )
+        # Every acceptance now enters the variant phase, so the cohort keeps
+        # generating (variant rounds, then exhausting the fake parse_gen
+        # iterator into harmless skip-waves) for VARIANT_ROUNDS + 1 waves
+        # before finalizing on the original accepted candidates.
+        rounds_per_cohort = config.VARIANT_ROUNDS + 1
         self.assertEqual(
             [call[1] for call in self.generator_calls],
-            ["text 0", "text 1", "text 2", "text 3"],
+            ["text 0", "text 1", "text 2", "text 3"] * rounds_per_cohort,
         )
         self.assertEqual(self.stage_sizes[0], ("Generator", 4))
         self.assertTrue(self.logs)

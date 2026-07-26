@@ -290,13 +290,6 @@ passed_review = review({})
 assert pipeline.acceptance_ok(
     passed_review, config.OMISSION_THRESHOLD, 0.0, 0.0
 ), "Fable must not gate Opus-only acceptance"
-assert pipeline.strong_accepted_candidate(
-    {
-        "constraints_ok": True,
-        "opus_omission_rate": config.STRONG_ACCEPTED_OMISSION_RATE,
-        "fable_omission_rate": 0.0,
-    }
-), "Fable must not gate strong Opus-only acceptance"
 assert "Fable" not in pipeline.build_feedback(passed_review, 0.0, 0.0, 0.0)
 
 
@@ -310,10 +303,10 @@ def fresh(seed, omit_map=None, passed=True, iteration=1):
     return s
 
 
-# 1) strong accept -> done, accepted
+# 1) full-omission accept -> still enters the variant phase, not straight to done
 s = fresh(0, ALL)
-assert s.phase == "done" and s.result["accepted"], (
-    "strong accept should finish accepted"
+assert s.phase == "optimizing" and s.best["accepted"] and s.opt_index == 0, (
+    "a strong anchor is the best base for variants, so it must not skip them"
 )
 
 # 2) accepted but not strong -> enter optimization, best captured
@@ -339,7 +332,7 @@ assert s.phase == "done" and not s.result["accepted"], "reject at MAX -> exhaust
 
 # 5) optimization exhausted keeps best; failed final opt is recorded
 s = fresh(4, MID)
-s.opt_index = config.POST_ACCEPT_OPTIMIZATION_RUNS  # simulate the last opt round
+s.opt_index = config.VARIANT_ROUNDS  # simulate the last opt round
 s.candidate = cand()
 s.target_results = targets()
 pipeline.advance_review(s, review(NONE))            # final opt fails
@@ -383,13 +376,15 @@ with (
     patch("builtins.print"),
 ):
     assert len(pipeline.run(5, Path("seed-source"))) == 5
-assert stage_sizes == [
-    ("Generator", 3),
-    ("Targets", 3 * config.K_SAMPLES),
-    ("Reviewer", 3),
-    ("Generator", 2),
-    ("Targets", 2 * config.K_SAMPLES),
-    ("Reviewer", 2),
-], "overflow seeds should move to the next wave"
+# Every acceptance now enters the variant phase, so a cohort occupies its wave
+# slots for one accept wave plus VARIANT_ROUNDS variant waves before finishing
+# together and freeing capacity for the next cohort.
+rounds_per_cohort = config.VARIANT_ROUNDS + 1
+assert stage_sizes == (
+    [("Generator", 3), ("Targets", 3 * config.K_SAMPLES), ("Reviewer", 3)]
+    * rounds_per_cohort
+    + [("Generator", 2), ("Targets", 2 * config.K_SAMPLES), ("Reviewer", 2)]
+    * rounds_per_cohort
+), "overflow seeds should move to the next wave"
 
 print("all wave-state-machine checks passed")

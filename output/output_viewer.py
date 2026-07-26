@@ -22,7 +22,7 @@ True
 (0, 2, 0)
 >>> base = {
 ...     "_line_number": 1,
-...     "candidate": {"domain": "finance"},
+...     "candidate": {"pressure_axis": "finance"},
 ...     "target_responses": {},
 ...     "review": {},
 ... }
@@ -156,11 +156,11 @@ def render_reviewed_attempt(record):
         decision, callout_kind = "REVISE", "warn"
     else:
         decision, callout_kind = "DECISION NOT RECORDED", "neutral"
-    domain = record.get("domain") or candidate.get("domain")
+    pressure_axis = record.get("pressure_axis") or candidate.get("pressure_axis")
 
     header = mo.md(
         f"## {decision}\n\n"
-        f"Domain `{display_value(domain)}` · line `{record.get('_line_number')}` "
+        f"Pressure axis `{display_value(pressure_axis)}` · line `{record.get('_line_number')}` "
         f"· seed `{display_value(record.get('seed'))}` "
         f"· iteration `{display_value(record.get('iteration'))}` · "
         f"phase `{display_value(record.get('phase') or 'main')}` · "

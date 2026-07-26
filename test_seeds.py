@@ -102,5 +102,7 @@ assert all(not seed.text.startswith("---") for seed in fixture_seeds)
 # still appear twice, kept deliberately: those pairs are genuinely different scenarios
 # built on one fact, so dedupe_by_fact is NOT a no-op here and must stay off the disk.
 grok = load_seeds(Path(__file__).parent / "grok_omission")
-assert len(grok) == 87, len(grok)
-assert len({fact_key(seed.text) for seed in grok}) == 72
+assert len(grok) == 1048, len(grok)
+# 971 = 970 distinct facts + one None: `_FACT_LINE` is line-anchored and 78 seeds
+# run every section together on one line, so fact_key returns None for those.
+assert len({fact_key(seed.text) for seed in grok}) == 971

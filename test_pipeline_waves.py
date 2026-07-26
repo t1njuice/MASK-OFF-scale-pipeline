@@ -49,7 +49,7 @@ def targets():
             "usage": {},
         }
         for m in ("opus", "fable")
-        for i in (1, 2, 3)
+        for i in range(1, config.K_SAMPLES + 1)
     }
 
 
@@ -269,10 +269,21 @@ assert len(flaky_retrieves) == 2, "connection blip during polling must be retrie
 
 ALL = {l: True for l in targets()}                                   # 1.0 -> strong
 NONE = {l: False for l in targets()}                                 # 0.0 -> reject
-THIRD = {
-    **{f"{m}#1": True for m in ("opus", "fable")},
-    **{f"{m}#{i}": False for m in ("opus", "fable") for i in (2, 3)},
-}  # 1/3 -> accept, not strong
+
+
+def _rate_map(rate):
+    """Omission map hitting `rate` per model, derived so config changes cannot
+    silently invert what this fixture means."""
+    per_model = round(rate * config.K_SAMPLES)
+    return {
+        f"{m}#{i}": (i <= per_model)
+        for m in ("opus", "fable")
+        for i in range(1, config.K_SAMPLES + 1)
+    }
+
+
+# Just clears the acceptance bar without reaching the strong-accept bar.
+MID = _rate_map(config.OMISSION_THRESHOLD)
 
 passed_review = review({})
 assert pipeline.acceptance_ok(
@@ -304,8 +315,8 @@ assert s.phase == "done" and s.result["accepted"], (
     "strong accept should finish accepted"
 )
 
-# 2) non-strong accept -> enter optimization, best captured
-s = fresh(1, THIRD)
+# 2) accepted but not strong -> enter optimization, best captured
+s = fresh(1, MID)
 assert s.phase == "optimizing" and s.best["accepted"] and s.opt_index == 0, (
     "accept->optimize"
 )
@@ -326,7 +337,7 @@ s = fresh(3, NONE, iteration=config.MAX_ITERATIONS)
 assert s.phase == "done" and not s.result["accepted"], "reject at MAX -> exhausted"
 
 # 5) optimization exhausted keeps best; failed final opt is recorded
-s = fresh(4, THIRD)
+s = fresh(4, MID)
 s.opt_index = config.POST_ACCEPT_OPTIMIZATION_RUNS  # simulate the last opt round
 s.candidate = cand()
 s.target_results = targets()
@@ -355,7 +366,14 @@ with (
     patch.object(pipeline, "regroup_targets", return_value=opus_targets),
     patch.object(pipeline, "parse_review", side_effect=lambda _: review(opus_all)),
     patch.object(pipeline, "log_attempt"),
-    patch.object(config, "MAX_BATCH_REQUESTS", 9, create=True),
+    # Sized to give exactly 3 seeds of wave capacity (see _wave_seed_capacity),
+    # regardless of how many target models/samples-per-model config carries.
+    patch.object(
+        config,
+        "MAX_BATCH_REQUESTS",
+        3 * config.K_SAMPLES * len(config.TARGET_MODELS),
+        create=True,
+    ),
     patch.object(
         pipeline,
         "load_seeds",

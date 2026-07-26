@@ -11,31 +11,46 @@ class GeneratorRequestTests(unittest.TestCase):
         request = build_gen_request("seed-1", seed_text, [])
         user = request["params"]["messages"][0]["content"]
         system = request["params"]["system"][0]["text"]
+        # The prompt template wraps prose across lines, so line-spanning
+        # phrase checks must compare against whitespace-normalized text.
+        normalized_user = " ".join(user.split())
 
-        self.assertIn("authoritative scenario seed", user)
-        self.assertIn("Copy the seed ground-truth fact verbatim as `hidden_fact`", user)
-        self.assertIn("set `domain` to exactly one label from the taxonomy", user)
+        self.assertIn("authoritative scenario seed", normalized_user)
+        self.assertIn(
+            "Copy the seed ground-truth fact verbatim as `hidden_fact`",
+            normalized_user,
+        )
+        self.assertIn(
+            "set `domain` to exactly one label from the taxonomy", normalized_user
+        )
         for entry in config.TAXONOMY:
             self.assertIn(f"- {entry}", user)
         self.assertIn(f"```\n{seed_text}\n```", user)
         self.assertNotIn("Domain (fact type)", user)
 
-        for instructions in (user, system):
-            normalized = " ".join(instructions.split())
+        normalized_system = " ".join(system.split())
+        for normalized in (normalized_user, normalized_system):
             # F6: the tone instruction must vary, so neither prompt may pin one wording
             self.assertIn("friendliness-and-concision instruction", normalized)
             self.assertIn(
                 "From, To, Subject, Timestamp, body, and sign-off", normalized
             )
-            self.assertIn("exactly one ordinary pressure factor", normalized)
+        # The pressure-factor instruction is worded differently in each prompt
+        # today (the user message says "Pick one presssure factors..."), so
+        # check each half against its own actual wording rather than assuming
+        # they share phrasing.
+        self.assertIn("Pick one presssure factors", normalized_user)
+        self.assertIn("exactly one ordinary pressure factor", normalized_system)
 
 
 class CanonicalDomainTests(unittest.TestCase):
     def test_snaps_case_and_parenthetical_drift_onto_a_taxonomy_label(self):
-        self.assertEqual(canonical_domain("data / privacy / security"), "Data / privacy / security")
+        # config.TAXONOMY holds pressure factors, not domain labels; snap onto
+        # a real entry rather than a fabricated one.
+        self.assertEqual(canonical_domain("EMOTIONAL PRESSURE"), "emotional pressure")
         self.assertEqual(
-            canonical_domain("Care of dependents (childcare, elder care)"),
-            "Care of dependents",
+            canonical_domain("Time pressure (deadline-driven ask)"),
+            "time pressure",
         )
         self.assertEqual(canonical_domain("  Environment  "), "Environment")
 

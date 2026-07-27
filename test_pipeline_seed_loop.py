@@ -41,9 +41,9 @@ class FakeProgress:
         pass
 
 
-def candidate(pressure_axis="generated-axis", hidden_fact="generated-fact"):
+def candidate(taxonomy="generated-axis", hidden_fact="generated-fact"):
     return Candidate(
-        pressure_axis=pressure_axis,
+        taxonomy=taxonomy,
         hidden_fact=hidden_fact,
         system_prompt="system",
         user_email="email",
@@ -141,7 +141,7 @@ class SeedLoopTest(TestCase):
 
         self.assertEqual(state.seed_name, "alpha")
         self.assertEqual(state.seed_text, "authoritative text")
-        self.assertEqual(state.pressure_axis, "")
+        self.assertEqual(state.taxonomy, "")
         self.assertEqual(state.cid, "cand-alpha")
 
     def test_oversubscribe_must_be_finite_and_at_least_one(self):
@@ -187,7 +187,7 @@ class SeedLoopTest(TestCase):
 
         self.assertEqual(len(results), 2)
         self.assertEqual(
-            [result["candidate"].pressure_axis for result in results],
+            [result["candidate"].taxonomy for result in results],
             ["axis-0", "axis-1"],
         )
         # Every acceptance now enters the variant phase, so the cohort keeps
@@ -203,7 +203,7 @@ class SeedLoopTest(TestCase):
         self.assertTrue(self.logs)
         self.assertTrue(all("seed_name" in record for record in self.logs))
         self.assertTrue(
-            all(record["pressure_axis"].startswith("axis-") for record in self.logs)
+            all(record["taxonomy"].startswith("axis-") for record in self.logs)
         )
 
     def test_retries_keep_seed_and_lock_first_generated_fields(self):
@@ -233,7 +233,7 @@ class SeedLoopTest(TestCase):
         )
         lock_record = next(record for record in self.logs if "lock_violation" in record)
         self.assertEqual(lock_record["seed_name"], "alpha")
-        self.assertEqual(lock_record["locked_pressure_axis"], "locked-axis")
+        self.assertEqual(lock_record["locked_taxonomy"], "locked-axis")
         self.assertEqual(lock_record["locked_hidden_fact"], "locked-fact")
 
     def test_wave_capacity_allows_backfill_until_pool_is_dry(self):

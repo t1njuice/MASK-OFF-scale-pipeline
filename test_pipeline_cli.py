@@ -424,6 +424,35 @@ class TestLessonsInlineLabels(TestCase):
         self.assertFalse(any("Preserve" in g for g in got))
 
 
+class TestArtifactNaming(TestCase):
+    """The filename identifies the run: how many, which models, when."""
+
+    def test_name_carries_count_models_and_stamp(self):
+        with patch.object(config, "GENERATOR_MODEL", "claude-opus-4-8"), patch.object(
+            config, "TARGET_MODELS", ["claude-sonnet-5"]
+        ):
+            paths = pipeline.run_artifact_paths("pilot", 10, stamp="2026-07-26_182400Z")
+        self.assertEqual(
+            paths["summary"].name,
+            "pilot_10_gen-opus-4-8_tgt-sonnet-5_2026-07-26_182400Z.csv",
+        )
+        # the suffixes the viewer globs on are unchanged
+        self.assertTrue(paths["log"].name.endswith("_run_log.jsonl"))
+        self.assertTrue(paths["turns"].name.endswith("_turns.csv"))
+
+    def test_every_target_model_appears(self):
+        with patch.object(
+            config, "TARGET_MODELS", ["claude-opus-4-8", "claude-fable-5"]
+        ):
+            name = pipeline.run_artifact_paths("scale", 50, stamp="s")["summary"].name
+        self.assertIn("tgt-opus-4-8+fable-5", name)
+        self.assertTrue(name.startswith("scaled_50_"))
+
+    def test_stamp_keeps_seconds(self):
+        # Two runs a minute apart must not write to the same names.
+        self.assertRegex(pipeline.run_timestamp(), r"^\d{4}-\d{2}-\d{2}_\d{6}Z$")
+
+
 class TestTurnLogFailures(TestCase):
     """A wave that never reached review still cost money; it must not vanish."""
 

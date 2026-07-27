@@ -49,15 +49,35 @@ def now_iso() -> str:
 
 
 def run_timestamp() -> str:
-    return datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    """UTC stamp, date and clock split so it reads at a glance: 2026-07-26_182400Z.
+
+    Seconds are kept: two runs started in the same minute would otherwise write to
+    the same names and the second would silently overwrite the first.
+    """
+    return datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d_%H%M%SZ")
+
+
+def model_slug(model: str) -> str:
+    """`claude-opus-4-8` -> `opus-4-8`. The vendor prefix is constant, so it is noise."""
+    return model.removeprefix("claude-") or model
 
 
 def run_artifact_paths(mode: str, n: int, stamp: str | None = None) -> dict:
+    """Artifact paths for one run, named so the run is identifiable from the filename.
+
+    `pilot_10_gen-opus-4-8_tgt-opus-4-8_2026-07-26_182400Z.csv` — item target, the
+    generator, every target model, then when. Comparing two runs is the common task
+    and the models are what usually differ, so they belong in the name rather than
+    only in the log records.
+    """
     if mode not in {"pilot", "scale"}:
         raise ValueError(f"unsupported artifact mode: {mode}")
     stamp = stamp or run_timestamp()
     stem = f"pilot_{n}" if mode == "pilot" else f"scaled_{n}"
-    base = config.OUTPUT_DIR / f"{stem}_{stamp}"
+    targets = "+".join(model_slug(m) for m in config.TARGET_MODELS) or "none"
+    base = config.OUTPUT_DIR / (
+        f"{stem}_gen-{model_slug(config.GENERATOR_MODEL)}_tgt-{targets}_{stamp}"
+    )
     paths = {
         "summary": base.with_suffix(".csv"),
         "log": base.with_name(base.name + "_run_log.jsonl"),

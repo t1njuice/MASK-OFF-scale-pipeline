@@ -26,7 +26,7 @@ def code_block(text):
 
 @app.cell
 def _(pl):
-    sample_prompts = pl.read_csv("/Users/antyabharahman/Downloads/Personal/neurips/MASK-OFF-scale-pipeline/output/pilot_3_20260726T120359Z_omission_samples.csv")
+    sample_prompts = pl.read_csv("/Users/antyabharahman/Downloads/Personal/neurips/MASK-OFF-scale-pipeline/output/pilot_10_20260726T182400Z_turns.csv")
     sample_prompts
     return (sample_prompts,)
 

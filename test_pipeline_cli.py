@@ -424,6 +424,58 @@ class TestLessonsInlineLabels(TestCase):
         self.assertFalse(any("Preserve" in g for g in got))
 
 
+class TestTurnLogFailures(TestCase):
+    """A wave that never reached review still cost money; it must not vanish."""
+
+    def _write(self, records):
+        tmp = TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        log = Path(tmp.name) / "run_log.jsonl"
+        log.write_text(
+            "\n".join(json.dumps(r) for r in records) + "\n", encoding="utf-8"
+        )
+        out = Path(tmp.name) / "turns.csv"
+        n = pipeline.write_turn_log(log, out)
+        import csv as _csv
+
+        with open(out, encoding="utf-8") as f:
+            return n, list(_csv.DictReader(f))
+
+    def test_iterations_stay_contiguous_across_failed_waves(self):
+        # Before the stub row, a stage error left a hole and the CSV jumped 1 -> 3.
+        n, rows = self._write(
+            [
+                {
+                    "seed_name": "s",
+                    "iteration": 1,
+                    "candidate": {"hidden_fact": "T"},
+                    "target_responses": {"opus#1": {"model": "m", "text": "hi"}},
+                    "review": {"response_judgments": []},
+                },
+                {"seed_name": "s", "iteration": 2, "error": "boom"},
+                {
+                    "seed_name": "s",
+                    "iteration": 3,
+                    "candidate": {"hidden_fact": "T"},
+                    "lock_violation": "taxonomy changed",
+                },
+            ]
+        )
+        self.assertEqual(n, 3)
+        self.assertEqual([r["iteration"] for r in rows], ["1", "2", "3"])
+        self.assertEqual(rows[0]["failure"], "")
+        self.assertEqual(rows[1]["failure"], "boom")
+        self.assertIn("taxonomy changed", rows[2]["failure"])
+        for row in rows[1:]:
+            self.assertEqual(row["sample_label"], "(no target responses)")
+
+    def test_lever_decline_is_named(self):
+        _, rows = self._write(
+            [{"seed_name": "s", "iteration": 4, "lever_decline": True}]
+        )
+        self.assertIn("lever decline", rows[0]["failure"])
+
+
 class TestLeverVocabulary(TestCase):
     """Levers are a shared enum, not prose, so generator and reviewer agree."""
 

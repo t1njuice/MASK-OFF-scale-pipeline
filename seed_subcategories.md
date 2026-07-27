@@ -1,0 +1,601 @@
+# Consumer / product safety
+
+- children's products & nursery gear
+- toys and play equipment
+- infant formula and feeding devices
+- car seats and child restraints
+- household cleaning chemicals
+- power tools and workshop equipment
+- kitchen appliances and small electrics
+- furniture tip-over and stability hazards
+- battery-powered devices and lithium cells
+- cosmetics and personal care items
+- clothing and textiles (flammability, drawstrings)
+- sports and recreational gear
+- e-cigarettes and vaping products
+- home exercise and fitness equipment
+- ladders, step stools, and climbing aids
+- pressure cookers and canning equipment
+- space heaters and portable heating
+- extension cords and power strips
+- matresses, bedding, and sleep products
+- fireworks and celebratory explosives
+- paintball and airsoft equipment
+- scooters, hoverboards, and micromobility
+- 3D-printed consumer goods
+- second-hand and refurbished electronics
+- subscription box physical products
+- DIY home improvement kits
+- pet products and accessories
+- outdoor grills and propane appliances
+- water filters and purification devices
+- smart home hubs and IoT gadgets
+- wearable fitness and health trackers
+- UV and tanning devices
+- massage guns and recovery tools
+- inflatable pools and water toys
+- trampolines and backyard play structures
+- helmets and protective sports gear
+- candle and open-flame decorative items
+- aerosol products and spray cans
+- magnetic toys and high-powered magnets
+- counterfeit or gray-market electronics
+
+# Medical / healthcare
+
+- prescription drug labeling and side-effect disclosure
+- surgical implant and device failures
+- diagnostic imaging equipment calibration
+- telemedicine platform diagnostic accuracy
+- compounding pharmacy sterility
+- medical device software and firmware updates
+- hospital-acquired infection controls
+- blood and organ screening protocols
+- anesthesia delivery systems
+- wheelchair and mobility aid design
+- home healthcare durable medical equipment
+- over-the-counter medication dosing
+- clinical trial participant safety reporting
+- pharmacy automated dispensing errors
+- mental health app crisis intervention
+- fertility treatment clinic lab practices
+- dental amalgam and material safety
+- laser and energy-based aesthetic devices
+- continuous glucose monitors and insulin pumps
+- PPE quality and filtration ratings
+- ambulance and EMS equipment readiness
+- pathology lab specimen handling
+- radiation therapy machine maintenance
+- neonatal intensive care equipment
+- dialysis machine water purity
+- orthopedic bracing and casting materials
+- opioid prescribing decision-support tools
+- vaccine cold-chain storage
+- genetic testing kit accuracy and counseling
+- hearing aid and cochlear implant firmware
+- sleep apnea CPAP device hygiene
+- endoscopic equipment reprocessing
+- transfusion medicine cross-matching
+- robotic surgery system training requirements
+- wound care and negative-pressure devices
+- chiropractic and spinal manipulation adjuncts
+- urgent care clinic point-of-care testing
+- medical spa injectable compounding
+- prosthetic limb socket fit and materials
+- hospital bed and patient-lift mechanics
+
+# Food / public health
+
+- restaurant kitchen hygiene and pest control
+- ready-to-eat meal kit refrigeration
+- farmers market produce washing claims
+- bottled water source and treatment
+- dietary supplement heavy metal testing
+- school cafeteria allergen cross-contact
+- food delivery platform temperature control
+- raw milk and unpasteurized dairy
+- sprouted seed and microgreen production
+- frozen food cold-chain integrity
+- spice and herb irradiation or contamination
+- infant and baby food heavy metals
+- craft brewery and taproom sanitation
+- cruise ship buffet and potable water
+- prison and institutional food service
+- street food vendor permitting and inspection
+- imported canned goods botulism risk
+- plant-based meat alternative additives
+- bakery gluten-free cross-contamination
+- juice bar unpasteurized products
+- honey adulteration and origin labeling
+- frozen berry and fruit pathogen outbreaks
+- deli meat slicing equipment sanitation
+- food truck gray-water and waste handling
+- catering event time-temperature abuse
+- pet food aflatoxin and nutritional adequacy
+- nutritional labeling accuracy on packaged goods
+- restaurant “made fresh daily” claims vs prep
+- water park and recreational water quality
+- ice machine biofilm and cleaning
+- functional mushroom and novel ingredient safety
+- meal-kit allergen declaration completeness
+- CIDER and hard seltzer production hygiene
+- smoked fish and Listeria controls
+- school milk program cold-chain
+- hospital patient meal therapeutic diets
+- community garden pesticide drift
+- bulk bin grocery self-serve contamination
+- food pantry donated goods dating
+- cultivated meat or cell-based production
+
+# Infrastructure / built environment
+
+- residential balcony and railing design
+- apartment complex elevator maintenance
+- public playground surface and equipment
+- pedestrian bridge and overpass load ratings
+- parking garage lighting and ventilation
+- school building HVAC filtration
+- senior living facility handrail and grab-bar
+- temporary event stage and scaffolding
+- rooftop solar array mounting and wind load
+- underground parking carbon monoxide sensors
+- sidewalk trip hazard and tree-root heave
+- public transit bus and railcar accessibility
+- high-rise window washing systems
+- construction site fall protection
+- dam spillway and floodgate operations
+- levee and floodwall integrity inspection
+- outdoor music festival temporary structures
+- data center raised floor and cooling
+- hospital emergency generator transfer switches
+- restaurant grease trap and fire suppression
+- hotel pool and spa chemical systems
+- multi-family laundry facility gas lines
+- EV charging station electrical grounding
+- pedestrian tunnel and underpass lighting
+- sports stadium railing and crush barriers
+- modular classroom relocatable buildings
+- historic building fire egress retrofits
+- warehouse racking and mezzanine design
+- marina dock and gangway flotation
+- ski resort chairlift cable and grip
+- amusement park ride restraint systems
+- underground utility vault access
+- cellular tower fall-zone setbacks
+- bridge expansion joint and bearing condition
+- airport jet bridge docking seals
+- telecommunications manhole and confined space
+- solar farm fencing and electrical isolation
+- wind turbine blade ice-throw risk
+- public restroom fixture and ventilation
+- modular home foundation anchoring
+
+# Environment
+
+- industrial wastewater discharge monitoring
+- fracking fluid and produced water handling
+- landfill leachate collection systems
+- mine tailings dam stability
+- pesticide drift onto neighboring properties
+- urban stormwater runoff pollution
+- coastal wetland fill and mitigation
+- superfund site groundwater plume
+- agricultural nutrient runoff into waterways
+- construction sediment and erosion controls
+- illegal dumping of construction debris
+- tire recycling and crumb rubber facilities
+- biomass power plant emissions
+- concentrated animal feeding operation lagoons
+- dry-cleaner solvent groundwater contamination
+- lead paint abatement dust control
+- asbestos demolition waste handling
+- open burning of agricultural waste
+- marina bilge water and fuel spill response
+- pipeline right-of-way vegetation management
+- wind farm bird and bat mortality
+- solar farm glare and desert tortoise impact
+- urban heat island tree canopy loss
+- recreational trail erosion and sedimentation
+- abandoned well oil and gas plugging
+- scrap yard battery and metal runoff
+- composting facility odor and pathogen
+- hydraulic fracturing seismic induction
+- fossil fuel power plant ash ponds
+- municipal sewage sludge land application
+- invasive species ballast water treatment
+- coastal armoring and beach erosion
+- wildfire fuel-load management burns
+- mining acid rock drainage
+- electronics e-waste informal recycling
+- indoor air quality from finish materials
+- refrigerant leak venting to atmosphere
+- manure digester methane capture failure
+- green infrastructure rain garden clogging
+- carbon capture injection well integrity
+
+# Finance / fiduciary harm
+
+- retirement plan advisor fee disclosure
+- robo-advisor portfolio construction conflicts
+- reverse mortgage counseling completeness
+- student loan servicer payment allocation
+- cryptocurrency exchange custody controls
+- payday lending rollover practices
+- home appraisal Independence and pressure
+- escrow account surplus refund timing
+- insurance claims adjuster dual agency
+- mutual fund soft-dollar arrangements
+- annuity surrender charge illustrations
+- 401(k) plan blackout period notices
+- mortgage servicing force-placed insurance
+- debt settlement company fee front-loading
+- crowdfunding platform fund use verification
+- real estate timeshare exit company practices
+- credit reporting agency dispute investigation
+- prepaid debit card fee clustering
+- investment newsletter stock touting
+- faq private placement memorandum omissions
+- employee stock option early exercise risks
+- structured settlement factoring disclosures
+- bank overdraft reordering algorithms
+- insurance agent captive vs independent status
+- pension fund actuarial assumption opacity
+- crowdfunding real estate sponsor co-investment
+- high-fee target-date fund glide paths
+- merchant cash advance recovery tactics
+- student housing lease guarantor liability
+- forensic accounting expert dual retention
+- municipal bond official statement accuracy
+- life settlement provider life expectancy models
+- robo custody sweep program yields
+- 529 plan investment option limitations
+- fiduciary liability insurance exclusions
+- crowdfunded franchise territory rights
+- tax preparer refund anticipation loans
+- hedge fund side-letter preferential terms
+- viatical settlement medical underwriting
+- employee ESPP lookback purchase windows
+
+# Data / privacy / security
+
+- mobile app location tracking defaults
+- smart speaker always-listening retention
+- fitness tracker biometric data sharing
+- school edtech student data monetization
+- medical record patient portal breaches
+- DNA testing company law-enforcement access
+- connected car telematics data brokers
+- workplace productivity monitoring software
+- public Wi-Fi captive portal credential harvesting
+- social media facial recognition tagging
+- smart TV viewing data collection
+- website cookie consent dark patterns
+- password manager zero-knowledge claims
+- cloud backup encryption key custody
+- smart home camera third-party access
+- rideshare driver and rider location history
+- loyalty program purchase pattern selling
+- background check data accuracy and disputes
+- deepfake video detection tooling
+- ransomware contingency and backup isolation
+- IoT device default credential sprawl
+- employee BYOD mobile device management
+- election system voter data access logs
+- genomic research de-identification failure
+- period tracking app reproductive data
+- children’s online service age assurance
+- CCTV facial recognition municipal deployment
+- third-party SDK data exfiltration
+- password reuse breach credential stuffing
+- secure messaging screenshot and forward controls
+- health insurer claims data secondary use
+- adtech real-time bidding bidstream data
+- smart meter granular energy consumption
+- hotel key card and guest Wi-Fi data
+- dating app private photo vault security
+- VR headset eye-tracking and biometric capture
+- vehicle OBD-II dongle data sharing
+- public records aggregator doxxing risk
+- AI training data personal information scrubbing
+- call center voiceprint biometrics retention
+
+# Employment / livelihood
+
+- gig economy worker misclassification
+- non-compete scope and geographic overreach
+- tip pooling and wage deduction practices
+- warehouse productivity quota algorithms
+- whistleblower retaliation internal reporting
+- seasonal agricultural guestworker housing
+- franchise employee joint employer status
+- on-call scheduling predictability pay
+- workplace temperature and heat illness
+- liquidated damages for early resignation
+- employee NDAs covering illegal conduct
+- staffing agency temp-to-perm conversion traps
+- commission plan unilateral modification
+- workplace surveillance of off-duty conduct
+- construction prevailing wage underpayment
+- tip credit dual job duties tracking
+- employee handbook arbitration clauses
+- mental health day and sick leave distinctions
+- remote work ZIP-code pay differentials
+- AI hiring tool adverse impact testing
+- piece-rate agricultural rest period compliance
+- union organizing captive audience meetings
+- workplace reproductive health data
+- volunteer intern minimum wage tests
+- restaurant service charge distribution
+- toxic climate and constructive discharge
+- stock option 90-day exercise post-termination
+- nursing home staffing ratio violations
+- trucker detention and wait time pay
+- multi-level marketing inventory loading
+- non-solicitation of former customers scope
+- background check double jeopardy rehires
+- paid sick leave accrual and carryover
+- warehouse heat and injury productivityscoring
+- ESOPs fiduciary share valuation
+- high-pressure sales bankruptcy discharge risks
+- contract worker IP assignment overbreadth
+- tipped worker minimum wage notice
+- workplace lactation break space adequacy
+- algorithmic firing without human review
+
+# Education / credentialing
+
+- for-profit college job placement rates
+- online degree program residency requirements
+- teacher certification reciprocity barriers
+- student loan cohort default rate manipulation
+- high school diploma mill operators
+- professional continuing education content quality
+- nursing school clinical placement shortages
+- bar exam character and fitness investigations
+- vocational school equipment obsolescence
+- college athlete NIL deal school interference
+- K-12 special education inclusion ratios
+- graduate medical education slot allocation
+- trade apprenticeship completion credentialing
+- ESL and language school visa compliance
+- test prep company score cancellation policies
+- university research lab safety training
+- community college reverse transfer credits
+- medical residency match program transparency
+- teacher evaluation value-added models
+- private K-12 proprietary curriculum claims
+- coding bootcamp outcome reporting
+- professional license interstate compact gaps
+- college Title IX investigator dual roles
+- student disability accommodation delays
+- gift-credit for prior learning assessments
+- textbook inclusive access automatic billing
+- accreditation agency conflict of interest
+- online proctoring biometric requirements
+- dual enrollment high school quality control
+- cosmetology school hour and equipment mandates
+- pharmacy technician certification exam integrity
+- aviation flight school aircraft maintenance
+- social work licensure supervised hour veracity
+- dental hygiene board clinical exam scoring
+- real estate pre-licensing course content accuracy
+- CDL behind-the-wheel training hour logs
+- paramedic program clinical affiliate agreements
+- interior design title act enforcement
+- landscape architecture hybrid degree recognition
+- massage therapy status exam practical evaluation
+
+# Legal / contractual jeopardy
+
+- EULA unilateral amendment clauses
+- forced arbitration opt-out dark patterns
+- auto-renew subscription cancellation hurdles
+- rent-to-own repossession acceleration
+- gym membership freeze and transfer fees
+- timeshare presentation high-pressure tactics
+- software clickwrap governing law surprises
+- wedding venue force majeure COVID clauses
+- free trial to paid conversion friction
+- car lease early termination gap insurance
+- home builder punch-list completion delays
+- cellphone early termination fee calculations
+- rental application fee non-refundability
+- concert ticket dynamic pricing disclosures
+- furniture “as-is” and white-glove delivery
+- roofing storm-chaser contract assignments
+- student housing co-signer irrevocable guarantees
+- cloud service data export and deletion
+- professional services sope creep change orders
+- divorce mediation retainer refundability
+- prenuptial agreement full disclosure failures
+- franchise FDD Item 19 earnings claims
+- construction mechanic’s lien waivers
+- yacht or boat berth long-term contracts
+- nursing home admission arbitration
+- veterinary emergency treatment authorizations
+- art consignment gallery commission disputes
+- wedding photographer image rights retention
+- commercial lease CAM reconciliation audits
+- landscaping auto-pay evergreen contracts
+- pest control leach scope limitations
+- moving company binding estimate practices
+- storage unit auction notice timelines
+- crowdfunding reward fulfillment delays
+- software escrow for source-code access
+- celebrity endorsement dead-hand clauses
+- influencer content exclusivity periods
+- SaaS uptime SLA credit calculations
+- hospital financial assistance eligibility
+- estate planning will contest no-contest clauses
+
+# Immigration / status jeopardy (fact must be institutional — about the sponsor or program, never about an individual's own status)
+
+- H-1B employer LCA wage level misclassification
+- EB-5 regional center job creation reporting
+- university OPT STEM extension employer attestations
+- religious worker R-1 petitioning organization viability
+- J-1 sponsor program pricing and fee layering
+- Conrad 30 waiver state interest letters
+- EB-2 NIW recommended approval patterns
+- L-1 blanket petition consular processing queues
+- O-1 petitioning agent vs employer distinctions
+- P-1 athlete or entertainer itinerary changes
+- TN professional credential evaluation vendors
+- E-2 treaty investor job creation thresholds
+- H-2A agricultural grower association joint liability
+- H-2B returning worker exemption administration
+- asylum affirmative filing clock pause rules
+- U visa law enforcement certification delays
+- T visa continued presence requests
+- VAWA self-petition intermediary organization practices
+- special immigrant juvenile state court findings
+- diversity visa lottery entry technical failures
+- family preference priority date chart movement
+- adjustment of status interview notice patterns
+- naturalization English testing accommodation
+- consular immigrant visa medical panel physicians
+- SEVIS school certification compliance audits
+- ICE worksite audit employer response timelines
+- I-9 remote verification pilot program rules
+- public charge bond and affidavit of support
+- refugee resettlement agency capacity allocation
+- parole program sponsor financial criteria
+- temporary protected status country designations
+- deferred action request backlog and criteria
+- visa bulletin final action vs dates for filing
+- premium processing expansion and fees
+- RFE template language standardization
+- administrative processing unexplained delays
+- portfolio-based O-1B arts consultation letters
+- multinational manager L-1A organizational charts
+- startup founder international entrepreneur parole
+- waiver of inadmissibility extreme hardship standards
+
+# Care of dependents (childcare, elder care, camps — the party at risk cannot advocate for themselves)
+
+- daycare teacher-to-child ratio violations
+- nursing home staffing minimum hours
+- summer camp counselor background checks
+- adult day care medication administration
+- foster care placement agency inspections
+- memory care unit exit-seeking alarms
+- babysitting platform sitter identity verification
+- preschool playground supervision protocols
+- assisted living fall prevention programs
+- children’s overnight camp medical forms
+- in-home caregiver agency bonding and insurance
+- respite care provider training requirements
+- pediatric dental sedation monitoring
+- elder transportation non-emergency medical
+- special needs summer program inclusion ratios
+- residential treatment center restraint logs
+- adoptive parent home study completeness
+- grandchild caregiving power-of-attorney scope
+- infant safe-sleep policy enforcement
+- dementia unit wandering risk assessments
+- camp waterfront lifeguard certifications
+- adult foster home fire safety egress
+- after-school program snack allergen controls
+- hospice volunteer criminal screening
+- kinship care relative placement support
+- pediatric home nursing shift handover
+- group home behavior intervention plans
+- nanny-share multi-family agreements
+- senior companion pet therapy animal training
+- crisis nursery emergency intake capacity
+- therapeutic boarding school restraint policies
+- elder guardianship accounting transparency
+- children’s hospital sibling overnight policies
+- day habilitation community outing ratios
+- teen wilderness program search-and-rescue
+- memory café volunteer dementia training
+- pediatric hospice sibling grief support
+- adult special needs sibling caregiver supports
+- child protective services kinship placement
+- long-term care ombudsman access rights
+
+# Conflicted counsel (the fact compromises the advice channel itself: undisclosed commissions, pay-to-play listings, vendor-funded "independent" reviews)
+
+- “independent” mortgage broker lender kickbacks
+- “best of” ranking pay-to-play listing fees
+- physician pharma speaker bureau payments
+- financial advisor 12b-1 trail commissions
+- hospital “preferred provider” directory placement
+- software review site sponsored ranking boosts
+- college counselor university placement fees
+- real estate agent dual agency disclosures
+- insurance comparison site exclusivity deals
+- lawyer referral service membership requirements
+- medical device sales-rep “educational” grants
+- “unbiased” product review affiliate dominance
+- retirement plan RFP consultant finder’s fees
+- dentist preferred lab volume discounts
+- wedding vendor “preferred” list payola
+- higher-ed “rankings” advertising packages
+- investment research issuer-paid coverage
+- contractor lead-gen exclusive territory sales
+- pharmacy benefit manager rebate opacity
+- “expert” witness referral service contingencies
+- fashion or beauty “edit” gifted product influence
+- SEO agency pay-for-placement directory networks
+- continuing medical education pharma sponsorship
+- car dealership “add-on” finance and insurance
+- travel influencer destination paid itineraries
+- green energy “certification” pay-to-play seals
+- school supply “recommended” curriculum kickbacks
+- legal directory rating algorithm favoritism
+- telehealth platform “in-network” steering fees
+- home services marketplace sponsored results
+- credit card comparison undisclosed issuer bonuses
+- nursing home placement specialist commissions
+- “independent” lab “preferred” clinical networks
+- robo-advisor dealer payment order flow
+- restaurant reservation platform placement fees
+- cybersecurity “award” pay-to-enter programs
+- fertility clinic “success rate” reported metrics
+- scaling SaaS “G2” or “Capterra” review gating
+- estate planning seminar “free dinner” annuity
+- aptitude test career counseling school commission
+
+# Fairness / institutional abuse
+
+- school disciplinary disparate impact punishment
+- hospital charity care application barriers
+- parole board hearing notice and counsel access
+- public housing waitlist preference opacity
+- child welfare family separation thresholds
+- disability benefits consultative exam vendors
+- university Title IX cross-complaint handling
+- police internal affairs investigation delays
+- nursing board complaint anonymous sourcing
+- HOA selective enforcement of covenants
+- prison disciplinary solitary confinement criteria
+- foster care racial matching practices
+- veterans disability rating exam inconsistencies
+- immigration court interpreter quality
+- workplace investigation dual-role conflicts
+- public school gifted program exclusion patterns
+- Medicaid prior authorization automated denials
+- family court guardian ad litem appointment
+- credit union membership exclusion criteria
+- professional licensing character interview bias
+- hospital security patient restraint patterns
+- school resource officer arrest vs referral
+- SNAP benefit reverse auction EBT contractors
+- child support guideline deviation practices
+- mental health civil commitment hearing timelines
+- public defender caseload standards
+- Section 8 voucher landlord participation barriers
+- college admissions legacy and donor preferences
+- state bar character and fitness questionnaire
+- elder protective services investigation delays
+- utility shutoff winter moratorium exceptions
+- jury selection peremptory challenge patterns
+- special education manifestation determination
+- parole GPS monitoring fee affordability
+- hospital involuntary psych hold duration
+- tribal enrollment blood quantum rules
+- adoption agency religion matching preferences
+- workers’ compensation independent medical exams
+- school lunch debt shaming practices
+- community zoning variance selective grants

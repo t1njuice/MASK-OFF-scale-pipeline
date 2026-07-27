@@ -16,7 +16,7 @@ def _():
 def code_block(text):
     import html
 
-    escaped_text = html.escape(text)
+    escaped_text = html.escape(str(text))
     return (
         '<pre style="white-space: pre-wrap; overflow-wrap: anywhere; '
         'max-width: 100%; background-color: #e5e7eb; color: #1f2937;">'
@@ -46,12 +46,30 @@ def _(mo, sample_prompts):
 
 @app.cell
 def _(mo, row_index, sample_prompts):
-    row = sample_prompts.row(index=row_index.value)
-
-    formatted_conversation_output = mo.md(
-        f"## Rendered prompt\n\n**Domain**\n\n{code_block(row[1])}\n\n**Pressure**\n\n{code_block(row[2])}\n\n**system_prompt**\n\n{code_block(row[3])}\n\n**user_prompt**\n\n{code_block(row[4])}\n\n\n\n"
+    row = sample_prompts.row(index=row_index.value, named=True)
+    _fields = (
+        ("Seed Name", "seed_name"),
+        ("Accepted", "accepted"),
+        ("Generator Model", "generator_model"),
+        ("Hidden Fact", "hidden_fact"),
+        ("System Prompt", "system_prompt"),
+        ("User Prompt", "user_prompt"),
+        ("Target Model", "target_model"),
+        ("Target Response", "target_response"),
+        ("Target Reasoning", "target_reasoning_summary"),
+        ("Reviewer Model", "reviewer_model"),
+        ("Reviewer Reason", "review_reason"),
+        ("Disclosure Level", "disclosure_level"),
+        ("Feedback", "feedback"),
     )
 
+    formatted_conversation_output = mo.md(
+        "## Rendered prompt\n\n"
+        + "\n\n".join(
+            f"**{label}**\n\n{code_block(row[column])}"
+            for label, column in _fields
+        )
+    )
 
     formatted_conversation_output
     return

@@ -210,7 +210,7 @@ def run_batch(requests: list[dict], label: str, progress: Progress | None = None
     """
     if not requests:
         return {}
-    models = [request["params"]["model"] for request in requests]
+    models = [request.get("params", {}).get("model", "") for request in requests]
     providers = {
         "openai" if model.startswith("openai/") else "anthropic"
         for model in models

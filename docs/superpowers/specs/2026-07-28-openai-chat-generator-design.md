@@ -15,6 +15,7 @@ OpenAI prompt caching uses a deterministic key and 24-hour retention.
 - Execute OpenAI requests sequentially, without the OpenAI Batch API.
 - Preserve the current request/result contract used by the pipeline.
 - Preserve the existing Anthropic Message Batches implementation.
+- Sanitize the provider-qualified generator model in artifact filenames.
 
 The design does not add local response caching, concurrent OpenAI calls,
 provider classes, or OpenAI target-model support.
@@ -147,7 +148,8 @@ target and reviewer batch tasks start with clean state.
 - Modify `mask_off/config.py` for the generator model.
 - Modify `mask_off/llm.py` for OpenAI request construction, sequential
   transport, response text, and usage mapping.
-- Modify `mask_off/pipeline.py` only for dual-provider preflight.
+- Modify `mask_off/pipeline.py` for dual-provider preflight and an artifact-safe
+  `openai-gpt-5.5` model slug.
 - Add `test_llm_openai.py` for deterministic transport checks.
 
 No dependency or prompt-file changes are required.
@@ -167,6 +169,8 @@ Development follows a focused red-green cycle in `test_llm_openai.py`:
    separate clients and correctly returned results.
 6. Verify one failed OpenAI generator request becomes `None` while another
    succeeds, allowing its later Anthropic reviewer batch phase to complete.
+7. Verify `model_slug("openai/gpt-5.5") == "openai-gpt-5.5"` so run artifacts
+   remain in `output/` rather than creating a provider-named subdirectory.
 
 Run:
 
@@ -185,6 +189,8 @@ approval because it invokes both configured providers.
 - Every OpenAI generator request includes a stable cache key and `24h`
   retention.
 - Generator output and usage attach through the existing parser contract.
+- Generated artifact paths contain `openai-gpt-5.5`, never an `openai/`
+  directory component.
 - Target and reviewer stages still use Anthropic Message Batches.
 - Sequential generation completes cleanly before reviewer batching begins.
 - Existing Anthropic batch behavior is unchanged.

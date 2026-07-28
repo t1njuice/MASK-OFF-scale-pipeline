@@ -4,7 +4,7 @@ from . import config
 from .llm import message_params, reasoning_summary_of, text_of, usage_summary_of
 
 
-def _short(model: str) -> str:
+def short_name(model: str) -> str:
     if "opus" in model:
         return "opus"
     elif "fable" in model:
@@ -14,13 +14,13 @@ def _short(model: str) -> str:
 
 
 # short name -> requested model id; shorts are unique across TARGET_MODELS.
-_MODEL_BY_SHORT = {_short(m): m for m in config.TARGET_MODELS}
+_MODEL_BY_SHORT = {short_name(m): m for m in config.TARGET_MODELS}
 
 
 def _labels() -> list[tuple[str, str]]:
     """(label, model) for every sample, e.g. ("opus#1", "claude-opus-4-8")."""
     return [
-        (f"{_short(model)}#{i + 1}", model)
+        (f"{short_name(model)}#{i + 1}", model)
         for model in config.TARGET_MODELS
         for i in range(config.K_SAMPLES)
     ]

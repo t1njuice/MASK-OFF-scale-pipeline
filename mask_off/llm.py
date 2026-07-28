@@ -202,19 +202,49 @@ def _connection_retry(call, progress: Progress):
 
 
 def run_batch(requests: list[dict], label: str, progress: Progress | None = None) -> dict:
-    """Submit capped Message Batches jobs and block until they end.
+    """Run sequential OpenAI chats or capped Anthropic Message Batches.
 
-    Requests use Anthropic's native ``{custom_id, params}`` shape.
-    Returns {custom_id: anthropic Message | None}, where None means the request errored,
-    expired, or was canceled. Half price vs. per-message calls; the shared system prompt
-    across a stage's requests also earns prompt-cache hits. Pass ``progress`` to nest
-    this stage's bars under an existing live display.
+    Returns {custom_id: response | None}, where None means the request errored,
+    expired, or was canceled. Pass ``progress`` to nest this stage's bars under
+    an existing live display.
     """
     if not requests:
         return {}
+    models = [request["params"]["model"] for request in requests]
+    providers = {
+        "openai" if model.startswith("openai/") else "anthropic"
+        for model in models
+    }
+    if len(providers) != 1:
+        raise ValueError("one run_batch call cannot mix OpenAI and Anthropic")
+    if "openai" in providers and any(model == "openai/" for model in models):
+        raise ValueError("OpenAI model ID cannot be empty")
     if progress is None:
         with batch_progress() as progress:
             return run_batch(requests, label, progress)
+    if "openai" in providers:
+        task = progress.add_task(label, total=len(requests))
+        completions = openai_client().chat.completions
+        out = {}
+        try:
+            for request in requests:
+                params = dict(request["params"])
+                params["model"] = params["model"].removeprefix("openai/")
+                try:
+                    out[request["custom_id"]] = completions.create(**params)
+                except openai.OpenAIError as exc:
+                    progress.console.print(
+                        f"{request['custom_id']}: {exc}",
+                        markup=False,
+                        highlight=False,
+                    )
+                    out[request["custom_id"]] = None
+                finally:
+                    progress.update(task, advance=1, refresh=True)
+        finally:
+            progress.remove_task(task)
+        return out
+
     batches = client().messages.batches
     buffered_batches = _buffer_batches(requests)
     # submit every chunk first so they all process server-side concurrently

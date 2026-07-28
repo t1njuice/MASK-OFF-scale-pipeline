@@ -130,7 +130,7 @@ def build_gen_request(
     revision_round: int = 0,
     variant: bool = False,
 ) -> dict:
-    """A generator request for the Message Batches API."""
+    """A generator request for the configured provider."""
     return {
         "custom_id": custom_id,
         "params": message_params(

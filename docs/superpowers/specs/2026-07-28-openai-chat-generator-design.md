@@ -151,6 +151,8 @@ target and reviewer batch tasks start with clean state.
 - Modify `mask_off/pipeline.py` for dual-provider preflight and an artifact-safe
   `openai-gpt-5.5` model slug.
 - Add `test_llm_openai.py` for deterministic transport checks.
+- Modify `test_generator.py` so its prompt-content assertion reads the OpenAI
+  developer and user messages.
 
 No dependency or prompt-file changes are required.
 
@@ -171,11 +173,14 @@ Development follows a focused red-green cycle in `test_llm_openai.py`:
    succeeds, allowing its later Anthropic reviewer batch phase to complete.
 7. Verify `model_slug("openai/gpt-5.5") == "openai-gpt-5.5"` so run artifacts
    remain in `output/` rather than creating a provider-named subdirectory.
+8. Run the existing generator tests against the new Chat Completions request
+   layout.
 
 Run:
 
 ```bash
 uv run python -m unittest test_llm_openai.py
+uv run python -m unittest test_generator.py
 uv run python -m compileall mask_off
 ```
 

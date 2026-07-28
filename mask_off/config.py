@@ -32,7 +32,7 @@ def _load_dotenv() -> None:
 
 _load_dotenv()
 
-# --- Models & effort (Anthropic effort parameter) -------------------------
+# --- Models & effort ------------------------------------------------------
 GENERATOR_MODEL = "openai/gpt-5.5"
 GENERATOR_EFFORT = "high"
 

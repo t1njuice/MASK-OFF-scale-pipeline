@@ -2,6 +2,7 @@
 
 from collections.abc import Callable
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -1002,6 +1003,18 @@ def test_resolve_max_tokens_fallback() -> None:
     result = resolve_max_tokens(model)
     # mockllm likely has no model info, so should return fallback default
     assert result > 0
+
+
+def test_resolve_max_tokens_caps_context_window_sized_values(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A model info entry reporting a context window is capped, not passed through."""
+    model = get_model("mockllm/model", custom_outputs=[])
+    monkeypatch.setattr(
+        "petri_bloom._util.model.get_model_info",
+        lambda _model: SimpleNamespace(output_tokens=1048576),
+    )
+    assert resolve_max_tokens(model) == 64000
 
 
 # -- Prompt constant tests --------------------------------------------------

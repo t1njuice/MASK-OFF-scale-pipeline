@@ -5,6 +5,7 @@ from unittest.mock import patch
 
 import pytest
 from click.testing import CliRunner
+from inspect_ai.model import Model
 from petri_bloom._cli import cli
 
 
@@ -29,7 +30,7 @@ def test_cli_understanding_happy_path(runner: CliRunner, tmp_path: Path) -> None
     assert result.exit_code == 0
     assert "Understanding written to" in result.output
     mock.assert_called_once_with(
-        str(d), scenarios_model="mockllm/model", overwrite=False
+        str(d), scenarios_model="mockllm/model", overwrite=False, reasoning_effort=None
     )
 
 
@@ -53,7 +54,35 @@ def test_cli_understanding_overwrite_flag(runner: CliRunner, tmp_path: Path) -> 
 
     assert result.exit_code == 0
     mock.assert_called_once_with(
-        str(d), scenarios_model="mockllm/model", overwrite=True
+        str(d), scenarios_model="mockllm/model", overwrite=True, reasoning_effort=None
+    )
+
+
+def test_cli_understanding_reasoning_effort(runner: CliRunner, tmp_path: Path) -> None:
+    """Understanding --reasoning-effort is forwarded to run_understanding."""
+    d = tmp_path / "test_behavior"
+    d.mkdir()
+    (d / "BEHAVIOR.md").write_text("---\nnum_scenarios: 2\n---\n\nDesc.\n")
+
+    with patch("petri_bloom._cli.understanding.run_understanding") as mock:
+        result = runner.invoke(
+            cli,
+            [
+                "understanding",
+                str(d),
+                "--model-role",
+                "scenarios=mockllm/model",
+                "-r",
+                "high",
+            ],
+        )
+
+    assert result.exit_code == 0
+    mock.assert_called_once_with(
+        str(d),
+        scenarios_model="mockllm/model",
+        overwrite=False,
+        reasoning_effort="high",
     )
 
 
@@ -101,7 +130,7 @@ def test_cli_ideation_happy_path(runner: CliRunner, tmp_path: Path) -> None:
     assert result.exit_code == 0
     assert "scenarios" in result.output
     mock.assert_called_once_with(
-        str(d), scenarios_model="mockllm/model", overwrite=False
+        str(d), scenarios_model="mockllm/model", overwrite=False, reasoning_effort=None
     )
 
 
@@ -125,8 +154,61 @@ def test_cli_ideation_overwrite_flag(runner: CliRunner, tmp_path: Path) -> None:
 
     assert result.exit_code == 0
     mock.assert_called_once_with(
-        str(d), scenarios_model="mockllm/model", overwrite=True
+        str(d), scenarios_model="mockllm/model", overwrite=True, reasoning_effort=None
     )
+
+
+def test_cli_ideation_reasoning_effort(runner: CliRunner, tmp_path: Path) -> None:
+    """Ideation --reasoning-effort is forwarded to run_ideation."""
+    d = tmp_path / "test_behavior"
+    d.mkdir()
+    (d / "BEHAVIOR.md").write_text("---\nnum_scenarios: 2\n---\n\nDesc.\n")
+
+    with patch("petri_bloom._cli.ideation.run_ideation") as mock:
+        result = runner.invoke(
+            cli,
+            [
+                "ideation",
+                str(d),
+                "--model-role",
+                "scenarios=mockllm/model",
+                "-r",
+                "medium",
+            ],
+        )
+
+    assert result.exit_code == 0
+    mock.assert_called_once_with(
+        str(d),
+        scenarios_model="mockllm/model",
+        overwrite=False,
+        reasoning_effort="medium",
+    )
+
+
+def test_cli_ideation_model_args(runner: CliRunner, tmp_path: Path) -> None:
+    """Ideation -M builds a Model carrying the provider arguments."""
+    d = tmp_path / "test_behavior"
+    d.mkdir()
+    (d / "BEHAVIOR.md").write_text("---\nnum_scenarios: 2\n---\n\nDesc.\n")
+
+    with patch("petri_bloom._cli.ideation.run_ideation") as mock:
+        result = runner.invoke(
+            cli,
+            [
+                "ideation",
+                str(d),
+                "--model-role",
+                "scenarios=mockllm/model",
+                "-M",
+                "custom_arg=false",
+            ],
+        )
+
+    assert result.exit_code == 0
+    model = mock.call_args.kwargs["scenarios_model"]
+    assert isinstance(model, Model)
+    assert model.name == "model"
 
 
 def test_cli_ideation_malformed_model_role(runner: CliRunner) -> None:

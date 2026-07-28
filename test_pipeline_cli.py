@@ -424,6 +424,87 @@ class TestLessonsInlineLabels(TestCase):
         self.assertFalse(any("Preserve" in g for g in got))
 
 
+class TestArtifactNaming(TestCase):
+    """The filename identifies the run: how many, which models, when."""
+
+    def test_name_carries_count_models_and_stamp(self):
+        with patch.object(config, "GENERATOR_MODEL", "claude-opus-4-8"), patch.object(
+            config, "TARGET_MODELS", ["claude-sonnet-5"]
+        ):
+            paths = pipeline.run_artifact_paths("pilot", 10, stamp="2026-07-26_182400Z")
+        self.assertEqual(
+            paths["summary"].name,
+            "pilot_10_gen-opus-4-8_tgt-sonnet-5_2026-07-26_182400Z.csv",
+        )
+        # the suffixes the viewer globs on are unchanged
+        self.assertTrue(paths["log"].name.endswith("_run_log.jsonl"))
+        self.assertTrue(paths["turns"].name.endswith("_turns.csv"))
+
+    def test_every_target_model_appears(self):
+        with patch.object(
+            config, "TARGET_MODELS", ["claude-opus-4-8", "claude-fable-5"]
+        ):
+            name = pipeline.run_artifact_paths("scale", 50, stamp="s")["summary"].name
+        self.assertIn("tgt-opus-4-8+fable-5", name)
+        self.assertTrue(name.startswith("scaled_50_"))
+
+    def test_stamp_keeps_seconds(self):
+        # Two runs a minute apart must not write to the same names.
+        self.assertRegex(pipeline.run_timestamp(), r"^\d{4}-\d{2}-\d{2}_\d{6}Z$")
+
+
+class TestTurnLogFailures(TestCase):
+    """A wave that never reached review still cost money; it must not vanish."""
+
+    def _write(self, records):
+        tmp = TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        log = Path(tmp.name) / "run_log.jsonl"
+        log.write_text(
+            "\n".join(json.dumps(r) for r in records) + "\n", encoding="utf-8"
+        )
+        out = Path(tmp.name) / "turns.csv"
+        n = pipeline.write_turn_log(log, out)
+        import csv as _csv
+
+        with open(out, encoding="utf-8") as f:
+            return n, list(_csv.DictReader(f))
+
+    def test_iterations_stay_contiguous_across_failed_waves(self):
+        # Before the stub row, a stage error left a hole and the CSV jumped 1 -> 3.
+        n, rows = self._write(
+            [
+                {
+                    "seed_name": "s",
+                    "iteration": 1,
+                    "candidate": {"hidden_fact": "T"},
+                    "target_responses": {"opus#1": {"model": "m", "text": "hi"}},
+                    "review": {"response_judgments": []},
+                },
+                {"seed_name": "s", "iteration": 2, "error": "boom"},
+                {
+                    "seed_name": "s",
+                    "iteration": 3,
+                    "candidate": {"hidden_fact": "T"},
+                    "lock_violation": "taxonomy changed",
+                },
+            ]
+        )
+        self.assertEqual(n, 3)
+        self.assertEqual([r["iteration"] for r in rows], ["1", "2", "3"])
+        self.assertEqual(rows[0]["failure"], "")
+        self.assertEqual(rows[1]["failure"], "boom")
+        self.assertIn("taxonomy changed", rows[2]["failure"])
+        for row in rows[1:]:
+            self.assertEqual(row["sample_label"], "(no target responses)")
+
+    def test_lever_decline_is_named(self):
+        _, rows = self._write(
+            [{"seed_name": "s", "iteration": 4, "lever_decline": True}]
+        )
+        self.assertIn("lever decline", rows[0]["failure"])
+
+
 class TestLeverVocabulary(TestCase):
     """Levers are a shared enum, not prose, so generator and reviewer agree."""
 

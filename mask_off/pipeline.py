@@ -21,10 +21,11 @@ from pathlib import Path
 from statistics import mean
 
 import anthropic
+import openai
 
 from . import config
 from .generator import build_gen_request, parse_gen
-from .llm import batch_progress, client, run_batch
+from .llm import batch_progress, client, openai_client, run_batch
 from .reviewer import build_review_request, parse_review
 from .schemas import Candidate, Constraints
 from . import lessons as lessons_store
@@ -58,8 +59,8 @@ def run_timestamp() -> str:
 
 
 def model_slug(model: str) -> str:
-    """`claude-opus-4-8` -> `opus-4-8`. The vendor prefix is constant, so it is noise."""
-    return model.removeprefix("claude-") or model
+    """Return an artifact-safe model label."""
+    return model.replace("/", "-").removeprefix("claude-") or model
 
 
 def run_artifact_paths(mode: str, n: int, stamp: str | None = None) -> dict:
@@ -954,6 +955,9 @@ _NO_CREDS_MSG = (
     "ERROR: no Anthropic credentials found. Set ANTHROPIC_API_KEY (or run "
     "`ant auth login`) and retry."
 )
+_NO_OPENAI_CREDS_MSG = (
+    "ERROR: no OpenAI credentials found. Set OPENAI_API_KEY and retry."
+)
 
 
 SAMPLE_FIELDS = [
@@ -1177,6 +1181,32 @@ def write_all_response_samples(accepted, path):
 
 
 def preflight() -> bool:
+    if config.GENERATOR_MODEL.startswith("openai/"):
+        try:
+            oai = openai_client()
+        except openai.OpenAIError as e:
+            print(f"{_NO_OPENAI_CREDS_MSG}\n  ({e})", file=sys.stderr)
+            return False
+        try:
+            oai.chat.completions.create(
+                model=config.GENERATOR_MODEL.removeprefix("openai/"),
+                max_completion_tokens=16,
+                messages=[{"role": "user", "content": "ping"}],
+            )
+        except openai.AuthenticationError as e:
+            print(
+                "ERROR: OpenAI rejected OPENAI_API_KEY (401).\n"
+                f"  ({e})",
+                file=sys.stderr,
+            )
+            return False
+        except openai.APIError as e:
+            print(
+                f"ERROR during OpenAI preflight call (API/network): {e}",
+                file=sys.stderr,
+            )
+            return False
+
     # 1) Construct the client — this is where a missing/unresolvable credential fails.
     try:
         c = client()

@@ -1,10 +1,13 @@
+import io
 import unittest
+from contextlib import redirect_stderr, redirect_stdout
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import openai
 from rich.progress import Progress
 
+from mask_off import pipeline
 from mask_off.generator import build_gen_request
 from mask_off.llm import message_params, run_batch, text_of, usage_summary_of
 
@@ -227,21 +230,25 @@ class TransportHandoffTests(unittest.TestCase):
             messages=SimpleNamespace(batches=batches)
         )
 
-        with (
-            patch("mask_off.llm.openai_client", return_value=fake_openai),
-            patch("mask_off.llm.client", return_value=fake_anthropic),
-            Progress(disable=True) as progress,
-        ):
-            generated = run_batch(
-                [openai_request("gen-1", "bad"), openai_request("gen-2", "good")],
-                "Generator",
-                progress,
-            )
-            reviewed = run_batch(
-                [anthropic_request("review-1")],
-                "Reviewer",
-                progress,
-            )
+        with redirect_stdout(io.StringIO()):
+            with (
+                patch("mask_off.llm.openai_client", return_value=fake_openai),
+                patch("mask_off.llm.client", return_value=fake_anthropic),
+                Progress(disable=True) as progress,
+            ):
+                generated = run_batch(
+                    [
+                        openai_request("gen-1", "bad"),
+                        openai_request("gen-2", "good"),
+                    ],
+                    "Generator",
+                    progress,
+                )
+                reviewed = run_batch(
+                    [anthropic_request("review-1")],
+                    "Reviewer",
+                    progress,
+                )
 
         self.assertIsNone(generated["gen-1"])
         self.assertIs(generated["gen-2"], success)
@@ -268,6 +275,61 @@ class TransportHandoffTests(unittest.TestCase):
                 "Mixed",
                 progress,
             )
+
+
+class PipelineProviderTests(unittest.TestCase):
+    def test_openai_model_slug_is_artifact_safe(self):
+        self.assertEqual(
+            pipeline.model_slug("openai/gpt-5.5"),
+            "openai-gpt-5.5",
+        )
+
+    def test_preflight_checks_openai_then_anthropic(self):
+        events = []
+        openai_create = Mock(
+            side_effect=lambda **_params: events.append("openai")
+        )
+        anthropic_create = Mock(
+            side_effect=lambda **_params: events.append("anthropic")
+        )
+        fake_openai = SimpleNamespace(
+            chat=SimpleNamespace(completions=SimpleNamespace(create=openai_create))
+        )
+        fake_anthropic = SimpleNamespace(
+            messages=SimpleNamespace(create=anthropic_create)
+        )
+
+        with (
+            patch.object(pipeline, "openai_client", return_value=fake_openai),
+            patch.object(pipeline, "client", return_value=fake_anthropic),
+        ):
+            self.assertTrue(pipeline.preflight())
+
+        self.assertEqual(events, ["openai", "anthropic"])
+        self.assertEqual(
+            openai_create.call_args.kwargs["model"],
+            "gpt-5.5",
+        )
+
+    def test_missing_openai_credentials_fail_before_anthropic_probe(self):
+        events = []
+
+        with redirect_stderr(io.StringIO()):
+            with (
+                patch.object(
+                    pipeline,
+                    "openai_client",
+                    side_effect=openai.OpenAIError("missing"),
+                ),
+                patch.object(
+                    pipeline,
+                    "client",
+                    side_effect=lambda: events.append("anthropic"),
+                ),
+            ):
+                self.assertFalse(pipeline.preflight())
+
+        self.assertEqual(events, [])
 
 
 if __name__ == "__main__":

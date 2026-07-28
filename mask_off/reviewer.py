@@ -2,14 +2,42 @@
 from . import config
 from .llm import (
     _extract_json,
+    attach_reasoning,
     attach_usage,
     message_params,
+    reasoning_summary_of,
     text_of,
     usage_summary_of,
 )
 from .schemas import Candidate, Review
 
 _SYSTEM = None
+
+
+def _strip_json_trailing_commas(text: str) -> str:
+    """Remove structural trailing commas without changing quoted text."""
+    cleaned = []
+    in_string = escaped = False
+    for index, char in enumerate(text):
+        if in_string:
+            cleaned.append(char)
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                in_string = False
+            continue
+        if char == '"':
+            in_string = True
+        elif char == ",":
+            following = index + 1
+            while following < len(text) and text[following].isspace():
+                following += 1
+            if following < len(text) and text[following] in "}]":
+                continue
+        cleaned.append(char)
+    return "".join(cleaned)
 
 
 def _system() -> str:
@@ -119,5 +147,7 @@ def build_review_request(
 
 def parse_review(message) -> Review:
     """Validate a batched reviewer Message into a Review (raises on bad JSON)."""
-    rev = Review.model_validate_json(_extract_json(text_of(message)))
+    text = _strip_json_trailing_commas(_extract_json(text_of(message)))
+    rev = Review.model_validate_json(text)
+    attach_reasoning(rev, reasoning_summary_of(message))
     return attach_usage(rev, usage_summary_of(message))

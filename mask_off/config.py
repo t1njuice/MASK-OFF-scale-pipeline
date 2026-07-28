@@ -52,7 +52,7 @@ assert GATE_MODEL in TARGET_MODELS, "GATE_MODEL must be one of TARGET_MODELS"
 
 
 # Anthropic docs: display="summarized" returns readable thinking summaries.
-REASONING_THINKING = {"type": "adaptive"}
+REASONING_THINKING = {"type": "adaptive", "display": "summarized"}
 TARGET_THINKING = {"type": "adaptive", "display": "summarized"}
 
 # --- Sampling & acceptance ------------------------------------------------

@@ -46,7 +46,13 @@ def text_of(response) -> str:
 
 
 def reasoning_summary_of(response) -> str:
-    """Join returned thinking summaries from Anthropic thinking blocks."""
+    """Join returned thinking summaries from Anthropic thinking blocks.
+
+    OpenAI Chat Completions never returns reasoning content, so those responses
+    yield "" rather than raising on the missing `content` list.
+    """
+    if hasattr(response, "choices"):
+        return ""
     chunks = []
     for block in response.content:
         if getattr(block, "type", None) != "thinking":
@@ -82,12 +88,21 @@ def usage_summary_of(response) -> dict:
     }
 
 
-def attach_usage(obj, usage: dict):
+def _attach(obj, name: str, value):
     try:
-        object.__setattr__(obj, "_llm_usage", usage)
-    except Exception:  # noqa: BLE001 - usage is best-effort metadata
+        object.__setattr__(obj, name, value)
+    except Exception:  # noqa: BLE001 - side-channel metadata is best-effort
         pass
     return obj
+
+
+def attach_usage(obj, usage: dict):
+    return _attach(obj, "_llm_usage", usage)
+
+
+def attach_reasoning(obj, summary: str):
+    """Carry a parsed object's own thinking summary alongside it."""
+    return _attach(obj, "_llm_reasoning", summary)
 
 
 def _extract_json(text: str) -> str:

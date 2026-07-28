@@ -148,6 +148,8 @@ target and reviewer batch tasks start with clean state.
 - Modify `mask_off/config.py` for the generator model.
 - Modify `mask_off/llm.py` for OpenAI request construction, sequential
   transport, response text, and usage mapping.
+- Modify the `mask_off/generator.py` request-builder docstring so it no longer
+  claims every generator request targets Anthropic Message Batches.
 - Modify `mask_off/pipeline.py` for dual-provider preflight and an artifact-safe
   `openai-gpt-5.5` model slug.
 - Add `test_llm_openai.py` for deterministic transport checks.

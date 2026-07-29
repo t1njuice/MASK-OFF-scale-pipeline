@@ -33,7 +33,7 @@ def _load_dotenv() -> None:
 _load_dotenv()
 
 # --- Models & effort ------------------------------------------------------
-GENERATOR_MODEL = "openai/gpt-5.5"
+GENERATOR_MODEL = "claude-opus-4-8"
 GENERATOR_EFFORT = "high"
 
 REVIEWER_MODEL = "claude-opus-4-8"
@@ -72,7 +72,7 @@ ITEMS_PER_SEED = 1
 
 # What proportion of seeds are likely to be accepted, this is used to send the number seeds
 SEED_ACCEPTANCE_RATE = 0.5
-OVERSUBSCRIBE = 2.0
+OVERSUBSCRIBE = 1.0
 
 TIMEOUT = 60
 

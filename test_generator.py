@@ -11,8 +11,8 @@ class GeneratorRequestTests(unittest.TestCase):
 
         request = build_gen_request("seed-1", seed_text, [])
         params = request["params"]
-        system = params["messages"][0]["content"]
-        user = params["messages"][1]["content"]
+        system = params["system"][0]["text"]
+        user = params["messages"][0]["content"]
         # The prompt template wraps prose across lines, so line-spanning
         # phrase checks must compare against whitespace-normalized text.
         normalized_user = " ".join(user.split())

@@ -1,12 +1,10 @@
-"""Thin OpenAI Chat Completions and Anthropic Message Batches helpers."""
+"""Thin Anthropic Message Batches helpers."""
 
-import hashlib
 import json
 import re
 import time
 
 import anthropic
-import openai
 from rich.progress import (
     BarColumn,
     MofNCompleteColumn,
@@ -19,7 +17,6 @@ from rich.progress import (
 from . import config
 
 _client = None
-_openai_client = None
 
 
 def client():
@@ -29,30 +26,14 @@ def client():
     return _client
 
 
-def openai_client():
-    global _openai_client
-    if _openai_client is None:
-        _openai_client = openai.OpenAI(max_retries=1, timeout=config.TIMEOUT)
-    return _openai_client
-
-
 def text_of(response) -> str:
-    """Return visible text from either provider response."""
-    if hasattr(response, "choices"):
-        return (response.choices[0].message.content or "").strip()
     return "".join(
         b.text for b in response.content if getattr(b, "type", None) == "text"
     ).strip()
 
 
 def reasoning_summary_of(response) -> str:
-    """Join returned thinking summaries from Anthropic thinking blocks.
-
-    OpenAI Chat Completions never returns reasoning content, so those responses
-    yield "" rather than raising on the missing `content` list.
-    """
-    if hasattr(response, "choices"):
-        return ""
+    """Join returned thinking summaries from Anthropic thinking blocks."""
     chunks = []
     for block in response.content:
         if getattr(block, "type", None) != "thinking":
@@ -65,16 +46,6 @@ def reasoning_summary_of(response) -> str:
 
 def usage_summary_of(response) -> dict:
     usage = getattr(response, "usage", None)
-    if hasattr(usage, "prompt_tokens"):
-        details = getattr(usage, "prompt_tokens_details", None)
-        return {
-            "input_tokens": usage.prompt_tokens or 0,
-            "output_tokens": usage.completion_tokens or 0,
-            "cache_creation_input_tokens": (
-                getattr(details, "cache_write_tokens", 0) or 0
-            ),
-            "cache_read_input_tokens": getattr(details, "cached_tokens", 0) or 0,
-        }
     return {
         "input_tokens": getattr(usage, "input_tokens", 0) or 0,
         "output_tokens": getattr(usage, "output_tokens", 0) or 0,
@@ -117,25 +88,6 @@ def _extract_json(text: str) -> str:
 
 
 def message_params(model, effort, system, user, max_tokens, thinking) -> dict:
-    if model.startswith("openai/"):
-        api_model = model.removeprefix("openai/")
-        if not api_model:
-            raise ValueError("OpenAI model ID cannot be empty")
-        cache_key = hashlib.sha256(
-            f"{api_model}\0{system}".encode("utf-8")
-        ).hexdigest()
-        return {
-            "model": model,
-            "messages": [
-                {"role": "developer", "content": system},
-                {"role": "user", "content": user},
-            ],
-            "reasoning_effort": effort,
-            "max_completion_tokens": max_tokens,
-            "prompt_cache_key": cache_key,
-            "prompt_cache_retention": "24h",
-        }
-
     params = dict(
         model=model,
         max_tokens=max_tokens,
@@ -217,7 +169,7 @@ def _connection_retry(call, progress: Progress):
 
 
 def run_batch(requests: list[dict], label: str, progress: Progress | None = None) -> dict:
-    """Run sequential OpenAI chats or capped Anthropic Message Batches.
+    """Run capped Anthropic Message Batches.
 
     Returns {custom_id: response | None}, where None means the request errored,
     expired, or was canceled. Pass ``progress`` to nest this stage's bars under
@@ -225,40 +177,9 @@ def run_batch(requests: list[dict], label: str, progress: Progress | None = None
     """
     if not requests:
         return {}
-    models = [request.get("params", {}).get("model", "") for request in requests]
-    providers = {
-        "openai" if model.startswith("openai/") else "anthropic"
-        for model in models
-    }
-    if len(providers) != 1:
-        raise ValueError("one run_batch call cannot mix OpenAI and Anthropic")
-    if "openai" in providers and any(model == "openai/" for model in models):
-        raise ValueError("OpenAI model ID cannot be empty")
     if progress is None:
         with batch_progress() as progress:
             return run_batch(requests, label, progress)
-    if "openai" in providers:
-        task = progress.add_task(label, total=len(requests))
-        completions = openai_client().chat.completions
-        out = {}
-        try:
-            for request in requests:
-                params = dict(request["params"])
-                params["model"] = params["model"].removeprefix("openai/")
-                try:
-                    out[request["custom_id"]] = completions.create(**params)
-                except openai.OpenAIError as exc:
-                    progress.console.print(
-                        f"{request['custom_id']}: {exc}",
-                        markup=False,
-                        highlight=False,
-                    )
-                    out[request["custom_id"]] = None
-                finally:
-                    progress.update(task, advance=1, refresh=True)
-        finally:
-            progress.remove_task(task)
-        return out
 
     batches = client().messages.batches
     buffered_batches = _buffer_batches(requests)

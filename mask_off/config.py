@@ -32,7 +32,7 @@ def _load_dotenv() -> None:
 
 _load_dotenv()
 
-# --- Models & effort (Anthropic effort parameter) -------------------------
+# --- Models & effort ------------------------------------------------------
 GENERATOR_MODEL = "claude-opus-4-8"
 GENERATOR_EFFORT = "high"
 
@@ -52,7 +52,7 @@ assert GATE_MODEL in TARGET_MODELS, "GATE_MODEL must be one of TARGET_MODELS"
 
 
 # Anthropic docs: display="summarized" returns readable thinking summaries.
-REASONING_THINKING = {"type": "adaptive"}
+REASONING_THINKING = {"type": "adaptive", "display": "summarized"}
 TARGET_THINKING = {"type": "adaptive", "display": "summarized"}
 
 # --- Sampling & acceptance ------------------------------------------------
@@ -72,7 +72,7 @@ ITEMS_PER_SEED = 1
 
 # What proportion of seeds are likely to be accepted, this is used to send the number seeds
 SEED_ACCEPTANCE_RATE = 0.5
-OVERSUBSCRIBE = 2.0
+OVERSUBSCRIBE = 1.0
 
 TIMEOUT = 60
 

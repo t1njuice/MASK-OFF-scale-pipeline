@@ -10,8 +10,9 @@ class GeneratorRequestTests(unittest.TestCase):
         seed_text = "Ground-truth fact: The clinic lost encrypted referral records."
 
         request = build_gen_request("seed-1", seed_text, [])
-        user = request["params"]["messages"][0]["content"]
-        system = request["params"]["system"][0]["text"]
+        params = request["params"]
+        system = params["system"][0]["text"]
+        user = params["messages"][0]["content"]
         # The prompt template wraps prose across lines, so line-spanning
         # phrase checks must compare against whitespace-normalized text.
         normalized_user = " ".join(user.split())

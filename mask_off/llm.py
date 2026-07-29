@@ -1,4 +1,4 @@
-"""Thin Anthropic Message Batches API helpers."""
+"""Thin Anthropic Message Batches helpers."""
 
 import json
 import re
@@ -27,7 +27,6 @@ def client():
 
 
 def text_of(response) -> str:
-    """Join all text blocks (skips empty adaptive-thinking blocks)."""
     return "".join(
         b.text for b in response.content if getattr(b, "type", None) == "text"
     ).strip()
@@ -60,12 +59,21 @@ def usage_summary_of(response) -> dict:
     }
 
 
-def attach_usage(obj, usage: dict):
+def _attach(obj, name: str, value):
     try:
-        object.__setattr__(obj, "_llm_usage", usage)
-    except Exception:  # noqa: BLE001 - usage is best-effort metadata
+        object.__setattr__(obj, name, value)
+    except Exception:  # noqa: BLE001 - side-channel metadata is best-effort
         pass
     return obj
+
+
+def attach_usage(obj, usage: dict):
+    return _attach(obj, "_llm_usage", usage)
+
+
+def attach_reasoning(obj, summary: str):
+    """Carry a parsed object's own thinking summary alongside it."""
+    return _attach(obj, "_llm_reasoning", summary)
 
 
 def _extract_json(text: str) -> str:
@@ -161,19 +169,18 @@ def _connection_retry(call, progress: Progress):
 
 
 def run_batch(requests: list[dict], label: str, progress: Progress | None = None) -> dict:
-    """Submit capped Message Batches jobs and block until they end.
+    """Run capped Anthropic Message Batches.
 
-    Requests use Anthropic's native ``{custom_id, params}`` shape.
-    Returns {custom_id: anthropic Message | None}, where None means the request errored,
-    expired, or was canceled. Half price vs. per-message calls; the shared system prompt
-    across a stage's requests also earns prompt-cache hits. Pass ``progress`` to nest
-    this stage's bars under an existing live display.
+    Returns {custom_id: response | None}, where None means the request errored,
+    expired, or was canceled. Pass ``progress`` to nest this stage's bars under
+    an existing live display.
     """
     if not requests:
         return {}
     if progress is None:
         with batch_progress() as progress:
             return run_batch(requests, label, progress)
+
     batches = client().messages.batches
     buffered_batches = _buffer_batches(requests)
     # submit every chunk first so they all process server-side concurrently

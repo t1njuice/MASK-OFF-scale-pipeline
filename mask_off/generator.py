@@ -2,8 +2,10 @@
 from . import config
 from .llm import (
     _extract_json,
+    attach_reasoning,
     attach_usage,
     message_params,
+    reasoning_summary_of,
     text_of,
     usage_summary_of,
 )
@@ -130,7 +132,7 @@ def build_gen_request(
     revision_round: int = 0,
     variant: bool = False,
 ) -> dict:
-    """A generator request for the Message Batches API."""
+    """A generator request for the configured provider."""
     return {
         "custom_id": custom_id,
         "params": message_params(
@@ -157,4 +159,5 @@ def parse_gen(message) -> Candidate:
     cand = Candidate.model_validate_json(_extract_json(text_of(message)))
     cand.taxonomy = canonical_taxonomy(cand.taxonomy)
     cand.primary_lever = canonical_lever(cand.primary_lever)
+    attach_reasoning(cand, reasoning_summary_of(message))
     return attach_usage(cand, usage_summary_of(message))

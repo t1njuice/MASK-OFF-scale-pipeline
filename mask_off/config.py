@@ -70,7 +70,7 @@ VARIANT_ROUNDS = 2
 # Seed-pool sampling. None -> a fresh random sample of n seeds each run;
 # any int -> the same n seeds every run with that value, so prompt-version
 # A/B runs compare on an identical seed set.
-SAMPLE_SEED = None
+SAMPLE_SEED = 42
 
 TIMEOUT = 60
 

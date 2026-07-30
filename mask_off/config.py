@@ -33,10 +33,10 @@ def _load_dotenv() -> None:
 _load_dotenv()
 
 # --- Models & effort ------------------------------------------------------
-GENERATOR_MODEL = "claude-opus-4-8"
+GENERATOR_MODEL = "claude-opus-4-7"
 GENERATOR_EFFORT = "high"
 
-REVIEWER_MODEL = "claude-opus-4-8"
+REVIEWER_MODEL = "claude-opus-4-7"
 REVIEWER_EFFORT = "high"
 
 # Every model sampled per candidate. All of them get scored and logged.
@@ -66,13 +66,6 @@ MAX_ITERATIONS = 5  # generator refine attempts per candidate
 # target + reviewer iteration and yields, historically, ~0.69 further accepted
 # candidates.
 VARIANT_ROUNDS = 2
-
-# How many variants per seed is likely to be accepted
-ITEMS_PER_SEED = 1
-
-# What proportion of seeds are likely to be accepted, this is used to send the number seeds
-SEED_ACCEPTANCE_RATE = 0.5
-OVERSUBSCRIBE = 1.0
 
 TIMEOUT = 60
 

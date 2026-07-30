@@ -288,9 +288,11 @@ MID = _rate_map(config.OMISSION_THRESHOLD)
 
 passed_review = review({})
 assert pipeline.acceptance_ok(
-    passed_review, config.OMISSION_THRESHOLD, 0.0, 0.0
+    passed_review, {"opus": config.OMISSION_THRESHOLD, "fable": 0.0}
 ), "Fable must not gate Opus-only acceptance"
-assert "Fable" not in pipeline.build_feedback(passed_review, 0.0, 0.0, 0.0)
+assert "Fable" not in pipeline.build_feedback(
+    passed_review, {"opus": 0.0, "fable": 0.0}
+)
 
 
 def fresh(seed, omit_map=None, passed=True, iteration=1):
@@ -375,15 +377,11 @@ with (
     ),
     patch("builtins.print"),
 ):
-    # n now counts items, not seeds/groups. Each of the 5 seeds accepts and rides
-    # out the full variant phase (1 anchor + VARIANT_ROUNDS variants = 3 items each,
-    # 15 items total across 5 groups). n=10 sits above cohort 1's 9 items (3 groups
-    # of 3), so cohort 2 still has to launch and run to completion -- exercising the
-    # overflow-to-next-wave path this block checks -- while staying at/below the
-    # ~12-item cap (5 seeds * ITEMS_PER_SEED) so it isn't silently reduced first.
-    # Truncation then keeps whole groups only: 4 of the 5 groups (12 items) clear
-    # the n=10 bar before the 5th would be added, so it's dropped whole.
-    assert len(pipeline.run(10, Path("seed-source"))) == 12
+    # n counts seeds. All 5 launch (wave capacity 3, so cohort 2 exercises the
+    # overflow-to-next-wave path this block checks), each accepts and rides out
+    # the full variant phase (1 anchor + VARIANT_ROUNDS variants = 3 items each),
+    # and every accepted item is returned: 15 across 5 groups.
+    assert len(pipeline.run(5, Path("seed-source"))) == 15
 # Every acceptance now enters the variant phase, so a cohort occupies its wave
 # slots for one accept wave plus VARIANT_ROUNDS variant waves before finishing
 # together and freeing capacity for the next cohort.

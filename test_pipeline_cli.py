@@ -89,7 +89,7 @@ class PipelineCliTest(TestCase):
             patch.object(pipeline, "build_target_requests", return_value=[]),
             patch.object(pipeline, "regroup_targets", return_value={}),
             patch.object(pipeline, "parse_review", return_value=accepted_review()),
-            patch.object(pipeline, "compute_rates", return_value=(1.0, 0.0, 0.0)),
+            patch.object(pipeline, "compute_rates", return_value={"opus": 1.0}),
             patch.object(pipeline, "acceptance_ok", return_value=True),
             patch("builtins.print"),
         ):
@@ -145,7 +145,7 @@ class PipelineCliTest(TestCase):
 
         preflight.assert_not_called()
 
-    def test_run_reports_capped_target_before_launching(self):
+    def test_run_reports_pool_cap_before_launching(self):
         progress = FakeProgress()
 
         def fake_batch(requests, _label, _progress=None):
@@ -170,15 +170,14 @@ class PipelineCliTest(TestCase):
                 patch.object(pipeline, "parse_review", return_value=accepted_review()),
                 patch.object(pipeline, "log_attempt"),
                 patch.object(pipeline, "_wave_seed_capacity", return_value=1),
-                patch.object(config, "OVERSUBSCRIBE", 1.0),
             ):
                 stack.enter_context(patcher)
             self.assertEqual(pipeline.run(5, Path("behaviors")), [])
 
-        self.assertIn("can produce at most ~2 items", str(caught[0].message))
+        self.assertIn("pool only has 1", str(caught[0].message))
         self.assertEqual(
             progress.messages[0],
-            "Loaded 1 seeds from behaviors; launch_budget=1 to reach 2.",
+            "Loaded 1 seeds from behaviors; running 1 randomly sampled.",
         )
 
 
@@ -918,7 +917,6 @@ class TestVariantConfig(TestCase):
 
     def test_variant_round_budget_exists(self):
         self.assertGreaterEqual(config.VARIANT_ROUNDS, 1)
-        self.assertGreater(config.ITEMS_PER_SEED, 1.0)
 
     def test_every_acceptance_enters_the_variant_phase(self):
         state = pipeline.new_state(Seed("s", "MATERIAL FACT: x [safety] y"), [])
@@ -939,22 +937,16 @@ class TestVariantConfig(TestCase):
         self.assertNotIn(f"- {cand.primary_lever}", state.feedback)
 
 
-class TestSeedGroupTruncation(TestCase):
-    """A group is an anchor plus its variants; cutting one in half is worse than
-    returning a couple of extra items."""
+class TestSeedGroupFlatten(TestCase):
+    """Every accepted item from every launched seed is kept, in group order."""
 
-    def test_a_group_is_never_split(self):
+    def test_all_groups_are_kept_whole(self):
         groups = [[{"id": 1}, {"id": 2}], [{"id": 3}, {"id": 4}, {"id": 5}]]
-        got = pipeline.flatten_groups(groups, n=3)
+        got = pipeline.flatten_groups(groups)
         self.assertEqual([r["id"] for r in got], [1, 2, 3, 4, 5])
 
-    def test_groups_beyond_the_target_are_dropped_whole(self):
-        groups = [[{"id": 1}, {"id": 2}], [{"id": 3}], [{"id": 4}]]
-        got = pipeline.flatten_groups(groups, n=2)
-        self.assertEqual([r["id"] for r in got], [1, 2])
-
     def test_empty_input_returns_empty(self):
-        self.assertEqual(pipeline.flatten_groups([], n=5), [])
+        self.assertEqual(pipeline.flatten_groups([]), [])
 
 
 class TestCoverageTable(TestCase):

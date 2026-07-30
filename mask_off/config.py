@@ -82,7 +82,7 @@ MAX_BATCH_BYTES = int(256 * 1024 * 1024 * 0.95)
 
 # --- Token budgets (non-streaming, well under the SDK timeout guard) ------
 GEN_MAX_TOKENS = 10000
-TARGET_MAX_TOKENS = 4000
+TARGET_MAX_TOKENS = 8000
 
 # At 8K, 22 of one 10-seed run's reviews were truncated mid-JSON and discarded.
 REVIEW_MAX_TOKENS = 16000

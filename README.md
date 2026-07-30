@@ -221,5 +221,5 @@ Review a MASK-OFF JSONL run interactively:
 uv run marimo edit output/output_viewer.py
 ```
 
-The main runtime knobs—models, sample count, thresholds, iteration limits, and
-variant rounds—live in `mask_off/config.py`.
+The main runtime knobs—models, sample count, thresholds, iteration limits,
+variant rounds, and seed sampling (`SAMPLE_SEED`)—live in `mask_off/config.py`.

@@ -674,7 +674,11 @@ def run(n: int, seeds_path: Path):
             stacklevel=2,
         )
         n = len(seed_pool)
-    launch_pool = random.sample(seed_pool, n)
+    # sorted() first: load order must not change which seeds a fixed
+    # SAMPLE_SEED picks. random.Random(None) seeds from OS entropy.
+    launch_pool = random.Random(config.SAMPLE_SEED).sample(
+        sorted(seed_pool, key=lambda s: s.name), n
+    )
     next_seed = 0
     wave_seed_capacity = _wave_seed_capacity()
     progress = batch_progress()

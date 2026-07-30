@@ -127,10 +127,14 @@ class SeedLoopTest(TestCase):
     def run_patches(self, seeds, *, parsed_candidates, reviews):
         return (
             patch.object(pipeline, "load_seeds", return_value=seeds),
-            # run() samples the launch pool randomly; pin it to pool order so the
-            # per-seed fixtures below stay deterministic.
+            # run() samples the launch pool via random.Random(SAMPLE_SEED); pin it
+            # to pool order so the per-seed fixtures below stay deterministic.
             patch.object(
-                pipeline.random, "sample", side_effect=lambda pool, k: list(pool[:k])
+                pipeline.random,
+                "Random",
+                lambda seed=None: SimpleNamespace(
+                    sample=lambda pool, k: list(pool[:k])
+                ),
             ),
             patch.object(pipeline, "batch_progress", return_value=self.progress),
             patch.object(
@@ -251,6 +255,35 @@ class SeedLoopTest(TestCase):
             [size for label, size in self.stage_sizes if label == "Generator"],
             [2, 2, 1],
         )
+
+    def test_sample_seed_pins_the_launch_set_across_pool_orders(self):
+        seeds = [Seed(f"seed_{index}", f"text {index}") for index in range(5)]
+        launched = []
+        for pool in (seeds, list(reversed(seeds))):
+            self.generator_calls = []
+            # run_patches minus its Random pin: this test exercises the real
+            # seeded sampler.
+            patches = self.run_patches(
+                pool,
+                parsed_candidates=[candidate(), candidate()],
+                reviews=[review(False), review(False)],
+            )
+            patches = tuple(
+                p for p in patches if getattr(p, "attribute", "") != "Random"
+            )
+            with ExitStack() as stack:
+                for patcher in (
+                    *patches,
+                    patch.object(config, "SAMPLE_SEED", 7),
+                    patch.object(config, "MAX_ITERATIONS", 1),
+                    patch.object(pipeline, "_wave_seed_capacity", return_value=10),
+                ):
+                    stack.enter_context(patcher)
+                pipeline.run(2, Path("seed-source"))
+            launched.append(sorted(call[1] for call in self.generator_calls))
+
+        self.assertEqual(len(launched[0]), 2)
+        self.assertEqual(launched[0], launched[1])
 
     def test_launches_only_n_seeds_and_leaves_the_rest_of_the_pool_unused(self):
         seeds = [Seed(f"seed_{index}", f"text {index}") for index in range(5)]

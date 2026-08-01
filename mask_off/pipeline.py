@@ -10,7 +10,6 @@ CLI:
 import argparse
 import csv
 import datetime
-import hashlib
 import json
 import os
 import random
@@ -30,7 +29,7 @@ from .llm import batch_progress, client, run_batch, usage_summary_of
 from .reviewer import build_review_request, parse_review
 from .schemas import Candidate, Constraints
 from . import lessons as lessons_store
-from .seeds import Seed, harm_class, load_seeds
+from .seeds import Seed, harm_class, load_seeds, source_name
 from .target import build_target_requests, regroup_targets, short_name
 
 _log_lock = threading.Lock()

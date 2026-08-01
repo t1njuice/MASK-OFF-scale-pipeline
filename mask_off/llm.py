@@ -1,9 +1,13 @@
 """Thin Anthropic Message Batches helpers."""
 
 import json
+import os
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from types import SimpleNamespace
 
 import anthropic
+import httpx
 from rich.progress import (
     BarColumn,
     MofNCompleteColumn,
@@ -160,6 +164,99 @@ def message_params(
     return params
 
 
+# --- OpenRouter (non-Anthropic targets, e.g. moonshotai/kimi-k3) ----------
+OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+
+
+def is_anthropic_model(model: str) -> bool:
+    return model.startswith("claude")
+
+
+def _shim_message(data: dict):
+    """Wrap an OpenAI-style chat completion so text_of / reasoning_summary_of /
+    usage_summary_of read it exactly like an Anthropic message."""
+    choice = data["choices"][0]
+    msg = choice["message"]
+    content = []
+    # ponytail: reads message.reasoning only; add reasoning_details if a model needs it
+    reasoning = (msg.get("reasoning") or "").strip()
+    if reasoning:
+        content.append(SimpleNamespace(type="thinking", thinking=reasoning))
+    content.append(SimpleNamespace(type="text", text=msg.get("content") or ""))
+    usage = data.get("usage") or {}
+    details = usage.get("prompt_tokens_details") or {}
+    return SimpleNamespace(
+        content=content,
+        usage=SimpleNamespace(
+            input_tokens=usage.get("prompt_tokens", 0),
+            output_tokens=usage.get("completion_tokens", 0),
+            cache_creation_input_tokens=0,
+            cache_read_input_tokens=details.get("cached_tokens", 0) or 0,
+        ),
+        stop_reason=choice.get("finish_reason"),
+    )
+
+
+def _openrouter_call(params: dict):
+    """One synchronous chat completion from Anthropic-shaped `params`."""
+    body = {
+        "model": params["model"],
+        "max_tokens": params["max_tokens"],
+        "messages": [
+            # Anthropic system blocks are already OpenRouter content parts, so
+            # cache_control passes through: explicit-caching providers (Anthropic,
+            # Qwen) use the breakpoint, automatic ones (Moonshot/kimi) ignore it
+            # and cache on their own.
+            {"role": "system", "content": params["system"]},
+            *params["messages"],
+        ],
+    }
+    if params.get("thinking"):
+        body["reasoning"] = {"enabled": True}
+    for attempt in range(3):
+        try:
+            resp = httpx.post(
+                OPENROUTER_URL,
+                headers={
+                    "Authorization": f"Bearer {os.environ['OPENROUTER_API_KEY']}"
+                },
+                json=body,
+                # thinking models run minutes; config.TIMEOUT guards Anthropic only
+                timeout=600,
+            )
+            resp.raise_for_status()
+            return _shim_message(resp.json())
+        except (httpx.HTTPError, KeyError, IndexError):
+            if attempt == 2:
+                raise
+            time.sleep(5 * (attempt + 1))
+
+
+def _run_openrouter(requests: list[dict], label: str, progress: Progress) -> dict:
+    """Threaded stand-in for the Batches API: {custom_id: message | None}."""
+    task = progress.add_task(f"{label} (openrouter)", total=len(requests))
+    out = {}
+    try:
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            futures = {
+                pool.submit(_openrouter_call, r["params"]): r["custom_id"]
+                for r in requests
+            }
+            for future in as_completed(futures):
+                cid = futures[future]
+                try:
+                    out[cid] = future.result()
+                except Exception as exc:  # noqa: BLE001 - None = errored sample, same as batch
+                    progress.console.print(
+                        f"openrouter {cid} failed: {exc}", markup=False, highlight=False
+                    )
+                    out[cid] = None
+                progress.advance(task)
+    finally:
+        progress.remove_task(task)
+    return out
+
+
 def _buffer_batches(requests: list[dict]) -> list[list[dict]]:
     """Split requests before either Message Batch cap is crossed."""
     batches = []
@@ -229,6 +326,14 @@ def run_batch(requests: list[dict], label: str, progress: Progress | None = None
     if progress is None:
         with batch_progress() as progress:
             return run_batch(requests, label, progress)
+
+    external = [r for r in requests if not is_anthropic_model(r["params"]["model"])]
+    if external:
+        native = [r for r in requests if is_anthropic_model(r["params"]["model"])]
+        # ponytail: sequential; overlap the pool with the batch poll if wall-clock matters
+        out = _run_openrouter(external, label, progress)
+        out.update(run_batch(native, label, progress))
+        return out
 
     batches = client().messages.batches
     buffered_batches = _buffer_batches(requests)

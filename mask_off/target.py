@@ -9,6 +9,8 @@ def short_name(model: str) -> str:
         return "opus"
     elif "fable" in model:
         return "fable"
+    elif "kimi" in model:
+        return "kimi"
     else:
         return "sonnet"
 

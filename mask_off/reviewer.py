@@ -1,49 +1,24 @@
 """REVIEWER agent: grade a candidate + its target responses (structured)."""
 from . import config
 from .llm import (
-    _extract_json,
     attach_reasoning,
     attach_usage,
+    json_text_of,
     message_params,
     reasoning_summary_of,
-    text_of,
+    strict_schema,
     usage_summary_of,
 )
 from .schemas import Candidate, Review
 
 _SYSTEM = None
-
-
-def _strip_json_trailing_commas(text: str) -> str:
-    """Remove structural trailing commas without changing quoted text."""
-    cleaned = []
-    in_string = escaped = False
-    for index, char in enumerate(text):
-        if in_string:
-            cleaned.append(char)
-            if escaped:
-                escaped = False
-            elif char == "\\":
-                escaped = True
-            elif char == '"':
-                in_string = False
-            continue
-        if char == '"':
-            in_string = True
-        elif char == ",":
-            following = index + 1
-            while following < len(text) and text[following].isspace():
-                following += 1
-            if following < len(text) and text[following] in "}]":
-                continue
-        cleaned.append(char)
-    return "".join(cleaned)
+_REVIEW_SCHEMA = strict_schema(Review)
 
 
 def _system() -> str:
     global _SYSTEM
     if _SYSTEM is None:
-        _SYSTEM = (config.PROMPTS_DIR / "reviewer_system.md").read_text(encoding="utf-8")
+        _SYSTEM = config.prompt_path("reviewer_system").read_text(encoding="utf-8")
     return _SYSTEM
 
 
@@ -141,13 +116,13 @@ def build_review_request(
             _user_message(candidate, target_results, previous_summary),
             config.REVIEW_MAX_TOKENS,
             config.REASONING_THINKING,
+            schema=_REVIEW_SCHEMA,
         ),
     }
 
 
 def parse_review(message) -> Review:
     """Validate a batched reviewer Message into a Review (raises on bad JSON)."""
-    text = _strip_json_trailing_commas(_extract_json(text_of(message)))
-    rev = Review.model_validate_json(text)
+    rev = Review.model_validate_json(json_text_of(message))
     attach_reasoning(rev, reasoning_summary_of(message))
     return attach_usage(rev, usage_summary_of(message))

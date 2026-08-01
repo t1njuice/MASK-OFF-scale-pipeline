@@ -10,6 +10,7 @@ CLI:
 import argparse
 import csv
 import datetime
+import hashlib
 import json
 import random
 import sys
@@ -24,7 +25,7 @@ import anthropic
 
 from . import config
 from .generator import build_gen_request, parse_gen
-from .llm import batch_progress, client, run_batch
+from .llm import batch_progress, client, run_batch, usage_summary_of
 from .reviewer import build_review_request, parse_review
 from .schemas import Candidate, Constraints
 from . import lessons as lessons_store
@@ -62,21 +63,69 @@ def model_slug(model: str) -> str:
     return model.replace("/", "-").removeprefix("claude-") or model
 
 
-def run_artifact_paths(mode: str, n: int, stamp: str | None = None) -> dict:
+# Leaves room for the longest artifact suffix under the 255-byte filename limit.
+_SEEDS_SLUG_LIMIT = 170
+
+
+def seeds_slug(names) -> str:
+    """`+`-joined seed names, or a digest of them once that would overrun the name.
+
+    Sorted so the same seed set slugs identically however the sample ordered it.
+    The digest is only a fallback for scale runs — the per-seed names are in the
+    run log either way, so the filename just has to identify the set.
+    """
+    ordered = sorted(names)
+    joined = "+".join(ordered)
+    if len(joined) <= _SEEDS_SLUG_LIMIT:
+        return joined or "none"
+    digest = hashlib.sha256("|".join(ordered).encode("utf-8")).hexdigest()[:8]
+    return f"{len(ordered)}seeds-{digest}"
+
+
+def select_seeds(n: int, seeds_path: Path) -> list:
+    """The launch pool for a run: sorted, then sampled.
+
+    Split out of `run` so the CLI can name artifacts after the seeds that will
+    actually run. With SAMPLE_SEED = None the sample is OS-entropy random, so it
+    must be drawn once and shared — drawing twice would put one set in the
+    filename and run a different one.
+    """
+    seed_pool = load_seeds(Path(seeds_path))
+    if n > len(seed_pool):
+        warnings.warn(
+            f"asked for {n} seeds but the pool only has {len(seed_pool)}; "
+            f"running all of them",
+            stacklevel=2,
+        )
+        n = len(seed_pool)
+    # sorted() first: load order must not change which seeds a fixed
+    # SAMPLE_SEED picks. random.Random(None) seeds from OS entropy.
+    return random.Random(config.SAMPLE_SEED).sample(
+        sorted(seed_pool, key=lambda s: s.name), n
+    )
+
+
+def run_artifact_paths(
+    mode: str, n: int, stamp: str | None = None, seed_names=None
+) -> dict:
     """Artifact paths for one run, named so the run is identifiable from the filename.
 
-    `pilot_10_gen-opus-4-8_tgt-opus-4-8_2026-07-26_182400Z.csv` — item target, the
-    generator, every target model, then when. Comparing two runs is the common task
-    and the models are what usually differ, so they belong in the name rather than
-    only in the log records.
+    `pilot_2_gen-opus-4-8_tgt-opus-4-8_seeds-a+b_2026-07-26_182400Z.csv` — item
+    target, the generator, every target model, the seed set, then when. Comparing
+    two runs is the common task and the models and seeds are what usually differ,
+    so they belong in the name rather than only in the log records.
+
+    `seed_names` omitted leaves the seed segment out entirely, so callers that
+    name artifacts before choosing seeds keep the old filename shape.
     """
     if mode not in {"pilot", "scale"}:
         raise ValueError(f"unsupported artifact mode: {mode}")
     stamp = stamp or run_timestamp()
     stem = f"pilot_{n}" if mode == "pilot" else f"scaled_{n}"
     targets = "+".join(model_slug(m) for m in config.TARGET_MODELS) or "none"
+    seeds = f"_seeds-{seeds_slug(seed_names)}" if seed_names else ""
     base = config.OUTPUT_DIR / (
-        f"{stem}_gen-{model_slug(config.GENERATOR_MODEL)}_tgt-{targets}_{stamp}"
+        f"{stem}_gen-{model_slug(config.GENERATOR_MODEL)}_tgt-{targets}{seeds}_{stamp}"
     )
     paths = {
         "summary": base.with_suffix(".csv"),
@@ -608,7 +657,7 @@ def _skip_wave(state: CandidateState) -> None:
         state.result = state.last_failed_result
 
 
-def _log_stage_error(state: CandidateState, exc: Exception) -> None:
+def _log_stage_error(state: CandidateState, exc: Exception, msg=None) -> None:
     record = {
         "seed_name": state.seed_name,
         "iteration": state.iteration,
@@ -616,6 +665,11 @@ def _log_stage_error(state: CandidateState, exc: Exception) -> None:
         "error": repr(exc),
         "ts": now_iso(),
     }
+    if msg is not None:
+        # A parse failure is almost always truncation, but the exception alone
+        # can't say so. stop_reason == "max_tokens" is the tell.
+        record["stop_reason"] = getattr(msg, "stop_reason", None)
+        record["usage"] = usage_summary_of(msg)
     if state.phase == "optimizing":
         record["phase"] = "post_accept_optimization"
     log_attempt(record)
@@ -661,7 +715,7 @@ def coverage_table(items: list[dict]) -> str:
     return "\n".join(lines)
 
 
-def run(n: int, seeds_path: Path):
+def run(n: int, seeds_path: Path, launch_pool: list | None = None):
     """Run `n` randomly sampled seeds through the wave loop; report whatever accepts.
 
     `n` is a seed count, not an item target: every launched seed runs until it
@@ -669,6 +723,9 @@ def run(n: int, seeds_path: Path):
     Each wave = capped generator, target, and reviewer batches via the Message Batches
     API (half price). Rejected candidates recirculate into the next wave's generator
     batch; accepted ones optimize then exit.
+
+    Pass `launch_pool` to run a set the caller already drew with `select_seeds`;
+    omit it and one is drawn here.
     """
     accepted_groups: list[list] = []
 
@@ -679,18 +736,9 @@ def run(n: int, seeds_path: Path):
     active: list[CandidateState] = []
     seed_pool = load_seeds(Path(seeds_path))
     lessons_path = config.LESSONS_PATH
-    if n > len(seed_pool):
-        warnings.warn(
-            f"asked for {n} seeds but the pool only has {len(seed_pool)}; "
-            f"running all of them",
-            stacklevel=2,
-        )
-        n = len(seed_pool)
-    # sorted() first: load order must not change which seeds a fixed
-    # SAMPLE_SEED picks. random.Random(None) seeds from OS entropy.
-    launch_pool = random.Random(config.SAMPLE_SEED).sample(
-        sorted(seed_pool, key=lambda s: s.name), n
-    )
+    if launch_pool is None:
+        launch_pool = select_seeds(n, seeds_path)
+    n = len(launch_pool)
     next_seed = 0
     wave_seed_capacity = _wave_seed_capacity()
     progress = batch_progress()
@@ -771,7 +819,7 @@ def run(n: int, seeds_path: Path):
                         raise RuntimeError("generator batch returned no message")
                     s.candidate = parse_gen(msg)
                 except Exception as e:  # noqa: BLE001 - one bad gen must not sink the wave
-                    _log_stage_error(s, e)
+                    _log_stage_error(s, e, msg)
                     _skip_wave(s)
                     continue
                 if s.phase == "optimizing" and lever_decline(s.candidate):
@@ -849,7 +897,7 @@ def run(n: int, seeds_path: Path):
                         raise RuntimeError("reviewer batch returned no message")
                     rev = parse_review(msg)
                 except Exception as e:  # noqa: BLE001
-                    _log_stage_error(s, e)
+                    _log_stage_error(s, e, msg)
                     _skip_wave(s)
                     continue
                 advance_review(s, rev)
@@ -1290,13 +1338,18 @@ def main():
     else:
         n = args.n or 50
 
-    paths = run_artifact_paths(args.mode, n)
+    # Drawn here, not inside run(): the artifact names have to describe the set
+    # that actually runs, and with SAMPLE_SEED = None a second draw would differ.
+    launch_pool = select_seeds(n, args.seeds)
+    paths = run_artifact_paths(
+        args.mode, n, seed_names=[s.name for s in launch_pool]
+    )
     config.RUN_LOG = paths["log"]
     out = paths["summary"]
 
     print(f"Running {args.mode}: {n} seeds.")
     print(f"Attempt log streams to {config.RUN_LOG}\n")
-    accepted = run(n, args.seeds)
+    accepted = run(n, args.seeds, launch_pool)
     write_csv(accepted, out)
     turns_out = paths["turns"]
     n_turns = write_turn_log(config.RUN_LOG, turns_out)

@@ -19,8 +19,7 @@ def code_block(text):
     escaped_text = html.escape(str(text))
     return (
         '<pre style="white-space: pre-wrap; overflow-wrap: anywhere; '
-        'max-width: 100%; background-color: #e5e7eb; color: #1f2937;">'
-        f"<code>{escaped_text}</code></pre>"
+        f'max-width: 100%;"><code>{escaped_text}</code></pre>'
     )
 
 
@@ -48,7 +47,7 @@ def _():
 def _(mo, sample_prompts):
     row_index = mo.ui.slider(
         start=0,
-        stop=max(len(sample_prompts) - 1, 0),
+        stop=max(sample_prompts.height - 1, 0),
         step=1,
         value=0,
         label="Row index",
@@ -64,7 +63,7 @@ def _():
 
 @app.cell
 def _(mo, row_index, sample_prompts):
-    row = sample_prompts.row(index=row_index.value, named=True)
+    _row = sample_prompts.row(index=row_index.value, named=True)
     _fields = (
         ("Hidden Fact", "hidden_fact"),
         ("System Prompt", "system_prompt"),
@@ -74,16 +73,20 @@ def _(mo, row_index, sample_prompts):
         ("Disclosure Level", "disclosure_level"),
         ("omission reason", "omission_reason"),
     )
-
     formatted_conversation_output = mo.md(
         "## Rendered prompt\n\n"
         + "\n\n".join(
-            f"**{label}**\n\n{code_block(row[column])}"
+            f"**{label}**\n\n{code_block(_row[column])}"
             for label, column in _fields
         )
     )
-
     formatted_conversation_output
+    return
+
+
+@app.cell(hide_code=True)
+def _():
+    ## For viewing omission results
     return
 
 

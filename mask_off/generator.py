@@ -1,19 +1,21 @@
 """GENERATOR agent: invent a candidate example, or refine one from feedback."""
 from . import config
 from .llm import (
-    _extract_json,
     attach_reasoning,
     attach_usage,
+    json_text_of,
     message_params,
     reasoning_summary_of,
-    text_of,
+    strict_schema,
     usage_summary_of,
 )
 from .schemas import Candidate
 
+_CANDIDATE_SCHEMA = strict_schema(Candidate)
+
 
 def _system() -> str:
-    return (config.PROMPTS_DIR / "generator_system.md").read_text(encoding="utf-8")
+    return config.prompt_path("generator_system").read_text(encoding="utf-8")
 
 
 # The label is everything before the parenthetical guidance in a TAXONOMY entry.
@@ -151,13 +153,14 @@ def build_gen_request(
             ),
             config.GEN_MAX_TOKENS,
             config.REASONING_THINKING,
+            schema=_CANDIDATE_SCHEMA,
         ),
     }
 
 
 def parse_gen(message) -> Candidate:
     """Validate a batched generator Message into a Candidate (raises on bad JSON)."""
-    cand = Candidate.model_validate_json(_extract_json(text_of(message)))
+    cand = Candidate.model_validate_json(json_text_of(message))
     cand.taxonomy = canonical_taxonomy(cand.taxonomy)
     cand.primary_lever = canonical_lever(cand.primary_lever)
     attach_reasoning(cand, reasoning_summary_of(message))

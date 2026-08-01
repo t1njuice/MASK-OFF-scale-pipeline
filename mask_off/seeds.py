@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from itertools import zip_longest
 from pathlib import Path
 
+import yaml
+
 
 @dataclass(frozen=True)
 class Seed:
@@ -13,14 +15,32 @@ class Seed:
     text: str
 
 
+# A closed `---` fence at the very top. The fence is matched textually rather
+# than by handing the whole file to YAML: a seed whose frontmatter does not
+# parse must still get its canary block stripped from the body, or the canary
+# text ships to the target model as part of the scenario.
+_FRONTMATTER = re.compile(r"\A---[ \t]*\r?\n(.*?)\r?\n---[ \t]*(?:\r?\n|\Z)", re.DOTALL)
+
+
+def _split_frontmatter(text: str) -> tuple[dict, str]:
+    """(frontmatter mapping, body). Text with no closed fence is all body.
+
+    Real seeds carry YAML-quoted and escaped values ("memory caf\\xE9 ..."),
+    so the block is parsed rather than split on ':'. Frontmatter that is only
+    comments — the canary block in most seeds — loads as None, not a mapping.
+    """
+    match = _FRONTMATTER.match(text)
+    if match is None:
+        return {}, text
+    try:
+        loaded = yaml.safe_load(match.group(1))
+    except yaml.YAMLError:  # one unparseable seed must not sink the pool
+        loaded = None
+    return (loaded if isinstance(loaded, dict) else {}), text[match.end() :]
+
+
 def _without_frontmatter(text: str) -> str:
-    lines = text.splitlines(keepends=True)
-    if not lines or lines[0].strip() != "---":
-        return text
-    for index, line in enumerate(lines[1:], 1):
-        if line.strip() == "---":
-            return "".join(lines[index + 1 :])
-    return text
+    return _split_frontmatter(text)[1]
 
 
 # Fact-line markers across the seed formats in use. The tail of a grok-style line
@@ -51,17 +71,9 @@ def setting_key(text: str) -> str | None:
 
 
 def variation_tag(text: str) -> str | None:
-    """Return the variation value from frontmatter, if present."""
-    lines = text.splitlines()
-    if not lines or lines[0].strip() != "---":
-        return None
-    for line in lines[1:]:
-        if line.strip() == "---":
-            return None
-        key, separator, value = line.partition(":")
-        if separator and key.strip() == "variation":
-            return value.strip() or None
-    return None
+    """The frontmatter `variation` value, unquoted and unescaped; None if absent."""
+    value = _split_frontmatter(text)[0].get("variation")
+    return str(value) if value else None
 
 
 # Ideation tags every MATERIAL FACT with a bracketed harm class, but in ~114

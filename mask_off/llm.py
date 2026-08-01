@@ -1,7 +1,6 @@
 """Thin Anthropic Message Batches helpers."""
 
 import json
-import re
 import time
 
 import anthropic
@@ -30,6 +29,35 @@ def text_of(response) -> str:
     return "".join(
         b.text for b in response.content if getattr(b, "type", None) == "text"
     ).strip()
+
+
+# Models that accept output_config.format. Everything else (opus-4-7, opus-4-6)
+# 400s on it and has to be prompted into JSON instead — see message_params.
+STRUCTURED_OUTPUT_MODELS = frozenset(
+    {
+        "claude-fable-5",
+        "claude-opus-5",
+        "claude-opus-4-8",
+        "claude-sonnet-5",
+        "claude-haiku-4-5",
+        "claude-opus-4-5",
+        "claude-opus-4-1",
+    }
+)
+
+
+def json_text_of(response) -> str:
+    """Response text with a markdown fence stripped, if the model added one.
+
+    Only needed on the no-schema path: with output_config.format the response is
+    guaranteed bare JSON, but a prompted model often wraps it in ```json.
+    """
+    text = text_of(response)
+    if not text.startswith("```"):
+        return text
+    body = text[3:].rsplit("```", 1)[0]
+    _, _, body = body.partition("\n")  # drop the language tag line
+    return body.strip()
 
 
 def reasoning_summary_of(response) -> str:
@@ -76,18 +104,39 @@ def attach_reasoning(obj, summary: str):
     return _attach(obj, "_llm_reasoning", summary)
 
 
-def _extract_json(text: str) -> str:
-    t = text.strip()
-    if t.startswith("```"):
-        t = re.sub(r"^```[a-zA-Z0-9_]*\s*", "", t)
-        t = re.sub(r"\s*```$", "", t).strip()
-    start, end = t.find("{"), t.rfind("}")
-    if start != -1 and end != -1 and end > start:
-        t = t[start : end + 1]
-    return t
+def strict_schema(model) -> dict:
+    """A Pydantic model's JSON Schema, tightened to what structured outputs needs.
+
+    The API requires every object closed (`additionalProperties: false`) and every
+    property listed in `required`. Pydantic emits neither: it omits defaulted
+    fields from `required`, which would let the model drop them again — the exact
+    failure the defaults in schemas.py were added to survive.
+    """
+
+    def tighten(node):
+        if isinstance(node, dict):
+            if "properties" in node:
+                node["additionalProperties"] = False
+                node["required"] = list(node["properties"])
+            for value in node.values():
+                tighten(value)
+        elif isinstance(node, list):
+            for item in node:
+                tighten(item)
+        return node
+
+    return tighten(model.model_json_schema())
 
 
-def message_params(model, effort, system, user, max_tokens, thinking) -> dict:
+def message_params(
+    model, effort, system, user, max_tokens, thinking, schema=None
+) -> dict:
+    # `format` constrains the response to valid JSON matching `schema`. Models
+    # outside STRUCTURED_OUTPUT_MODELS reject it, so they get plain text and the
+    # caller parses with json_text_of — the prompts already spell out the shape.
+    output_config = {"effort": effort}
+    if schema is not None and model in STRUCTURED_OUTPUT_MODELS:
+        output_config["format"] = {"type": "json_schema", "schema": schema}
     params = dict(
         model=model,
         max_tokens=max_tokens,
@@ -104,7 +153,7 @@ def message_params(model, effort, system, user, max_tokens, thinking) -> dict:
             }
         ],
         messages=[{"role": "user", "content": user}],
-        output_config={"effort": effort},
+        output_config=output_config,
     )
     if thinking is not None:
         params["thinking"] = thinking

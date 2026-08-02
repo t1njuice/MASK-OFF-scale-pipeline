@@ -139,7 +139,11 @@ def message_params(
     # outside STRUCTURED_OUTPUT_MODELS reject it, so they get plain text and the
     # caller parses with json_text_of — the prompts already spell out the shape.
     output_config = {"effort": effort}
-    if schema is not None and model in STRUCTURED_OUTPUT_MODELS:
+    # Anthropic models outside STRUCTURED_OUTPUT_MODELS 400 on format; OpenRouter
+    # models get it translated to response_format by _openrouter_call.
+    if schema is not None and (
+        model in STRUCTURED_OUTPUT_MODELS or not is_anthropic_model(model)
+    ):
         output_config["format"] = {"type": "json_schema", "schema": schema}
     params = dict(
         model=model,
@@ -182,7 +186,11 @@ def _shim_message(data: dict):
     reasoning = (msg.get("reasoning") or "").strip()
     if reasoning:
         content.append(SimpleNamespace(type="thinking", thinking=reasoning))
-    content.append(SimpleNamespace(type="text", text=msg.get("content") or ""))
+    # refusal fallback: moderated models return content=null with the reason in
+    # `refusal`; surfacing it beats an empty string that parses as nothing
+    content.append(
+        SimpleNamespace(type="text", text=msg.get("content") or msg.get("refusal") or "")
+    )
     usage = data.get("usage") or {}
     details = usage.get("prompt_tokens_details") or {}
     return SimpleNamespace(
@@ -193,7 +201,13 @@ def _shim_message(data: dict):
             cache_creation_input_tokens=0,
             cache_read_input_tokens=details.get("cached_tokens", 0) or 0,
         ),
-        stop_reason=choice.get("finish_reason"),
+        # normalize: OpenAI says "length" where Anthropic says "max_tokens", and
+        # downstream truncation checks grep for the Anthropic name
+        stop_reason=(
+            "max_tokens"
+            if choice.get("finish_reason") == "length"
+            else choice.get("finish_reason")
+        ),
     )
 
 
@@ -213,6 +227,18 @@ def _openrouter_call(params: dict):
     }
     if params.get("thinking"):
         body["reasoning"] = {"enabled": True}
+        effort = (params.get("output_config") or {}).get("effort")
+        if effort:
+            body["reasoning"]["effort"] = effort
+    fmt = (params.get("output_config") or {}).get("format")
+    if fmt:
+        # https://openrouter.ai/docs/guides/features/structured-outputs
+        # json_schema+strict, never bare json_object (some providers 400 on it)
+        body["response_format"] = {
+            "type": "json_schema",
+            "json_schema": {"name": "output", "strict": True, "schema": fmt["schema"]},
+        }
+    last_body = ""
     for attempt in range(3):
         try:
             resp = httpx.post(
@@ -224,11 +250,20 @@ def _openrouter_call(params: dict):
                 # thinking models run minutes; config.TIMEOUT guards Anthropic only
                 timeout=600,
             )
+            last_body = resp.text  # before raise_for_status, so the error diagnostic shows the failing body
             resp.raise_for_status()
             return _shim_message(resp.json())
-        except (httpx.HTTPError, KeyError, IndexError):
+        # ValueError covers json.JSONDecodeError, which the retry tuple used to
+        # miss: a long non-streaming OpenRouter request can come back padded or
+        # cut short, and that is a transient body problem, not a bad request.
+        except (httpx.HTTPError, ValueError, KeyError, IndexError) as exc:
             if attempt == 2:
-                raise
+                # tail, stripped: OpenRouter pads long responses with leading
+                # whitespace keep-alives, so the error object sits at the end
+                raise RuntimeError(
+                    f"{params['model']} failed after 3 attempts: {exc!r}; "
+                    f"body tail={last_body.strip()[-500:]!r}"
+                ) from exc
             time.sleep(5 * (attempt + 1))
 
 

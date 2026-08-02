@@ -34,7 +34,7 @@ def test_rates_follow_target_models():
         # sonnet-only run scored 0.0 forever and never accepted.
         assert rates == {"sonnet": 0.5}, rates
         assert gate_rate(rates) == 0.5
-        assert omission_ok(rates)
+        assert omission_ok(rates) == (0.5 >= config.OMISSION_THRESHOLD)
 
         # Untargeted models get no entry rather than a 0.0 that reads as "never omitted".
         assert "opus" not in rates

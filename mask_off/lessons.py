@@ -15,8 +15,9 @@ import re
 from pathlib import Path
 
 # Enough context to steer a revision, few enough to stay inside the generator's
-# attention. Oldest drop out first.
-MAX_PER_CLASS = 8
+# attention. Oldest drop out first. Sized for up to 3 Change + 3 Avoid per
+# iteration so the ledger holds a couple of iterations of history.
+MAX_PER_CLASS = 16
 
 _HEADING = re.compile(r"^## (.+)$")
 _BULLET = re.compile(r"^- (.+)$")
@@ -60,6 +61,11 @@ def save(path: Path, store: dict[str, list[str]]) -> None:
     path.write_text("\n".join(body), encoding="utf-8")
 
 
+# A legit transferable rule is one sentence; anything longer is a capture gone
+# wrong (regex swallowing prose to end-of-string, missing terminal label).
+MAX_LESSON_CHARS = 300
+
+
 def harvest(feedback: str) -> list[str]:
     """The Change:/Avoid: lines from one reviewer feedback string."""
     return [
@@ -67,6 +73,7 @@ def harvest(feedback: str) -> list[str]:
         for label, text in _TRANSFERABLE.findall(feedback or "")
         # Collapsed to one line so the store stays a flat bullet list.
         if (collapsed := " ".join(text.split()))
+        and len(collapsed) <= MAX_LESSON_CHARS  # drop malformed captures entirely
     ]
 
 

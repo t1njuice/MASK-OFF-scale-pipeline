@@ -122,21 +122,15 @@ def demo():
                 assert r["seed_source"] == "grok_omission", path
 
     # --- filename ---------------------------------------------------------
-    assert seeds_slug(["b", "a"]) == seeds_slug(["a", "b"]) == "a+b"
-    assert seeds_slug(PILOT).count("+") == 4, "a 5-seed pilot must stay readable"
+    assert seeds_slug("kimi_100") == "kimi_100"
+    assert seeds_slug("cmp/grok-4.5") == "cmp-grok-4.5"  # no slashes in a filename
 
-    many = [f"seed_number_{i:03d}_with_a_longish_name" for i in range(50)]
-    slug = seeds_slug(many)
-    assert slug.startswith("50seeds-") and len(slug) == 16, slug
-    assert slug == seeds_slug(list(reversed(many)))
-
-    paths = run_artifact_paths("pilot", 5, stamp="2026-08-01_063001Z", seed_names=PILOT)
+    paths = run_artifact_paths(
+        "pilot", 5, stamp="2026-08-01_063001Z", seed_source="kimi_100"
+    )
     name = paths["summary"].name
-    assert "_seeds-app_background_location_sold+" in name, name  # sorted, not sample order
+    assert "_seeds-kimi_100_2026-08-01_063001Z" in name, name
     assert max(len(p.name) for p in paths.values() if p) < 255
-
-    scale = run_artifact_paths("scale", 50, stamp="2026-08-01_063001Z", seed_names=many)
-    assert max(len(p.name) for p in scale.values() if p) < 255
 
     assert "_seeds-" not in run_artifact_paths("pilot", 5, stamp="s")["summary"].name
 

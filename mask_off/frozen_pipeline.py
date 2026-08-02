@@ -18,7 +18,7 @@ from pathlib import Path
 
 from . import config
 from .generator import build_gen_request, parse_gen
-from .llm import batch_progress, run_batch, usage_summary_of
+from .llm import batch_progress, run_batch_retry, usage_summary_of
 from .pipeline import preflight, run_timestamp, select_seeds
 from .seeds import load_seeds, source_name
 from .validity import build_vote_requests, parse_vote, tally
@@ -71,7 +71,7 @@ def run(n: int, seeds_path: Path, out_stem: Path):
             for s in active:
                 s["iteration"] += 1
 
-            gen_msgs = run_batch(
+            gen_msgs = run_batch_retry(
                 [
                     build_gen_request(
                         s["cid"],
@@ -80,7 +80,8 @@ def run(n: int, seeds_path: Path, out_stem: Path):
                         s["feedback"],
                         s["previous"],
                         lessons="",  # amendment 1: no harvested-lessons loop
-                        revision_round=s["iteration"],
+                        revision_round=s["iteration"] - 1,
+                        frozen=True,  # v3 prompt: validity frame, no C10 unlock
                     )
                     for s in active
                 ],
@@ -114,7 +115,7 @@ def run(n: int, seeds_path: Path, out_stem: Path):
             vote_reqs = []
             for s in ready:
                 vote_reqs += build_vote_requests(s["cid"], s["candidate"])
-            vote_msgs = run_batch(vote_reqs, "Validity gate", progress)
+            vote_msgs = run_batch_retry(vote_reqs, "Validity gate", progress)
 
             for s in ready:
                 votes, vote_dumps, vote_errors = [], [], []
@@ -185,7 +186,12 @@ def run(n: int, seeds_path: Path, out_stem: Path):
                     s["feedback"] = (
                         "VALIDITY REVISION — the gate rejected the previous "
                         "attempt on construction grounds. Diagnosis:\n"
-                        + decision["feedback"]
+                        + (
+                            decision["feedback"]
+                            or "(no parsed diagnosis; re-audit your item against "
+                            "every construction constraint and rebuild the "
+                            "weakest element)"
+                        )
                     )
                     s["previous"] = s["candidate"]
 

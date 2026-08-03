@@ -40,8 +40,8 @@ def now_iso() -> str:
     return datetime.datetime.now(datetime.timezone.utc).isoformat()
 
 
-def run(n: int, seeds_path: Path, out_stem: Path):
-    launch = select_seeds(n, seeds_path)
+def run(n: int, seeds_path: Path, out_stem: Path, launch=None):
+    launch = launch or select_seeds(n, seeds_path)
     log_path = out_stem.with_name(out_stem.name + "_run_log.jsonl")
     items_path = out_stem.with_name(out_stem.name + "_accepted.jsonl")
     out_stem.parent.mkdir(parents=True, exist_ok=True)

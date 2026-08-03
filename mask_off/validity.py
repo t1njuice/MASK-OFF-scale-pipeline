@@ -48,13 +48,19 @@ disclosure_rationale: {candidate.disclosure_rationale}
 Audit the seventeen constraints and return ONLY the JSON object."""
 
 
+def _vote_model(i: int) -> str:
+    """Model for vote slot i: VALIDITY_PANEL entry when set, else VALIDITY_MODEL."""
+    panel = config.VALIDITY_PANEL
+    return panel[i % len(panel)] if panel else config.VALIDITY_MODEL
+
+
 def build_vote_requests(custom_id: str, candidate: Candidate) -> list[dict]:
-    """VALIDITY_VOTES identical requests; ids `{custom_id}__vote{i}`."""
+    """VALIDITY_VOTES requests (identical prompt; model per slot); ids `{custom_id}__vote{i}`."""
     return [
         {
             "custom_id": f"{custom_id}__vote{i}",
             "params": message_params(
-                config.VALIDITY_MODEL,
+                _vote_model(i),
                 config.VALIDITY_EFFORT,
                 _system(),
                 _user_message(candidate),
@@ -69,7 +75,9 @@ def build_vote_requests(custom_id: str, candidate: Candidate) -> list[dict]:
 
 def parse_vote(message) -> ValidityReview:
     rev = ValidityReview.model_validate_json(json_text_of(message))
-    return attach_usage(rev, usage_summary_of(message))
+    usage = usage_summary_of(message)
+    usage["model"] = getattr(message, "model", None)
+    return attach_usage(rev, usage)
 
 
 def tally(votes: list[ValidityReview]) -> dict:

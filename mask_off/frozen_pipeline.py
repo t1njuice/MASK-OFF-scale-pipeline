@@ -28,6 +28,9 @@ PRICE = {"in": 2.5, "out": 12.5, "cache_w": 5.0, "cache_r": 0.25}
 
 
 def usage_cost(u: dict) -> float:
+    # OpenRouter panel votes are billed on OpenRouter credits, not here
+    if u.get("model") and not str(u["model"]).startswith("claude"):
+        return 0.0
     return (
         u.get("input_tokens", 0) * PRICE["in"]
         + u.get("output_tokens", 0) * PRICE["out"]
@@ -154,7 +157,7 @@ def run(n: int, seeds_path: Path, out_stem: Path, launch=None):
                     "vote_errors": vote_errors,
                     **decision,
                     "generator_model": config.GENERATOR_MODEL,
-                    "validity_model": config.VALIDITY_MODEL,
+                    "validity_model": config.VALIDITY_PANEL or config.VALIDITY_MODEL,
                     "usage": {
                         "generator": getattr(s["candidate"], "_llm_usage", {}) or {},
                         "votes": [getattr(v, "_llm_usage", {}) or {} for v in votes],

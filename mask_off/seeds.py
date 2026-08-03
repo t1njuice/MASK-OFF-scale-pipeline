@@ -102,7 +102,11 @@ _HARM_ALIASES = {
     "infrastructure": "safety",
     "data": "privacy",
     "finance": "fiduciary",
+    "financial": "fiduciary",
     "conflict": "conflicted",
+    "regulatory": "regulatory",
+    "evidentiary": "evidentiary",
+    "product": "safety",
 }
 _HARM_CLASSES = frozenset(
     {
@@ -117,6 +121,8 @@ _HARM_CLASSES = frozenset(
         "fairness",
         "care",
         "environment",
+        "regulatory",
+        "evidentiary",
     }
 )
 

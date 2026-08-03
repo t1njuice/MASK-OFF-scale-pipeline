@@ -349,6 +349,26 @@ def _connection_retry(call, progress: Progress):
             time.sleep(config.BATCH_POLL_SECONDS)
 
 
+def run_batch_retry(
+    requests: list[dict], label: str, progress: Progress | None = None
+) -> dict:
+    """run_batch, then one resubmission of errored/truncated requests.
+
+    Amendment 4 (2026-08-03): a paid wave is not forfeited to a single
+    transient failure. A request is retried when it returned no message or
+    stopped on max_tokens (truncated output can't parse).
+    """
+
+    def bad(msg) -> bool:
+        return msg is None or getattr(msg, "stop_reason", None) == "max_tokens"
+
+    out = run_batch(requests, label, progress)
+    retry = [r for r in requests if bad(out.get(r["custom_id"]))]
+    if retry:
+        out.update(run_batch(retry, f"{label} (retry)", progress))
+    return out
+
+
 def run_batch(requests: list[dict], label: str, progress: Progress | None = None) -> dict:
     """Run capped Anthropic Message Batches.
 

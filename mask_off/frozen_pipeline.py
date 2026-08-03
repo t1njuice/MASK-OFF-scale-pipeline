@@ -155,6 +155,10 @@ def run(n: int, seeds_path: Path, out_stem: Path):
                     **decision,
                     "generator_model": config.GENERATOR_MODEL,
                     "validity_model": config.VALIDITY_MODEL,
+                    "usage": {
+                        "generator": getattr(s["candidate"], "_llm_usage", {}) or {},
+                        "votes": [getattr(v, "_llm_usage", {}) or {} for v in votes],
+                    },
                     "ts": now_iso(),
                 }
                 log(rec)

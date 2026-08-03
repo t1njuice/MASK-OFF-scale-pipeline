@@ -33,7 +33,7 @@ def main():
     if not preflight():
         sys.exit(1)
     stem = config.OUTPUT_DIR / (
-        f"frozenAB_20_gen-opus-4-8_gate-opus-5x3of3_tgt-kimi+opus-4-8"
+        f"frozenAB_20_amend5_gen-opus-4-8_gate-opus-5x3of3_tgt-kimi+opus-4-8"
         f"_seeds-kimi_100_{run_timestamp()}"
     )
     accepted, _ = run(20, SEEDS, stem)

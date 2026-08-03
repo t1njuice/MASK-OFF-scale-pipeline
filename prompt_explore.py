@@ -257,7 +257,8 @@ def _(LABEL_NAMES, ab_pick, mo):
                 )
         return mo.vstack(blocks, gap=0.5)
 
-    _cols = [_column("kimi", "Kimi K3 (judged run)")]
+    # _cols = [_column("kimi", "Kimi K3 (judged run)")]
+    _cols = []
     if any(k.startswith("kimi2") for k in _row["responses"]):
         _cols.append(_column("kimi2", "Kimi K3 (resample, w/ reasoning)"))
     _cols.append(_column("opus48", "Opus 4.8"))

@@ -6,17 +6,17 @@ from inspect_ai.model import GenerateConfig, Model, ModelUsage, get_model_info
 
 # Frontier models are routinely absent from the model info database (both
 # anthropic/claude-opus-5 and openrouter/x-ai/grok-4.5 report no output limit).
-# 8192 is below what a dimensions or scenarios response needs once reasoning
-# tokens share the same budget, and the overflow surfaces as a truncated tool
-# call rather than an error naming the limit.
-_DEFAULT_MAX_TOKENS = 32000
+# 32k is below what a 100-variation response needs once reasoning tokens share
+# the same budget, and the overflow surfaces as a truncated tool call rather
+# than an error naming the limit.
+_DEFAULT_MAX_TOKENS = 128000
 
 # Some model info entries report the context window as `output_tokens` (e.g.
 # openrouter/moonshotai/kimi-k3 at 1048576). Requesting that as max_tokens
 # leaves no room for the prompt and the provider rejects the call with a 400.
 # Cap at a value no single scenario batch needs; raise it if a model genuinely
 # supports and requires more output.
-_MAX_TOKENS_CAP = 64000
+_MAX_TOKENS_CAP = 128000
 
 
 def resolve_max_tokens(model: Model) -> int:

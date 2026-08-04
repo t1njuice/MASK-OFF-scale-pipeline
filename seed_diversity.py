@@ -609,20 +609,6 @@ def _(
         mo.callout(f"Seed folder does not exist: `{_folder}`", kind="danger"),
     )
 
-    import yaml
-
-    def _clean_tag(raw):
-        # A handful of tags reach the frontmatter still YAML-quoted or
-        # escaped (\xE9), because variation_tag splits on ':' rather than
-        # parsing. Round-trip them so the group reads as its subcategory.
-        if raw is None:
-            return "(untagged)"
-        try:
-            parsed = yaml.safe_load(raw)
-        except yaml.YAMLError:
-            return raw
-        return parsed if isinstance(parsed, str) and parsed else raw
-
     _records = []
     _skipped = []
     for _path in sorted(_folder.glob("*.md")):
@@ -635,7 +621,7 @@ def _(
         _records.append(
             {
                 "seed": _path.stem,
-                "variation": _clean_tag(variation_tag(_raw)),
+                "variation": variation_tag(_raw) or "(untagged)",
                 "text": " ".join(_text.split()),
             }
         )

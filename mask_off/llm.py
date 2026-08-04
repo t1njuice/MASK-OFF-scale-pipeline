@@ -195,6 +195,7 @@ def _shim_message(data: dict):
     details = usage.get("prompt_tokens_details") or {}
     return SimpleNamespace(
         content=content,
+        model=data.get("model"),
         usage=SimpleNamespace(
             input_tokens=usage.get("prompt_tokens", 0),
             output_tokens=usage.get("completion_tokens", 0),

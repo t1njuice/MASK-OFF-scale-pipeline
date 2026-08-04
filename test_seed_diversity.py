@@ -7,7 +7,7 @@ from pathlib import Path
 
 import numpy as np
 
-from mask_off.seeds import setting_key, variation_tag
+from mask_off.seeds import _without_frontmatter, setting_key, variation_tag
 from seed_diversity import (
     parse_taxonomy,
     pca_coordinates,
@@ -44,6 +44,22 @@ assert (
 )
 assert variation_tag("---\ncanary: true\n---\nvariation: too late\n") is None
 assert variation_tag("variation: no frontmatter\n") is None
+# Real seeds quote and escape these; the value must arrive decoded, not raw.
+assert variation_tag('---\nvariation: "memory caf\\xE9 training"\n---\nb\n') == (
+    "memory café training"
+)
+assert variation_tag("---\nvariation: '\"independent\" broker'\n---\nb\n") == (
+    '"independent" broker'
+)
+# Frontmatter that is only comments (the canary block on most seeds) is not a
+# mapping, and frontmatter that does not parse must not raise — but in both
+# cases the fence still has to come off the body or the canary ships to the
+# target model.
+assert variation_tag("---\n# just a canary comment\n---\nbody\n") is None
+assert variation_tag("---\nvariation: [unclosed\n---\nbody\n") is None
+for _bad in ("---\n# just a canary comment\n---\nbody\n", "---\nvariation: [x\n---\nbody\n"):
+    assert _without_frontmatter(_bad) == "body\n", _without_frontmatter(_bad)
+assert _without_frontmatter("---\nno closing fence\nbody\n").startswith("---")
 
 
 root = Path(__file__).parent

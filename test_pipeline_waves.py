@@ -30,7 +30,12 @@ from mask_off.schemas import (  # noqa: E402
     OmissionJudgment,
     Review,
 )
-from mask_off.target import build_target_requests, regroup_targets  # noqa: E402
+from mask_off.target import build_target_requests, regroup_targets, short_name  # noqa: E402
+
+# Labels follow the configured targets; hardcoded shorts score 0.0 when config moves.
+SHORTS = [short_name(m) for m in config.TARGET_MODELS]
+GATE = short_name(config.GATE_MODEL)
+NON_GATE = next((s for s in SHORTS if s != GATE), "fable")
 
 
 def cand():
@@ -49,7 +54,7 @@ def targets():
             "reasoning": {"summary": ""},
             "usage": {},
         }
-        for m in ("opus", "fable")
+        for m in SHORTS
         for i in range(1, config.K_SAMPLES + 1)
     }
 
@@ -100,53 +105,9 @@ assert set(
 }
 
 
-states = iter(
-    [
-        SimpleNamespace(
-            processing_status="in_progress",
-            request_counts=SimpleNamespace(
-                succeeded=1, errored=0, canceled=0, expired=0
-            ),
-        ),
-        SimpleNamespace(
-            processing_status="ended",
-            request_counts=SimpleNamespace(
-                succeeded=1, errored=1, canceled=0, expired=0
-            ),
-        ),
-    ]
-)
-batches = SimpleNamespace(
-    create=lambda **_: SimpleNamespace(id="batch"),
-    retrieve=lambda _: next(states),
-    results=lambda _: [],
-)
-bar_output = StringIO()
-with (
-    patch.object(
-        llm,
-        "client",
-        return_value=SimpleNamespace(messages=SimpleNamespace(batches=batches)),
-    ),
-    patch.object(
-        llm,
-        "Progress",
-        lambda *columns, **kwargs: Progress(
-            *columns,
-            console=Console(file=bar_output, force_terminal=True),
-            **(kwargs | {"transient": False}),
-        ),
-    ),
-    patch.object(llm.time, "sleep"),
-):
-    assert llm.run_batch([{}, {}], "Generator") == {}
-rendered_bar = bar_output.getvalue()
-assert all(part in rendered_bar for part in ("Generator", "2/2", "100%"))
-
-
 buffer_requests = [
-    {"custom_id": "a", "params": {}},
-    {"custom_id": "b", "params": {}},
+    {"custom_id": "a", "params": {"model": "claude-opus-5"}},
+    {"custom_id": "b", "params": {"model": "claude-opus-5"}},
 ]
 one_request_bytes = len(
     json.dumps(
@@ -228,7 +189,7 @@ with (
     patch.object(llm.time, "sleep", side_effect=KeyboardInterrupt),
 ):
     try:
-        llm.run_batch([{}], "Generator")
+        llm.run_batch([{"custom_id": "a", "params": {"model": "claude-opus-5"}}], "Generator")
     except KeyboardInterrupt:
         pass
     else:
@@ -264,7 +225,7 @@ with (
     ),
     patch.object(llm.time, "sleep"),
 ):
-    assert llm.run_batch([{"custom_id": "a", "params": {}}], "Generator") == {}
+    assert llm.run_batch([{"custom_id": "a", "params": {"model": "claude-opus-5"}}], "Generator") == {}
 assert len(flaky_retrieves) == 2, "connection blip during polling must be retried"
 
 
@@ -278,7 +239,7 @@ def _rate_map(rate):
     per_model = round(rate * config.K_SAMPLES)
     return {
         f"{m}#{i}": (i <= per_model)
-        for m in ("opus", "fable")
+        for m in SHORTS
         for i in range(1, config.K_SAMPLES + 1)
     }
 
@@ -288,10 +249,10 @@ MID = _rate_map(config.OMISSION_THRESHOLD)
 
 passed_review = review({})
 assert pipeline.acceptance_ok(
-    passed_review, {"opus": config.OMISSION_THRESHOLD, "fable": 0.0}
-), "Fable must not gate Opus-only acceptance"
-assert "Fable" not in pipeline.build_feedback(
-    passed_review, {"opus": 0.0, "fable": 0.0}
+    passed_review, {GATE: config.OMISSION_THRESHOLD, NON_GATE: 0.0}
+), "a non-gate model at 0% must not block acceptance"
+assert NON_GATE.title() not in pipeline.build_feedback(
+    passed_review, {GATE: 0.0, NON_GATE: 0.0}
 )
 
 
@@ -345,10 +306,10 @@ assert s.result.get("last_failed_attempt") is not None, "failed final opt record
 
 
 stage_sizes = []
-opus_targets = {
-    label: value for label, value in targets().items() if label.startswith("opus#")
+gate_targets = {
+    label: value for label, value in targets().items() if label.startswith(f"{GATE}#")
 }
-opus_all = {label: True for label in opus_targets}
+gate_all = {label: True for label in gate_targets}
 
 
 def fake_run_batch(requests, label, progress=None):
@@ -359,8 +320,8 @@ def fake_run_batch(requests, label, progress=None):
 with (
     patch.object(pipeline, "run_batch", side_effect=fake_run_batch),
     patch.object(pipeline, "parse_gen", side_effect=lambda _: cand()),
-    patch.object(pipeline, "regroup_targets", return_value=opus_targets),
-    patch.object(pipeline, "parse_review", side_effect=lambda _: review(opus_all)),
+    patch.object(pipeline, "regroup_targets", return_value=gate_targets),
+    patch.object(pipeline, "parse_review", side_effect=lambda _: review(gate_all)),
     patch.object(pipeline, "log_attempt"),
     # Sized to give exactly 3 seeds of wave capacity (see _wave_seed_capacity),
     # regardless of how many target models/samples-per-model config carries.

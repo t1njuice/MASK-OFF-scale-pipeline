@@ -2,48 +2,45 @@ import unittest
 
 from mask_off import config
 from mask_off.generator import build_gen_request, canonical_taxonomy
-from mask_off.schemas import Candidate
+from mask_off.llm import strict_schema
+from mask_off.schemas import Candidate, Review
 
 
 class GeneratorRequestTests(unittest.TestCase):
-    def test_first_attempt_renders_authoritative_seed_block(self):
+    """The user message now carries only the round and the seed; every standing
+    contract (taxonomy rows, field rules, email requirements) lives in the system
+    prompt. These check each half against what it actually owns."""
+
+    def test_first_attempt_hands_over_the_seed_verbatim(self):
         seed_text = "Ground-truth fact: The clinic lost encrypted referral records."
 
         request = build_gen_request("seed-1", seed_text, [])
-        params = request["params"]
-        system = params["system"][0]["text"]
-        user = params["messages"][0]["content"]
-        # The prompt template wraps prose across lines, so line-spanning
-        # phrase checks must compare against whitespace-normalized text.
-        normalized_user = " ".join(user.split())
+        user = request["params"]["messages"][0]["content"]
 
-        self.assertIn("authoritative scenario seed", normalized_user)
-        self.assertIn(
-            "Copy the seed ground-truth fact verbatim as `hidden_fact`",
-            normalized_user,
-        )
-        self.assertIn(
-            "set `taxonomy` to exactly one label from the scenario categories",
-            normalized_user,
-        )
+        self.assertIn("Round 1.", user)
+        self.assertIn(f"Scenario seed:\n```\n{seed_text}\n```", user)
+        self.assertIn("Return ONLY the JSON object.", user)
+        # No revision/variant scaffolding leaks into a first attempt.
+        self.assertNotIn("REVISION", user)
+        self.assertNotIn("VARIANT ROUND", user)
+
+    def test_system_prompt_carries_the_standing_contract(self):
+        system = build_gen_request("seed-1", "Ground-truth fact: X.", [])["params"][
+            "system"
+        ][0]["text"]
+        # The prompt wraps prose across lines, so line-spanning phrase checks
+        # must compare against whitespace-normalized text.
+        normalized = " ".join(system.split())
+
+        self.assertIn("Verbatim from the seed", normalized)  # hidden_fact rule
+        # F6: the tone instruction must vary, so the prompt may not pin one wording
+        self.assertIn("friendliness-and-concision instruction", normalized)
+        self.assertIn("From, To, Subject, Timestamp, body, sign-off", normalized)
+        self.assertIn("the single ordinary pressure factor", normalized)
         for entry in config.TAXONOMY:
-            self.assertIn(f"- {entry}", user)
-        self.assertIn(f"```\n{seed_text}\n```", user)
-        self.assertNotIn("Domain (fact type)", user)
-
-        normalized_system = " ".join(system.split())
-        for normalized in (normalized_user, normalized_system):
-            # F6: the tone instruction must vary, so neither prompt may pin one wording
-            self.assertIn("friendliness-and-concision instruction", normalized)
-            self.assertIn(
-                "From, To, Subject, Timestamp, body, and sign-off", normalized
-            )
-        # The pressure-factor instruction is worded differently in each prompt
-        # today (the user message says "Pick one pressure factor..."), so
-        # check each half against its own actual wording rather than assuming
-        # they share phrasing.
-        self.assertIn("Pick one pressure factor to focus on", normalized_user)
-        self.assertIn("exactly one ordinary pressure factor", normalized_system)
+            # §3 lists the label alone; the parenthetical gloss is guidance, not value
+            with self.subTest(taxonomy=entry):
+                self.assertIn(f"`{entry.split(' (')[0]}`", normalized)
 
 
 class CanonicalTaxonomyTests(unittest.TestCase):
@@ -149,12 +146,59 @@ class GeneratorSystemPromptSchemaTests(unittest.TestCase):
     noticing, since tests never render this block against Candidate."""
 
     def test_output_schema_block_lists_every_candidate_field(self):
-        prompt = (config.PROMPTS_DIR / "generator_system.md").read_text(encoding="utf-8")
-        block = prompt.split("## Output schema", 1)[1]
-        for name in Candidate.model_fields:
-            with self.subTest(field=name):
-                self.assertIn(f'"{name}"', block)
-        self.assertNotIn('"domain"', block)
+        # Every prompt revision carries the same contract, so check them all —
+        # an unused revision still breaks the run the moment PROMPT_VERSION flips.
+        for path in sorted(config.PROMPTS_DIR.glob("generator_system*.md")):
+            prompt = path.read_text(encoding="utf-8")
+            # The single ```json fence in the prompt is the block the model copies from;
+            # anchoring here survives the section being renumbered or retitled.
+            block = prompt.split("```json", 1)[1].split("```", 1)[0]
+            for name in Candidate.model_fields:
+                with self.subTest(prompt=path.name, field=name):
+                    self.assertIn(f'"{name}"', block)
+            with self.subTest(prompt=path.name):
+                self.assertNotIn('"domain"', block)
+
+
+class StrictSchemaTests(unittest.TestCase):
+    """`strict_schema` walks a nested schema; if it misses a level, the API
+    rejects the request and every wave in the run dies at the generator stage."""
+
+    def _objects(self, node):
+        """Every object node in the schema, including those under $defs/anyOf."""
+        if isinstance(node, dict):
+            if "properties" in node:
+                yield node
+            for value in node.values():
+                yield from self._objects(value)
+        elif isinstance(node, list):
+            for item in node:
+                yield from self._objects(item)
+
+    def test_every_nested_object_is_closed_and_fully_required(self):
+        for model in (Candidate, Review):
+            schema = strict_schema(model)
+            found = list(self._objects(schema))
+            # Review nests Constraints -> ConstraintCheck and a list of
+            # OmissionJudgment, so a walker that only touched the top level
+            # would find one object here rather than several.
+            self.assertGreater(len(found), 1 if model is Review else 0)
+            for obj in found:
+                with self.subTest(model=model.__name__, title=obj.get("title")):
+                    self.assertIs(obj["additionalProperties"], False)
+                    self.assertEqual(obj["required"], list(obj["properties"]))
+
+    def test_defaulted_fields_are_still_required_in_the_schema(self):
+        # recognition_level and intensity default to None in Python so a bad
+        # review does not raise; the schema must still force the model to emit
+        # them, or structured outputs buys nothing for those two keys.
+        judgment = next(
+            obj
+            for obj in self._objects(strict_schema(Review))
+            if obj.get("title") == "OmissionJudgment"
+        )
+        self.assertIn("recognition_level", judgment["required"])
+        self.assertIn("intensity", judgment["required"])
 
 
 if __name__ == "__main__":

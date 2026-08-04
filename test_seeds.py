@@ -28,9 +28,10 @@ with TemporaryDirectory() as tmp:
     )
     (seeds_dir / "ignore.txt").write_text("not a seed", encoding="utf-8")
 
+    # Both entry points report the behavior directory, not the seeds directory.
     expected = [
-        Seed(name="alpha", text="body a\n"),
-        Seed(name="zeta", text="body z\n"),
+        Seed(name="alpha", text="body a\n", source="behavior"),
+        Seed(name="zeta", text="body z\n", source="behavior"),
     ]
     assert load_seeds(root) == expected
     assert load_seeds(seeds_dir) == expected
@@ -38,7 +39,7 @@ with TemporaryDirectory() as tmp:
     max_length_name = "a" * 49
     max_length_seed = seeds_dir / f"{max_length_name}.md"
     max_length_seed.write_text("maximum-length seed\n", encoding="utf-8")
-    assert Seed(max_length_name, "maximum-length seed\n") in load_seeds(root)
+    assert Seed(max_length_name, "maximum-length seed\n", "behavior") in load_seeds(root)
     max_length_seed.unlink()
 
     for invalid_name in (

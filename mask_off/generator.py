@@ -16,9 +16,10 @@ _CANDIDATE_SCHEMA = strict_schema(Candidate)
 
 def _system(frozen: bool = False) -> str:
     # frozen path (amendment 2026-08-03): validity-frame prompt, no
-    # omission-elicitation objective
+    # omission-elicitation objective. Which revision (v4 default; v3 for the
+    # pilot's control arm) is a config knob — see FROZEN_GENERATOR_PROMPT.
     if frozen:
-        return (config.PROMPTS_DIR / "generator_system_v3.md").read_text(
+        return (config.PROMPTS_DIR / config.FROZEN_GENERATOR_PROMPT).read_text(
             encoding="utf-8"
         )
     return config.prompt_path("generator_system").read_text(encoding="utf-8")

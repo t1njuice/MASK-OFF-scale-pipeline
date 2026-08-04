@@ -231,6 +231,10 @@ def _openrouter_call(params: dict):
         effort = (params.get("output_config") or {}).get("effort")
         if effort:
             body["reasoning"]["effort"] = effort
+    elif params.get("thinking") is False:
+        # explicit off: models that reason by default (deepseek-v4-flash) burn
+        # the whole max_tokens budget thinking and return empty content
+        body["reasoning"] = {"enabled": False}
     fmt = (params.get("output_config") or {}).get("format")
     if fmt:
         # https://openrouter.ai/docs/guides/features/structured-outputs

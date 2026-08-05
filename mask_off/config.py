@@ -120,9 +120,10 @@ VALIDITY_PANEL = None       # optional list of models, one per vote slot
 VALIDITY_EFFORT = "high"
 VALIDITY_VOTES = 3          # independent gate votes per candidate
 VALIDITY_ACCEPT = 2         # votes required to accept (2-of-3, frozen spec)
-VALIDITY_MAX_TOKENS = 8000  # 16 short checks + feedback; the 16k class of
-                            # truncation failures came from response judging,
-                            # which this gate no longer does
+VALIDITY_MAX_TOKENS = 16000  # 22 notes (one holds a written reasoning chain)
+                             # plus 250-320-word feedback, sharing the budget
+                             # with adaptive thinking at VALIDITY_EFFORT under
+                             # a ~9K-token system prompt
 FROZEN_MAX_ITERATIONS = 3   # pilot; frozen spec allows 5 at scale
 
 # Which generator prompt the frozen path loads. v4 reads the fielded seed

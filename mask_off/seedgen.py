@@ -93,8 +93,11 @@ def parse_batch(text: str) -> list[tuple[str, str]]:
     for i, m in enumerate(matches):
         end = matches[i + 1].start() if i + 1 < len(matches) else len(text)
         chunk = text[m.end() : end]
-        # the model closes each seed with a bare `===` line; drop it
-        chunk = "\n".join(l for l in chunk.splitlines() if l.strip() != "===").strip()
+        # models close seeds with bare `===` lines or wrap them in ``` fences
+        # (mimicking the brief's contract display); drop both
+        chunk = "\n".join(
+            l for l in chunk.splitlines() if l.strip() not in ("===", "```")
+        ).strip()
         if not chunk.startswith("---"):
             raise ValueError(f"seed {m.group(1)}: missing frontmatter fence")
         missing = [f for f in FIELDS if re.search(rf"^{f}:", chunk, re.MULTILINE) is None]

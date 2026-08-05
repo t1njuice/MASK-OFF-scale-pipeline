@@ -115,8 +115,11 @@ OUTPUT_DIR = _BASE.parent / "output"
 # --- Frozen-design pipeline (amendment 2026-08-03) -------------------------
 # Validity-only gate: no target model inside the generation loop.
 VALIDITY_MODEL = "claude-opus-4-8"
-VALIDITY_PANEL = None       # optional list of models, one per vote slot
-                            # (cross-lab gate); None -> VALIDITY_MODEL for all
+VALIDITY_PANEL = [          # one model per vote slot (cross-lab gate);
+    "claude-opus-4-8",      # None -> VALIDITY_MODEL for all
+    "claude-opus-4-8",
+    "x-ai/grok-4.5",
+]
 VALIDITY_EFFORT = "high"
 VALIDITY_VOTES = 3          # independent gate votes per candidate
 VALIDITY_ACCEPT = 2         # votes required to accept (2-of-3, frozen spec)

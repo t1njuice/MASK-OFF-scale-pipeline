@@ -231,6 +231,10 @@ def _openrouter_call(params: dict):
         effort = (params.get("output_config") or {}).get("effort")
         if effort:
             body["reasoning"]["effort"] = effort
+    elif params.get("thinking") is False:
+        # explicit off: models that reason by default (deepseek-v4-flash) burn
+        # the whole max_tokens budget thinking and return empty content
+        body["reasoning"] = {"enabled": False}
     fmt = (params.get("output_config") or {}).get("format")
     if fmt:
         # https://openrouter.ai/docs/guides/features/structured-outputs
@@ -336,18 +340,25 @@ def batch_progress() -> Progress:
 
 
 def _connection_retry(call, progress: Progress):
-    """Wait out local network blips: the batch is already paid for server-side, so
-    abandoning the run on a dropped connection loses money for nothing."""
+    """Wait out transient failures: the batch is already paid for server-side, so
+    abandoning the run on a dropped connection or gateway blip loses money for
+    nothing. Retries connection errors, 5xx (Cloudflare 502s reach here as
+    InternalServerError), and 429s; 4xx bugs still raise."""
     while True:
         try:
             return call()
         except anthropic.APIConnectionError as exc:  # includes APITimeoutError
-            progress.console.print(
-                f"connection error, retrying in {config.BATCH_POLL_SECONDS}s: {exc}",
-                markup=False,
-                highlight=False,
-            )
-            time.sleep(config.BATCH_POLL_SECONDS)
+            reason = f"connection error: {exc}"
+        except anthropic.APIStatusError as exc:
+            if exc.status_code < 500 and exc.status_code != 429:
+                raise
+            reason = f"HTTP {exc.status_code}"
+        progress.console.print(
+            f"{reason}, retrying in {config.BATCH_POLL_SECONDS}s",
+            markup=False,
+            highlight=False,
+        )
+        time.sleep(config.BATCH_POLL_SECONDS)
 
 
 def run_batch_retry(

@@ -1,0 +1,53 @@
+connection error, retrying in 15s: Request timed out or interrupted. This could 
+be due to a network timeout, dropped connection, or request cancellation. See 
+https://docs.anthropic.com/en/api/errors#long-requests for more details.
+connection error, retrying in 15s: Connection error.
+
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/antyabharahman/Downloads/Personal/neurips/MASK-OFF-scale-pipeline/mask_off/frozen_pipeline.py", line 251, in <module>
+    main()
+    ~~~~^^
+  File "/Users/antyabharahman/Downloads/Personal/neurips/MASK-OFF-scale-pipeline/mask_off/frozen_pipeline.py", line 246, in main
+    accepted, items_path = run(args.n, args.seeds, stem)
+                           ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/antyabharahman/Downloads/Personal/neurips/MASK-OFF-scale-pipeline/mask_off/frozen_pipeline.py", line 121, in run
+    vote_msgs = run_batch_retry(vote_reqs, "Validity gate", progress)
+  File "/Users/antyabharahman/Downloads/Personal/neurips/MASK-OFF-scale-pipeline/mask_off/llm.py", line 373, in run_batch_retry
+    out.update(run_batch(retry, f"{label} (retry)", progress))
+               ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/antyabharahman/Downloads/Personal/neurips/MASK-OFF-scale-pipeline/mask_off/llm.py", line 402, in run_batch
+    _connection_retry(
+    ~~~~~~~~~~~~~~~~~^
+        lambda buffered=buffered: batches.create(requests=buffered), progress
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/antyabharahman/Downloads/Personal/neurips/MASK-OFF-scale-pipeline/mask_off/llm.py", line 347, in _connection_retry
+    return call()
+  File "/Users/antyabharahman/Downloads/Personal/neurips/MASK-OFF-scale-pipeline/mask_off/llm.py", line 403, in <lambda>
+    lambda buffered=buffered: batches.create(requests=buffered), progress
+                              ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "/Users/antyabharahman/Downloads/Personal/neurips/MASK-OFF-scale-pipeline/.venv/lib/python3.13/site-packages/anthropic/resources/messages/batches.py", line 87, in create
+    return self._post(
+           ~~~~~~~~~~^
+        "/v1/messages/batches",
+        ^^^^^^^^^^^^^^^^^^^^^^^
+    ...<4 lines>...
+        cast_to=MessageBatch,
+        ^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/antyabharahman/Downloads/Personal/neurips/MASK-OFF-scale-pipeline/.venv/lib/python3.13/site-packages/anthropic/_base_client.py", line 1536, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/antyabharahman/Downloads/Personal/neurips/MASK-OFF-scale-pipeline/.venv/lib/python3.13/site-packages/anthropic/_base_client.py", line 1195, in request
+    raise self._make_status_error_from_response(response) from None
+anthropic.InternalServerError: <html>
+<head><title>502 Bad Gateway</title></head>
+<body>
+<center><h1>502 Bad Gateway</h1></center>
+<hr><center>cloudflare</center>
+</body>
+</html>

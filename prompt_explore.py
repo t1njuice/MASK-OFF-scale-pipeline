@@ -339,5 +339,15 @@ def _(LABEL_NAMES, ab_pick, mo):
     return
 
 
+@app.cell
+def _():
+    # df = pl.read_ndjson(
+    #     "./output/frozen_20_gen-opus-4-8_gate-opus-4-8_seeds-e2e20_2026-08-05_123007Z_run_log.jsonl"
+    # )
+
+    # df
+    return
+
+
 if __name__ == "__main__":
     app.run()

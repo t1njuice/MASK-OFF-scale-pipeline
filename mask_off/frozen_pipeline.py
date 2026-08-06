@@ -238,9 +238,13 @@ def main():
         sys.exit(1)
 
     stamp = run_timestamp()
+    def _slug(m: str) -> str:
+        # OpenRouter ids carry "/" and "."; keep stems filesystem-safe
+        return m.removeprefix("anthropic/").removeprefix("claude-").replace("/", "-").replace(".", "-")
+
     stem = config.OUTPUT_DIR / (
-        f"frozen_{args.n}_gen-{config.GENERATOR_MODEL.removeprefix('claude-')}"
-        f"_gate-{config.VALIDITY_MODEL.removeprefix('claude-')}"
+        f"frozen_{args.n}_gen-{_slug(config.GENERATOR_MODEL)}"
+        f"_gate-{_slug(config.VALIDITY_MODEL)}"
         f"_seeds-{source_name(args.seeds)}_{stamp}"
     )
     accepted, items_path = run(args.n, args.seeds, stem)

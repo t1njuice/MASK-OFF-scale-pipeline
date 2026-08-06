@@ -120,6 +120,26 @@ def run(n: int, seeds_path: Path, out_stem: Path, launch=None):
                 vote_reqs += build_vote_requests(s["cid"], s["candidate"])
             vote_msgs = run_batch_retry(vote_reqs, "Validity gate", progress)
 
+            # ponytail: one parse-level retry — a vote whose message came back
+            # but whose JSON doesn't parse (empty content, schema drift) is
+            # resubmitted once before being dropped. run_batch_retry only
+            # covers no-message and max_tokens truncation.
+            def _unparseable(cid: str) -> bool:
+                m = vote_msgs.get(cid)
+                if m is None:
+                    return False
+                try:
+                    parse_vote(m)
+                    return False
+                except Exception:  # noqa: BLE001
+                    return True
+
+            reparse = [r for r in vote_reqs if _unparseable(r["custom_id"])]
+            if reparse:
+                vote_msgs.update(
+                    run_batch_retry(reparse, "Validity gate (reparse)", progress)
+                )
+
             for s in ready:
                 votes, vote_dumps, vote_errors = [], [], []
                 for i in range(config.VALIDITY_VOTES):

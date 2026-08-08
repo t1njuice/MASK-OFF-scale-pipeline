@@ -54,6 +54,11 @@ def run(n: int, seeds_path: Path, out_stem: Path, launch=None):
         log_f.write(json.dumps(rec, ensure_ascii=False) + "\n")
         log_f.flush()
 
+    # First line of every run log: which doctrine built these items. 5.3 puts an
+    # entity stake on every prompt, so 5.2- and 5.3-built items are not poolable
+    # and the prompt filename alone does not tell them apart.
+    log({"kind": "run_meta", "ts": now_iso(), **config.generator_prompt_stamp()})
+
     states = [
         {
             "seed": s,

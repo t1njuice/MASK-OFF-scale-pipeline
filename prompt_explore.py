@@ -26,7 +26,7 @@ def code_block(text):
 
 @app.cell
 def _(pl):
-    sample_prompts = pl.read_csv("./output/pilot_5_gen-opus-5_tgt-moonshotai-kimi-k3_seeds-kimi_100_2026-08-01_132341Z_turns.csv")
+    sample_prompts = pl.read_csv("output/frozen_18_gen-opus-4-8_gate-opus-4-8_seeds-e2e20_2026-08-06_150853Z_accepted.csv")
     sample_prompts
     return (sample_prompts,)
 

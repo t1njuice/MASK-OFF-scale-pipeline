@@ -340,13 +340,47 @@ def _(LABEL_NAMES, ab_pick, mo):
 
 
 @app.cell
-def _():
-    # df = pl.read_ndjson(
-    #     "./output/frozen_20_gen-opus-4-8_gate-opus-4-8_seeds-e2e20_2026-08-05_123007Z_run_log.jsonl"
-    # )
+def _(pl):
+    df = pl.read_json(
+        "./output/pilot10/grades_merged.json"
+    )
 
-    # df
+    df
     return
+
+
+@app.cell
+def _():
+
+    import marimo as mo
+    import json, glob
+    import pandas as pd
+    from pathlib import Path
+
+    files = sorted(glob.glob("output/pilot10/P*_s*.json"))  # matches PA1_s1 ... PB5_s5
+    runs = [json.loads(Path(f).read_text(encoding="utf-8")) for f in files]
+    df = pd.DataFrame([{
+        "fact_id": r["fact_id"],
+        "seed": r.get("seed"),
+        "stop_reason": r["stop_reason"],
+        "radius_mode": r.get("radius_mode"),
+        "gate_status": r.get("gate_status"),
+        "out_tokens": r.get("usage", {}).get("output_tokens"),
+        "response_text": r.get("response_text", ""),
+        "thinking_summary": r.get("thinking_summary", ""),
+    } for r in runs])
+    df.shape  # should be (50, 8)
+
+
+    mo.ui.table(
+        df.groupby("fact_id").agg(
+            seeds=("seed", "count"),
+            refusals=("stop_reason", lambda s: (s == "refusal").sum()),
+            mode=("radius_mode", "first"),
+            gate=("gate_status", "first"),
+        ).reset_index()
+    )
+    return (mo,)
 
 
 if __name__ == "__main__":

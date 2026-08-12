@@ -177,6 +177,31 @@ def test_resume_replays_the_recorded_pending_cohort(tmp_path, monkeypatch):
     assert scale.load_state(run_dir)["pending"] is None
 
 
+def test_max_cost_stops_at_the_cohort_boundary(tmp_path, monkeypatch, capsys):
+    """The ceiling stops BEFORE launching a new cohort; it never kills one
+    mid-flight (design.md §7.6)."""
+    seeds = _corpus()
+    monkeypatch.setattr(scale, "load_seeds", lambda path: seeds)
+    launches = []
+
+    def costly_run(n, seeds_path, out_stem, launch=None, log_path=None,
+                   items_path=None):
+        launches.append(len(launch))
+        with open(items_path, "a", encoding="utf-8") as f:
+            for s in launch[:1]:  # low yield forces a second cohort
+                f.write(json.dumps({"seed_name": s.name, "seed_source": s.source}) + "\n")
+        with open(log_path, "a", encoding="utf-8") as f:
+            for s in launch:  # $0.0125 of opus-4-8 batch output per seed
+                f.write(json.dumps({"seed_name": s.name, "usage": {"generator": {
+                    "model": "claude-opus-4-8", "output_tokens": 1000}}}) + "\n")
+        return [], items_path
+
+    monkeypatch.setattr(scale.frozen_pipeline, "run", costly_run)
+    scale.generate(tmp_path / "run", tmp_path, target=6, max_cost=0.01)
+    assert len(launches) == 1, "the second cohort must not launch over the ceiling"
+    assert "cost ceiling" in capsys.readouterr().out
+
+
 def test_fill_reruns_only_missing_and_empty_cells(tmp_path, monkeypatch):
     """DoD: deleted (uncached) cells and empty-text cells re-run under --fill;
     filled cells stay free cache hits."""

@@ -22,6 +22,7 @@ from pathlib import Path
 
 from . import config, frozen_pipeline
 from .batchcache import drain_orphans, policy, run_lock
+from .pricing import usage_cost
 from .seeds import harm_class, load_seeds
 
 # yield_ema = (1 - EMA_ALPHA) * previous + EMA_ALPHA * latest cohort yield
@@ -85,6 +86,24 @@ def save_state(run_dir: Path, state: dict) -> None:
     tmp.rename(_state_path(run_dir))
 
 
+def run_cost(run_dir: Path) -> float:
+    """Cumulative dollars from run_log.jsonl usage rows (all routes)."""
+    path = run_dir / "run_log.jsonl"
+    if not path.exists():
+        return 0.0
+    total = 0.0
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        usage = json.loads(line).get("usage") or {}
+        if "generator" in usage:  # decision row: generator + panel votes
+            total += usage_cost(usage["generator"] or {})
+            total += sum(usage_cost(u or {}) for u in usage.get("votes", []))
+        elif usage:  # error row: one flat usage dict
+            total += usage_cost(usage)
+    return total
+
+
 def _accepted_items(run_dir: Path) -> list[dict]:
     path = run_dir / "accepted.jsonl"
     if not path.exists():
@@ -142,6 +161,7 @@ def generate(
     target: int = 1200,
     seed_keepers: Path | None = None,
     force: bool = False,
+    max_cost: float | None = None,
 ) -> dict:
     run_dir = Path(run_dir)
     run_dir.mkdir(parents=True, exist_ok=True)
@@ -207,11 +227,29 @@ def generate(
 
             if state["pending"]:
                 # a crashed cohort replays from the recorded draw; the cache
-                # makes completed requests free (ADR-0001)
+                # makes completed requests free (ADR-0001). A pending cohort
+                # always finishes even over --max-cost: stopping mid-cohort
+                # would strand paid batches (design.md §7.6).
                 launch = [
                     by_name[n] for n in state["pending"]["seeds"] if n in by_name
                 ]
             else:
+                # cost ceiling, checked at cohort boundaries only: project the
+                # next cohort from the per-launched-seed average so far
+                if max_cost is not None and state["consumed"]:
+                    spent = run_cost(run_dir)
+                    per_seed = spent / len(state["consumed"])
+                    size = cohort_size(target - total, state["yield_ema"])
+                    projected = per_seed * size
+                    if spent + projected > max_cost:
+                        print(
+                            f"stopping at the cost ceiling: ${spent:.2f} spent, "
+                            f"next cohort of {size} seeds projects "
+                            f"+${projected:.2f} > --max-cost {max_cost:.2f}. "
+                            f"{target - total} items remain; finishing costs "
+                            f"roughly ${per_seed * (target - total) / max(state['yield_ema'] or 1, 0.01):.2f}."
+                        )
+                        break
                 consumed = set(state["consumed"])
                 rng = random.Random(f"{state['draw_seed']}:{state['cohort'] + 1}")
                 size = cohort_size(target - total, state["yield_ema"])
@@ -324,6 +362,8 @@ def main():
     g.add_argument("--seed-keepers", type=Path, default=None)
     g.add_argument("--force", action="store_true",
                    help="proceed past a fingerprint mismatch and stamp the change")
+    g.add_argument("--max-cost", type=float, default=None,
+                   help="dollar ceiling, checked at cohort boundaries only")
     e = sub.add_parser("evaluate", help="Stage B: evaluate the accepted corpus")
     e.add_argument("--run-dir", type=Path, required=True)
     e.add_argument("--cohort-size", type=int, default=200)
@@ -336,7 +376,8 @@ def main():
     if not preflight():
         sys.exit(1)
     if args.cmd == "generate":
-        generate(args.run_dir, args.seeds, args.target, args.seed_keepers, args.force)
+        generate(args.run_dir, args.seeds, args.target, args.seed_keepers,
+                 args.force, args.max_cost)
     else:
         evaluate_corpus(args.run_dir, args.cohort_size, args.fill)
 

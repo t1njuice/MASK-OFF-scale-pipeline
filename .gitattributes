@@ -1,0 +1,4 @@
+# Append-only rater files: a pull appends both sides instead of conflicting.
+# The notebooks and kappa.py reject duplicate result_ids, so a real double label is caught.
+diversity/labeling/out/*.jsonl merge=union
+diversity/labeling/out/**/*.jsonl merge=union

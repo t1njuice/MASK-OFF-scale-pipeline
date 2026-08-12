@@ -89,10 +89,7 @@ def normalize(msg) -> dict:
             content.append(
                 {"type": "thinking", "thinking": getattr(block, "thinking", "") or ""}
             )
-    usage = usage_summary_of(msg)
-    usage["model"] = getattr(msg, "model", None)
-    if getattr(msg, "route", None):
-        usage["route"] = msg.route  # pricing keys on (model, route) — F4
+    usage = usage_summary_of(msg)  # carries model and route (F4)
     return {
         "content": content,
         "stop_reason": getattr(msg, "stop_reason", None),
@@ -106,10 +103,12 @@ def rehydrate(stored: dict) -> SimpleNamespace:
     .model are valid on the result (ADR-0001)."""
     usage = dict(stored["usage"])
     model = usage.pop("model", None)
+    route = usage.pop("route", None)
     return SimpleNamespace(
         content=[SimpleNamespace(**block) for block in stored["content"]],
         stop_reason=stored["stop_reason"],
         model=model,
+        route=route,
         usage=SimpleNamespace(**usage),
         resolved_provider=stored.get("resolved_provider"),
     )
@@ -290,7 +289,8 @@ def _run_misses(
         marked = sorted(stale_refresh & set(custom_ids))
         if marked:
             row["refresh_ids"] = marked
-            refresh_batches.append(handle["batch_id"])
+            if handle.get("batch_id"):
+                refresh_batches.append(handle["batch_id"])
         _journal(run_dir, row)
 
     def on_submit(batch_id: str, custom_ids: list[str]) -> None:
@@ -298,6 +298,15 @@ def _run_misses(
 
     def on_submit_openai(handle: dict, custom_ids: list[str]) -> None:
         _journal_handle("openai_batch", handle, custom_ids)
+
+    def on_upload_openai(slug: str, file_id: str, custom_ids: list[str]) -> None:
+        # journaled BEFORE create, so a lost create response still leaves the
+        # billed batch findable by its input file (ADR-0002 §9/F6)
+        _journal_handle(
+            "openai_batch",
+            {"batch_id": None, "input_file_id": file_id, "slug": slug},
+            custom_ids,
+        )
 
     def on_result(cid: str, msg) -> None:
         if _bad(msg):
@@ -310,7 +319,8 @@ def _run_misses(
         others = [r for r in requests if routed[r["custom_id"]] != "openai_batch"]
         if oai:
             out.update(batch_providers.run_openai_batch(
-                oai, pass_label, progress, on_submit_openai, on_result))
+                oai, pass_label, progress, on_submit_openai, on_result,
+                on_upload_openai))
         if others:
             out.update(llm.run_batch(
                 others, pass_label, progress,
@@ -353,7 +363,7 @@ def _fetch_anthropic(batch_id: str):
         return None
 
 
-def drain_orphans(run_dir: Path, progress=None) -> int:
+def drain_orphans(run_dir: Path, progress=None, strict: bool = False) -> int:
     """Fold journaled-but-unfetched batch results into the cache.
 
     Runs at every process start, BEFORE the fingerprint gate (harvest is always
@@ -370,7 +380,11 @@ def drain_orphans(run_dir: Path, progress=None) -> int:
             continue
         row = json.loads(line)
         if row.get("kind") == "handle":
-            handles[row["batch_id"]] = row  # dedupe by batch id, latest-wins
+            # dedupe latest-wins; a pre-create row keys on its input file so
+            # the real handle row supersedes it once the batch id lands
+            handles[row.get("batch_id") or f"file:{row.get('input_file_id')}"] = row
+            if row.get("batch_id") and row.get("input_file_id"):
+                handles.pop(f"file:{row['input_file_id']}", None)
         elif row.get("kind") == "intent":
             intents.append(row)
         elif row.get("kind") == "drained":
@@ -379,7 +393,7 @@ def drain_orphans(run_dir: Path, progress=None) -> int:
     folded = 0
     for row in handles.values():
         keys = row["keys"]
-        if row["batch_id"] in drained:
+        if row.get("batch_id") and row["batch_id"] in drained:
             continue
         # a refresh batch resubmits under keys the STALE rows already occupy,
         # so the cache can never prove it completed; poll it unconditionally
@@ -389,7 +403,16 @@ def drain_orphans(run_dir: Path, progress=None) -> int:
         if row["route"] == "openai_batch":
             from . import batch_providers
 
-            results = batch_providers.drain_fetch(row, progress)
+            try:
+                results = batch_providers.drain_fetch(row, progress)
+            except batch_providers.RouteKeyMissing as exc:
+                # loud and run-blocking under strict; never a tombstone —
+                # the batch stays drainable once the key is present (F6)
+                _log(progress, f"[drain] WARNING: {exc}; results NOT harvested "
+                               f"and left drainable. Export the key and re-invoke.")
+                if strict:
+                    raise
+                continue
         elif row["route"] == "anthropic":
             results = _fetch_anthropic(row["batch_id"])
         else:
@@ -397,7 +420,7 @@ def drain_orphans(run_dir: Path, progress=None) -> int:
             continue
         if results is None:
             _log(progress, f"[drain] batch {row['batch_id']} no longer exists, skipped")
-            if row.get("refresh_ids"):
+            if row.get("refresh_ids") and row.get("batch_id"):
                 _journal(run_dir, {"kind": "drained", "batch_id": row["batch_id"],
                                    "ts": _now()})
             continue

@@ -159,11 +159,90 @@ def test_truncation_maps_to_max_tokens_and_is_never_cached():
     assert out["a"].stop_reason == "max_tokens"
 
 
+def test_missing_key_defers_the_drain_instead_of_tombstoning(monkeypatch):
+    """A missing credential must never be recorded as "batch gone forever":
+    the batch stays journaled and drainable (ADR-0002 §5 invariant 6)."""
+    from . import batchcache
+
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    with pytest.raises(batch_providers.RouteKeyMissing):
+        batch_providers.drain_fetch({"batch_id": "b1"})
+
+    run_dir = None  # drain must skip the row without writing a drained marker
+
+    def fake_drain(row, progress=None):
+        raise batch_providers.RouteKeyMissing("no key")
+
+    monkeypatch.setattr(batch_providers, "drain_fetch", fake_drain)
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmp:
+        from pathlib import Path
+
+        run_dir = Path(tmp)
+        batchcache._CACHES.clear()
+        batchcache._journal(run_dir, {
+            "kind": "handle", "route": "openai_batch", "batch_id": "b1",
+            "custom_ids": ["a"], "keys": {"a": "k"}, "refresh_ids": ["a"], "ts": "",
+        })
+        assert batchcache.drain_orphans(run_dir) == 0
+        rows = [
+            l for l in (run_dir / "_batches.jsonl").read_text().splitlines() if l
+        ]
+        assert all('"drained"' not in r for r in rows), "no tombstone on a key gap"
+        with pytest.raises(batch_providers.RouteKeyMissing):
+            batchcache.drain_orphans(run_dir, strict=True)
+
+
+def test_lost_create_response_is_recovered_from_the_input_file():
+    """The batch id lives only in the create response; the file id is journaled
+    first, so a dropped create is still findable (F6)."""
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/v1/batches" and request.method == "GET":
+            return httpx.Response(200, json={"data": [
+                {"id": "batch-other", "input_file_id": "file-zzz"},
+                {"id": "batch-found", "input_file_id": "file-lost"},
+            ]})
+        raise AssertionError(request.url.path)
+
+    assert batch_providers.find_batch_by_input_file(
+        "file-lost", _client(handler)) == "batch-found"
+    assert batch_providers.find_batch_by_input_file(
+        "file-never", _client(handler)) is None
+
+
+def test_fetch_keeps_the_requested_slug_not_the_dated_snapshot():
+    def handler(request: httpx.Request) -> httpx.Response:
+        line = {"custom_id": "a", "response": {"status_code": 200, "body": {
+            "model": "gpt-5.6-sol-2026-07-01",  # dated snapshot, unpinnable
+            "choices": [{"message": {"content": "x"}, "finish_reason": "stop"}],
+            "usage": {}}}}
+        return httpx.Response(200, text=json.dumps(line))
+
+    out = batch_providers.fetch(
+        {"batch_id": "x", "output_file_id": "f"}, _client(handler),
+        slug="openai/gpt-5.6-sol",
+    )
+    assert out["a"].model == "openai/gpt-5.6-sol"
+    assert ("openai/gpt-5.6-sol", "openai_batch") in config.PRICES
+
+
+def test_poll_ceiling_gives_up_instead_of_blocking_the_run(monkeypatch):
+    monkeypatch.setattr(batch_providers, "POLL_CEILING_SECONDS", -1)
+    monkeypatch.setattr(batch_providers, "POLL_SECONDS", 0)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"id": "b", "status": "finalizing"})
+
+    with pytest.raises(batch_providers.PollCeilingExceeded):
+        batch_providers.poll_until_done({"batch_id": "b"}, _client(handler))
+
+
 def test_input_file_partitions_are_single_model_via_run(monkeypatch):
     """run_openai_batch must submit one batch per model (ADR-0002 §9/F10)."""
     created = []
 
-    def fake_submit_chunked(requests, client, on_submit):
+    def fake_submit_chunked(requests, client, on_submit, on_upload=None):
         models = {r["params"]["model"] for r in requests}
         assert len(models) == 1, "a batch input file must be single-model"
         created.append(sorted(models))
@@ -177,7 +256,7 @@ def test_input_file_partitions_are_single_model_via_run(monkeypatch):
         batch_providers, "poll_until_done",
         lambda h, c, p=None: {"status": "completed"},
     )
-    monkeypatch.setattr(batch_providers, "fetch", lambda h, c: {})
+    monkeypatch.setattr(batch_providers, "fetch", lambda h, c, slug=None: {})
     batch_providers.run_openai_batch(
         [_req("a", model="openai/gpt-5.6-sol"),
          _req("b", model="openai/gpt-5.6-sol-pro")],

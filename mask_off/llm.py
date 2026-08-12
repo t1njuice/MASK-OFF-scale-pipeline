@@ -79,8 +79,11 @@ def reasoning_summary_of(response) -> str:
 def usage_summary_of(response) -> dict:
     usage = getattr(response, "usage", None)
     return {
-        # mandatory for cost accounting (ADR-0002 §9/F4): pricing keys on it
+        # mandatory for cost accounting (ADR-0002 §9/F4): pricing keys on
+        # (model, route). Route survives a cache rehydrate on the usage
+        # object, so read both places — a live message carries it on itself.
         "model": getattr(response, "model", None),
+        "route": getattr(response, "route", None) or getattr(usage, "route", None),
         "input_tokens": getattr(usage, "input_tokens", 0) or 0,
         "output_tokens": getattr(usage, "output_tokens", 0) or 0,
         "cache_creation_input_tokens": getattr(

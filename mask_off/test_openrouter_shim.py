@@ -35,6 +35,7 @@ def test_shim_message():
     # the old passthrough double-counted them in usage_cost
     assert usage_summary_of(m) == {
         "model": None,
+        "route": None,
         "input_tokens": 3,
         "output_tokens": 5,
         "cache_creation_input_tokens": 0,

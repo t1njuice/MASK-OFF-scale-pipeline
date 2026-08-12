@@ -19,9 +19,9 @@ import math
 import sys
 from pathlib import Path
 
-# usage_cost lives in frozen_pipeline (no mask_off/pricing.py exists yet);
-# importing it there does not pull in scale or evaluate.
-from .frozen_pipeline import usage_cost
+# per-model per-route costing (ADR-0002 §9/F4); importing it pulls in neither
+# scale nor evaluate, so this module stays a pure read.
+from .pricing import usage_cost
 
 Z95 = 1.959964  # normal quantile for a 95% interval
 
@@ -305,9 +305,9 @@ def _stage_a_panel(cohorts, log_rows) -> str:
                'reading back.</p>')
     out.append(_table(["wave", "cache write tokens", "cache read tokens",
                        "cache-write ratio"], ratio_rows))
-    out.append(f"<p>Estimated Anthropic batch cost so far: "
-               f"<b>${total_cost:.2f}</b> (OpenRouter panel votes are billed "
-               f"on OpenRouter credits and not counted here).</p>")
+    out.append(f"<p>Estimated cost so far, every route: "
+               f"<b>${total_cost:.2f}</b>. A model with no pinned price in "
+               f"config.PRICES contributes $0 and warns on the console.</p>")
     return "".join(out)
 
 

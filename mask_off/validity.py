@@ -103,9 +103,13 @@ def tally(votes: list[ValidityReview]) -> dict:
     n_accept = sum(1 for v in votes if v.verdict == "accept")
     accepted = n_accept >= config.VALIDITY_ACCEPT
     revises = [v for v in votes if v.verdict != "accept"]
-    seed_defect = sum(1 for v in votes if v.seed_defect) >= config.VALIDITY_ACCEPT
+    # Strict majority of parsed votes, decoupled from VALIDITY_ACCEPT: a
+    # unanimity accept rule must not also demand a unanimous seed_defect.
+    seed_defect = sum(1 for v in votes if v.seed_defect) * 2 > len(votes)
     scopes = [s for s in (_scope_of(v.feedback) for v in revises) if s]
-    scope = max(set(scopes), key=scopes.count) if scopes else ""
+    # sorted(): set iteration order varies per process under hash randomization,
+    # and the tied scope feeds the next wave's feedback text (ADR-0002 §9/F2).
+    scope = max(sorted(set(scopes)), key=scopes.count) if scopes else ""
     best = max(
         revises,
         key=lambda v: (_n_failed(v), _scope_of(v.feedback) == scope),

@@ -43,11 +43,75 @@ def now_iso() -> str:
     return datetime.datetime.now(datetime.timezone.utc).isoformat()
 
 
-def run(n: int, seeds_path: Path, out_stem: Path, launch=None):
+def resubmit_votes(vote_reqs: list[dict], vote_msgs: dict, progress) -> dict:
+    """Bounded resubmission (<=3 passes) of missing or unparseable vote slots.
+
+    run_batch_retry only covers no-message and max_tokens truncation within a
+    single pass; a vote whose message came back but whose JSON doesn't parse
+    (empty content, schema drift) needs its own resubmission. A round is only
+    tallied with all configured votes present — after 3 passes the caller
+    proceeds with what parsed and flags the decision `short_votes`.
+    """
+
+    def _bad(cid: str) -> bool:
+        msg = vote_msgs.get(cid)
+        if msg is None:
+            return True
+        try:
+            parse_vote(msg)
+            return False
+        except Exception:  # noqa: BLE001
+            return True
+
+    for attempt in range(3):
+        resubmit = [r for r in vote_reqs if _bad(r["custom_id"])]
+        if not resubmit:
+            break
+        # refresh: a cached-but-unparseable vote must be superseded, not served
+        # back from the cache — without this, resubmission under a run_dir is a
+        # permanent no-op and the gate silently tightens (ADR-0002 §9/F1)
+        vote_msgs.update(
+            run_batch_retry(
+                resubmit,
+                f"Validity gate (resubmit {attempt + 1})",
+                progress,
+                refresh={r["custom_id"] for r in resubmit},
+            )
+        )
+    return vote_msgs
+
+
+def accepted_seed_names(items_path: Path) -> set[tuple[str, str]]:
+    """(seed_source, seed_name) pairs already accepted in an items file.
+
+    Replay-from-top seeds done-state from here (ADR-0002 §9/F2): result_id is a
+    fresh uuid at accept time, so without this a replay double-accepts a seed
+    under a second identity with a cold eval grid.
+    """
+    if not items_path.exists():
+        return set()
+    return {
+        (rec.get("seed_source", ""), rec["seed_name"])
+        for rec in (
+            json.loads(line)
+            for line in items_path.read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        )
+    }
+
+
+def run(n: int, seeds_path: Path, out_stem: Path, launch=None,
+        log_path: Path | None = None, items_path: Path | None = None,
+        resume: dict | None = None):
+    """resume: {seed_name: state overrides} rebuilt from a prior run log
+    (iteration/feedback/previous/done) so an interrupted run continues from
+    its last paid round instead of re-billing it. Salvage path only — the
+    scale pipeline resumes via the batch cache instead (ADR-0001)."""
     launch = launch or select_seeds(n, seeds_path)
-    log_path = out_stem.with_name(out_stem.name + "_run_log.jsonl")
-    items_path = out_stem.with_name(out_stem.name + "_accepted.jsonl")
+    log_path = log_path or out_stem.with_name(out_stem.name + "_run_log.jsonl")
+    items_path = items_path or out_stem.with_name(out_stem.name + "_accepted.jsonl")
     out_stem.parent.mkdir(parents=True, exist_ok=True)
+    done_names = accepted_seed_names(items_path)
     log_f = open(log_path, "a", encoding="utf-8")
 
     def log(rec: dict) -> None:
@@ -61,11 +125,13 @@ def run(n: int, seeds_path: Path, out_stem: Path, launch=None):
             "iteration": 0,
             "feedback": None,
             "previous": None,
-            "done": False,
+            "done": (s.source, s.name) in done_names,
             "accepted_item": None,
         }
         for s in launch
     ]
+    for s in states:
+        s.update((resume or {}).get(s["seed"].name, {}))
     total_cost = 0.0
     progress = batch_progress()
     with progress:
@@ -120,25 +186,7 @@ def run(n: int, seeds_path: Path, out_stem: Path, launch=None):
                 vote_reqs += build_vote_requests(s["cid"], s["candidate"])
             vote_msgs = run_batch_retry(vote_reqs, "Validity gate", progress)
 
-            # ponytail: one parse-level retry — a vote whose message came back
-            # but whose JSON doesn't parse (empty content, schema drift) is
-            # resubmitted once before being dropped. run_batch_retry only
-            # covers no-message and max_tokens truncation.
-            def _unparseable(cid: str) -> bool:
-                m = vote_msgs.get(cid)
-                if m is None:
-                    return False
-                try:
-                    parse_vote(m)
-                    return False
-                except Exception:  # noqa: BLE001
-                    return True
-
-            reparse = [r for r in vote_reqs if _unparseable(r["custom_id"])]
-            if reparse:
-                vote_msgs.update(
-                    run_batch_retry(reparse, "Validity gate (reparse)", progress)
-                )
+            vote_msgs = resubmit_votes(vote_reqs, vote_msgs, progress)
 
             for s in ready:
                 votes, vote_dumps, vote_errors = [], [], []
@@ -168,6 +216,8 @@ def run(n: int, seeds_path: Path, out_stem: Path, launch=None):
                         s["done"] = True
                     continue
                 decision = tally(votes)
+                if len(votes) < config.VALIDITY_VOTES:
+                    decision["short_votes"] = True
                 rec = {
                     "seed_name": s["seed"].name,
                     "seed_source": s["seed"].source,

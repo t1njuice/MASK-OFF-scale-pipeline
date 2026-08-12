@@ -272,7 +272,9 @@ def _openrouter_call(params: dict):
             time.sleep(5 * (attempt + 1))
 
 
-def _run_openrouter(requests: list[dict], label: str, progress: Progress) -> dict:
+def _run_openrouter(
+    requests: list[dict], label: str, progress: Progress, on_result=None
+) -> dict:
     """Threaded stand-in for the Batches API: {custom_id: message | None}."""
     task = progress.add_task(f"{label} (openrouter)", total=len(requests))
     out = {}
@@ -285,12 +287,17 @@ def _run_openrouter(requests: list[dict], label: str, progress: Progress) -> dic
             for future in as_completed(futures):
                 cid = futures[future]
                 try:
-                    out[cid] = future.result()
+                    msg = future.result()
                 except Exception as exc:  # noqa: BLE001 - None = errored sample, same as batch
                     progress.console.print(
                         f"openrouter {cid} failed: {exc}", markup=False, highlight=False
                     )
-                    out[cid] = None
+                    msg = None
+                # a crash loses in-flight sync calls; rows already appended by
+                # on_result survive — the sync route's only durability (ADR-0002 §4)
+                if on_result is not None:
+                    on_result(cid, msg)
+                out[cid] = msg
                 progress.advance(task)
     finally:
         progress.remove_task(task)
@@ -361,56 +368,100 @@ def _connection_retry(call, progress: Progress):
         time.sleep(config.BATCH_POLL_SECONDS)
 
 
+def bad_final(msg) -> bool:
+    """True when a result must be resubmitted (and never cached): no message,
+    or output truncated at max_tokens so it cannot parse. The single source of
+    the predicate — the retry contract and the cache contract share it."""
+    return msg is None or getattr(msg, "stop_reason", None) == "max_tokens"
+
+
 def run_batch_retry(
-    requests: list[dict], label: str, progress: Progress | None = None
+    requests: list[dict],
+    label: str,
+    progress: Progress | None = None,
+    refresh: set | None = None,
 ) -> dict:
     """run_batch, then one resubmission of errored/truncated requests.
 
     Amendment 4 (2026-08-03): a paid wave is not forfeited to a single
     transient failure. A request is retried when it returned no message or
     stopped on max_tokens (truncated output can't parse).
-    """
 
-    def bad(msg) -> bool:
-        return msg is None or getattr(msg, "stop_reason", None) == "max_tokens"
+    Policy seam (ADR-0002 §4): the ambient Policy is read ONCE here, on the
+    calling thread — pool workers never read the contextvar. With a run_dir
+    set, the call routes through the batch cache and `refresh` names the
+    custom_ids that must bypass it. The default Policy() is the legacy path,
+    bit-identical to before the seam existed.
+    """
+    from . import batchcache
+
+    pol = batchcache.current_policy()
+    if pol.run_dir is not None:
+        return batchcache.cached_batch(
+            requests,
+            label,
+            progress,
+            pol.run_dir,
+            refresh=refresh or frozenset(),
+            strict=pol.strict,
+        )
 
     out = run_batch(requests, label, progress)
-    retry = [r for r in requests if bad(out.get(r["custom_id"]))]
+    retry = [r for r in requests if bad_final(out.get(r["custom_id"]))]
     if retry:
         out.update(run_batch(retry, f"{label} (retry)", progress))
     return out
 
 
-def run_batch(requests: list[dict], label: str, progress: Progress | None = None) -> dict:
+def run_batch(
+    requests: list[dict],
+    label: str,
+    progress: Progress | None = None,
+    on_submit=None,
+    on_result=None,
+    cancel_on_interrupt: bool = True,
+) -> dict:
     """Run capped Anthropic Message Batches.
 
     Returns {custom_id: response | None}, where None means the request errored,
     expired, or was canceled. Pass ``progress`` to nest this stage's bars under
     an existing live display.
+
+    Journal hooks (ADR-0002 §5): ``on_submit(batch_id, custom_ids)`` fires
+    after each chunk is accepted server-side, before polling begins.
+    ``on_result(custom_id, msg)`` fires as each result lands, before it appears
+    in the return value. ``cancel_on_interrupt=False`` leaves submitted batches
+    running on KeyboardInterrupt so a journaled run can drain them later.
     """
     if not requests:
         return {}
     if progress is None:
         with batch_progress() as progress:
-            return run_batch(requests, label, progress)
+            return run_batch(
+                requests, label, progress, on_submit, on_result, cancel_on_interrupt
+            )
 
     external = [r for r in requests if not is_anthropic_model(r["params"]["model"])]
     if external:
         native = [r for r in requests if is_anthropic_model(r["params"]["model"])]
         # ponytail: sequential; overlap the pool with the batch poll if wall-clock matters
-        out = _run_openrouter(external, label, progress)
-        out.update(run_batch(native, label, progress))
+        out = _run_openrouter(external, label, progress, on_result)
+        out.update(
+            run_batch(native, label, progress, on_submit, on_result, cancel_on_interrupt)
+        )
         return out
 
     batches = client().messages.batches
     buffered_batches = _buffer_batches(requests)
     # submit every chunk first so they all process server-side concurrently
-    submitted = [
-        _connection_retry(
+    submitted = []
+    for buffered in buffered_batches:
+        batch = _connection_retry(
             lambda buffered=buffered: batches.create(requests=buffered), progress
         )
-        for buffered in buffered_batches
-    ]
+        if on_submit is not None:
+            on_submit(batch.id, [r["custom_id"] for r in buffered])
+        submitted.append(batch)
     tasks = [
         progress.add_task(
             label if len(submitted) == 1 else f"{label} {index}/{len(submitted)}",
@@ -438,11 +489,12 @@ def run_batch(requests: list[dict], label: str, progress: Progress | None = None
                 # ponytail: fixed polling; add backoff only if runs become large
                 time.sleep(config.BATCH_POLL_SECONDS)
     except KeyboardInterrupt:
-        for batch in submitted:
-            try:
-                batches.cancel(batch.id)
-            except Exception:  # noqa: BLE001 - already-ended chunks can't be canceled
-                pass
+        if cancel_on_interrupt:
+            for batch in submitted:
+                try:
+                    batches.cancel(batch.id)
+                except Exception:  # noqa: BLE001 - already-ended chunks can't be canceled
+                    pass
         raise
     finally:
         for task in tasks:
@@ -456,5 +508,8 @@ def run_batch(requests: list[dict], label: str, progress: Progress | None = None
             progress,
         )
         for custom_id, res in results:
-            out[custom_id] = res.message if res.type == "succeeded" else None
+            msg = res.message if res.type == "succeeded" else None
+            if on_result is not None:
+                on_result(custom_id, msg)
+            out[custom_id] = msg
     return out

@@ -23,20 +23,9 @@ from .pipeline import preflight, run_timestamp, select_seeds
 from .seeds import load_seeds, source_name
 from .validity import build_vote_requests, parse_vote, tally
 
-# batch-discounted $/MTok for the anthropic models this pipeline calls
-PRICE = {"in": 2.5, "out": 12.5, "cache_w": 5.0, "cache_r": 0.25}
-
-
-def usage_cost(u: dict) -> float:
-    # OpenRouter panel votes are billed on OpenRouter credits, not here
-    if u.get("model") and not str(u["model"]).startswith("claude"):
-        return 0.0
-    return (
-        u.get("input_tokens", 0) * PRICE["in"]
-        + u.get("output_tokens", 0) * PRICE["out"]
-        + u.get("cache_creation_input_tokens", 0) * PRICE["cache_w"]
-        + u.get("cache_read_input_tokens", 0) * PRICE["cache_r"]
-    ) / 1e6
+# Re-exported here because evaluate.py and the experiment scripts import it
+# from this module; the table itself lives in config.PRICES (ADR-0002 §9/F4).
+from .pricing import usage_cost  # noqa: E402,F401  (import placement: after the module docstring block)
 
 
 def now_iso() -> str:
@@ -277,7 +266,7 @@ def run(n: int, seeds_path: Path, out_stem: Path, launch=None,
     print(
         f"\n{len(states)} seeds run, {len(accepted)} accepted "
         f"({len(accepted)/len(states):.0%} yield). "
-        f"Estimated Anthropic batch cost: ${total_cost:.2f}"
+        f"Estimated cost across routes: ${total_cost:.2f}"
     )
     print(f"Accepted items: {items_path}\nRun log: {log_path}")
     return accepted, items_path

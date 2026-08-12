@@ -152,6 +152,34 @@ COHORT_BASE = 200
 COHORT_MIN = 25
 COHORT_MAX = 250
 
+# Per-model per-route prices, $/MTok (ADR-0002 §9/F4). Pinned, not fetched
+# live, so a run's costing is reproducible; OpenRouter rates refreshed from
+# https://openrouter.ai/api/v1/models on 2026-08-13. "in" and "cached_in"
+# follow convention U: input_tokens excludes cached tokens on every route.
+# "cache_write" only where the provider bills cache writes (Anthropic 1h TTL).
+# A (model, route) absent from this table costs 0 and warns once — pin it
+# before trusting --max-cost with that model (claude-opus-5 is deliberately
+# unpinned: smoke-test volume only).
+PRICES = {
+    ("claude-opus-4-8", "anthropic_batch"):
+        {"in": 2.5, "out": 12.5, "cache_write": 5.0, "cached_in": 0.25},
+    ("claude-opus-4-8", "anthropic_sync"):
+        {"in": 5.0, "out": 25.0, "cache_write": 10.0, "cached_in": 0.5},
+    ("moonshotai/kimi-k3", "openrouter_sync"):
+        {"in": 3.0, "out": 15.0, "cached_in": 0.3},
+    ("x-ai/grok-4.5", "openrouter_sync"):
+        {"in": 2.0, "out": 6.0, "cached_in": 0.3},
+    ("deepseek/deepseek-v4-flash-0731", "openrouter_sync"):
+        {"in": 0.08, "out": 0.18, "cached_in": 0.016},
+    ("openai/gpt-5.6-terra-pro", "openrouter_sync"):
+        {"in": 1.0, "out": 6.0, "cached_in": 0.1},
+    # native OpenAI batch = 50% of native sync (sol sync: 5 in / 30 out)
+    ("openai/gpt-5.6-sol", "openai_batch"):
+        {"in": 2.5, "out": 15.0, "cached_in": 0.25},
+    ("openai/gpt-5.6-sol", "openai_sync"):
+        {"in": 5.0, "out": 30.0, "cached_in": 0.5},
+}
+
 # --- Seed authoring + cheap screen (map ticket 03 / D8, D11, D12) -----------
 SEEDGEN_MODEL = "deepseek/deepseek-v4-flash-0731"  # authors and cheap-screens
 SEEDGEN_SEEDS_PER_CALL = 5   # D8: one batch call per subcategory row

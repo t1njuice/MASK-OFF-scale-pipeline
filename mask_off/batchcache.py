@@ -91,6 +91,8 @@ def normalize(msg) -> dict:
             )
     usage = usage_summary_of(msg)
     usage["model"] = getattr(msg, "model", None)
+    if getattr(msg, "route", None):
+        usage["route"] = msg.route  # pricing keys on (model, route) — F4
     return {
         "content": content,
         "stop_reason": getattr(msg, "stop_reason", None),
@@ -192,6 +194,7 @@ def cached_batch(
     run_dir: Path,
     refresh: frozenset | set = frozenset(),
     strict: bool = False,
+    latency: str = "wave",
 ) -> dict:
     """Drop-in for run_batch_retry: {custom_id: message | None}, cache-backed.
 
@@ -223,7 +226,9 @@ def cached_batch(
     if misses:
         try:
             out.update(
-                _run_misses(misses, label, progress, run_dir, keys, stale_refresh)
+                _run_misses(
+                    misses, label, progress, run_dir, keys, stale_refresh, latency
+                )
             )
         except KeyboardInterrupt:
             _log(
@@ -240,31 +245,44 @@ def cached_batch(
 
 
 def _run_misses(
-    misses, label, progress, run_dir: Path, keys: dict, stale_refresh: set = frozenset()
+    misses,
+    label,
+    progress,
+    run_dir: Path,
+    keys: dict,
+    stale_refresh: set = frozenset(),
+    latency: str = "wave",
 ) -> dict:
-    from . import llm
+    from . import batch_providers, llm
 
-    native = [r for r in misses if llm.is_anthropic_model(r["params"]["model"])]
-    if native:
-        _journal(
-            run_dir,
-            {
-                "kind": "intent",
-                "label": label,
-                "route": "anthropic",
-                "custom_ids": [r["custom_id"] for r in native],
-                "keys": {r["custom_id"]: keys[r["custom_id"]] for r in native},
-                "ts": _now(),
-            },
-        )
+    routed = {r["custom_id"]: batch_providers.route(r["params"]["model"], latency)
+              for r in misses}
+    openai_grp = [r for r in misses if routed[r["custom_id"]] == "openai_batch"]
+    rest = [r for r in misses if routed[r["custom_id"]] != "openai_batch"]
+    for route_name, group in (
+        ("anthropic", [r for r in rest if llm.is_anthropic_model(r["params"]["model"])]),
+        ("openai_batch", openai_grp),
+    ):
+        if group:
+            _journal(
+                run_dir,
+                {
+                    "kind": "intent",
+                    "label": label,
+                    "route": route_name,
+                    "custom_ids": [r["custom_id"] for r in group],
+                    "keys": {r["custom_id"]: keys[r["custom_id"]] for r in group},
+                    "ts": _now(),
+                },
+            )
     refresh_batches = []
 
-    def on_submit(batch_id: str, custom_ids: list[str]) -> None:
+    def _journal_handle(route_name: str, handle: dict, custom_ids: list[str]) -> None:
         row = {
             "kind": "handle",
             "label": label,
-            "route": "anthropic",
-            "batch_id": batch_id,
+            "route": route_name,
+            **handle,
             "custom_ids": custom_ids,
             "keys": {cid: keys[cid] for cid in custom_ids},
             "ts": _now(),
@@ -272,19 +290,37 @@ def _run_misses(
         marked = sorted(stale_refresh & set(custom_ids))
         if marked:
             row["refresh_ids"] = marked
-            refresh_batches.append(batch_id)
+            refresh_batches.append(handle["batch_id"])
         _journal(run_dir, row)
+
+    def on_submit(batch_id: str, custom_ids: list[str]) -> None:
+        _journal_handle("anthropic", {"batch_id": batch_id}, custom_ids)
+
+    def on_submit_openai(handle: dict, custom_ids: list[str]) -> None:
+        _journal_handle("openai_batch", handle, custom_ids)
 
     def on_result(cid: str, msg) -> None:
         if _bad(msg):
             return  # F1 rule 1: never cache None or a max_tokens final
         append_result(run_dir, keys[cid], cid, normalize(msg))
 
-    hooks = dict(on_submit=on_submit, on_result=on_result, cancel_on_interrupt=False)
-    out = llm.run_batch(misses, label, progress, **hooks)
+    def _one_pass(requests, pass_label):
+        out = {}
+        oai = [r for r in requests if routed[r["custom_id"]] == "openai_batch"]
+        others = [r for r in requests if routed[r["custom_id"]] != "openai_batch"]
+        if oai:
+            out.update(batch_providers.run_openai_batch(
+                oai, pass_label, progress, on_submit_openai, on_result))
+        if others:
+            out.update(llm.run_batch(
+                others, pass_label, progress,
+                on_submit=on_submit, on_result=on_result, cancel_on_interrupt=False))
+        return out
+
+    out = _one_pass(misses, label)
     retry = [r for r in misses if _bad(out.get(r["custom_id"]))]
     if retry:
-        out.update(llm.run_batch(retry, f"{label} (retry)", progress, **hooks))
+        out.update(_one_pass(retry, f"{label} (retry)"))
     # the refresh batches completed in-process; mark them drained so restarts
     # do not re-poll them (their keys can never prove completion — see above)
     for batch_id in refresh_batches:
@@ -350,10 +386,15 @@ def drain_orphans(run_dir: Path, progress=None) -> int:
         # until a drained marker lands (ADR-0002 §5 invariant 6)
         if not row.get("refresh_ids") and all(k in cache for k in keys.values()):
             continue
-        if row["route"] != "anthropic":
+        if row["route"] == "openai_batch":
+            from . import batch_providers
+
+            results = batch_providers.drain_fetch(row, progress)
+        elif row["route"] == "anthropic":
+            results = _fetch_anthropic(row["batch_id"])
+        else:
             _log(progress, f"[drain] unsupported route {row['route']!r}, skipped")
             continue
-        results = _fetch_anthropic(row["batch_id"])
         if results is None:
             _log(progress, f"[drain] batch {row['batch_id']} no longer exists, skipped")
             if row.get("refresh_ids"):

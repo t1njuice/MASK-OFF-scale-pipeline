@@ -79,6 +79,8 @@ def reasoning_summary_of(response) -> str:
 def usage_summary_of(response) -> dict:
     usage = getattr(response, "usage", None)
     return {
+        # mandatory for cost accounting (ADR-0002 §9/F4): pricing keys on it
+        "model": getattr(response, "model", None),
         "input_tokens": getattr(usage, "input_tokens", 0) or 0,
         "output_tokens": getattr(usage, "output_tokens", 0) or 0,
         "cache_creation_input_tokens": getattr(
@@ -193,14 +195,18 @@ def _shim_message(data: dict):
     )
     usage = data.get("usage") or {}
     details = usage.get("prompt_tokens_details") or {}
+    cached = details.get("cached_tokens", 0) or 0
     return SimpleNamespace(
         content=content,
         model=data.get("model"),
         usage=SimpleNamespace(
-            input_tokens=usage.get("prompt_tokens", 0),
+            # convention U (ADR-0002 §7): input_tokens EXCLUDES cached tokens on
+            # every route. OpenAI-convention prompt_tokens includes them, so the
+            # shim subtracts — the old passthrough double-counted cached input.
+            input_tokens=max(0, usage.get("prompt_tokens", 0) - cached),
             output_tokens=usage.get("completion_tokens", 0),
             cache_creation_input_tokens=0,
-            cache_read_input_tokens=details.get("cached_tokens", 0) or 0,
+            cache_read_input_tokens=cached,
         ),
         # normalize: OpenAI says "length" where Anthropic says "max_tokens", and
         # downstream truncation checks grep for the Anthropic name
@@ -380,6 +386,7 @@ def run_batch_retry(
     label: str,
     progress: Progress | None = None,
     refresh: set | None = None,
+    latency: str = "wave",
 ) -> dict:
     """run_batch, then one resubmission of errored/truncated requests.
 
@@ -404,6 +411,7 @@ def run_batch_retry(
             pol.run_dir,
             refresh=refresh or frozenset(),
             strict=pol.strict,
+            latency=latency,
         )
 
     out = run_batch(requests, label, progress)

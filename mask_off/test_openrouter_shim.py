@@ -31,8 +31,11 @@ def test_shim_message():
     m = _shim_message(data)
     assert text_of(m) == "hello"
     assert reasoning_summary_of(m) == "let me think"
+    # convention U (ADR-0002 §7): input_tokens EXCLUDES the 7 cached tokens —
+    # the old passthrough double-counted them in usage_cost
     assert usage_summary_of(m) == {
-        "input_tokens": 10,
+        "model": None,
+        "input_tokens": 3,
         "output_tokens": 5,
         "cache_creation_input_tokens": 0,
         "cache_read_input_tokens": 7,

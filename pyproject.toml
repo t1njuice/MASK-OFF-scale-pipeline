@@ -18,6 +18,13 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    # AGENTS.md and README tell every reader to verify with
+    # `uv run python -m pytest`. Undeclared, pytest lived in the venv only
+    # until the next `uv sync --dev`, which pruned it and made the documented
+    # verification command fail with "No module named pytest".
+    "pytest>=8",
+    "pytest-subtests>=0.14",
+    "numpy>=2",  # test_seed_diversity.py imports it at module scope
     "altair>=6.2.2",
     "mcp>=1",
     "openai>=2.44.0",

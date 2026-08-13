@@ -51,8 +51,8 @@ Verify any change with:
 uv run python -m pytest mask_off -q
 ```
 
-That reports **230 passed**. The root suite, `uv run python -m pytest -q`,
-reports 243 passed and 59 subtests passed. These counts go stale on every
+That reports **241 passed**. The root suite, `uv run python -m pytest -q`,
+reports 254 passed and 59 subtests passed. These counts go stale on every
 ticket. Update them in the same commit that changes them, and read a higher
 number as growth rather than as a regression.
 

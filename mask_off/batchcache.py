@@ -316,11 +316,20 @@ def _run_misses(
     def _one_pass(requests, pass_label):
         out = {}
         oai = [r for r in requests if routed[r["custom_id"]] == "openai_batch"]
-        others = [r for r in requests if routed[r["custom_id"]] != "openai_batch"]
+        flex = [r for r in requests if routed[r["custom_id"]] == "openai_flex"]
+        others = [
+            r for r in requests
+            if routed[r["custom_id"]] not in ("openai_batch", "openai_flex")
+        ]
         if oai:
             out.update(batch_providers.run_openai_batch(
                 oai, pass_label, progress, on_submit_openai, on_result,
                 on_upload_openai))
+        if flex:
+            # no journal: a synchronous call leaves no server-side handle to
+            # orphan, so on_result durability is the whole story
+            out.update(batch_providers.run_openai_flex(
+                flex, pass_label, progress, on_result))
         if others:
             out.update(llm.run_batch(
                 others, pass_label, progress,

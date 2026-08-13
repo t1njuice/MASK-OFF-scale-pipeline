@@ -454,9 +454,24 @@ def run_batch(
 
     external = [r for r in requests if not is_anthropic_model(r["params"]["model"])]
     if external:
+        from . import batch_providers
+
         native = [r for r in requests if is_anthropic_model(r["params"]["model"])]
-        # ponytail: sequential; overlap the pool with the batch poll if wall-clock matters
-        out = _run_openrouter(external, label, progress, on_result)
+        # Flex reaches the uncached path too, not only the scale seam: the 13
+        # experiment scripts call run_batch directly and are where the spend
+        # actually is. Batch routes never apply here — they need a journal,
+        # which only the cache seam has.
+        flex = [
+            r for r in external
+            if batch_providers.route(r["params"]["model"], "wave") == "openai_flex"
+        ]
+        rest = [r for r in external if r not in flex]
+        out = {}
+        if flex:
+            out.update(batch_providers.run_openai_flex(flex, label, progress, on_result))
+        if rest:
+            # ponytail: sequential; overlap the pool with the batch poll if wall-clock matters
+            out.update(_run_openrouter(rest, label, progress, on_result))
         out.update(
             run_batch(native, label, progress, on_submit, on_result, cancel_on_interrupt)
         )

@@ -53,19 +53,37 @@ def _http() -> httpx.Client:
 
 
 def route(model: str, latency: str) -> str:
-    """The route for one model at one latency class, from pinned prices."""
+    """The route for one model at one latency class, from pinned prices.
+
+    `openai_flex` is first choice for `openai/*` at BOTH latency classes: it
+    carries Batch API rates on a synchronous call, so unlike a 24h-window
+    route it is eligible inside the wave loop (ADR-0002 §3). Measured on a
+    real gate vote 2026-08-13: flex 187s, standard 286s, and prompt caching
+    stacks (11,473 of 11,476 prompt tokens cached on a repeat call).
+
+    `openai_batch` stays reachable for a Stage B fan-out large enough that
+    flex would hit the sync token-per-minute ceiling — set
+    config.ROUTE_OVERRIDES[model] = "openai_batch".
+    """
     if model.startswith("claude"):
         return "anthropic_batch"
-    batch_rates = config.PRICES.get((model, "openai_batch"))
+    override = getattr(config, "ROUTE_OVERRIDES", {}).get(model)
+    if override:
+        return override
+    if not (model.startswith("openai/") and os.environ.get("OPENAI_API_KEY")):
+        return "openrouter_sync"
     sync_rates = config.PRICES.get((model, "openrouter_sync"))
-    if (
-        latency == "day"
-        and model.startswith("openai/")
-        and os.environ.get("OPENAI_API_KEY")
-        and batch_rates is not None
-        # price-driven, not provider-driven: batch must actually be cheaper
-        and (sync_rates is None or batch_rates["in"] < sync_rates["in"])
-    ):
+
+    def cheaper(route_name: str) -> bool:
+        rates = config.PRICES.get((model, route_name))
+        # price-driven, not provider-driven: the discount must be real
+        return rates is not None and (
+            sync_rates is None or rates["out"] < sync_rates["out"]
+        )
+
+    if cheaper("openai_flex"):
+        return "openai_flex"
+    if latency == "day" and cheaper("openai_batch"):
         return "openai_batch"
     return "openrouter_sync"
 
@@ -101,6 +119,92 @@ def openai_body(params: dict) -> dict:
             "json_schema": {"name": "output", "strict": True, "schema": fmt["schema"]},
         }
     return body
+
+
+# --- openai_flex (synchronous, Batch API rates) ---------------------------
+
+# Flex trades latency for price and may return 429 resource_unavailable, which
+# is NOT billed. Retry with backoff, then fall back to standard rather than
+# forfeit the wave: a stalled gate vote costs a whole sequential round.
+FLEX_ATTEMPTS = 3
+FLEX_BACKOFF_SECONDS = (10, 30)
+# A gate vote at high effort measured ~190s; the SDK default of 10 minutes is
+# the documented floor for lengthy prompts, so allow well past it.
+FLEX_TIMEOUT = 1200
+
+
+def _flex_client() -> httpx.Client:
+    return httpx.Client(
+        base_url=OPENAI_BASE,
+        headers={"Authorization": f"Bearer {os.environ['OPENAI_API_KEY']}"},
+        timeout=FLEX_TIMEOUT,
+    )
+
+
+def _is_resource_unavailable(resp: httpx.Response) -> bool:
+    return resp.status_code == 429 and "resource_unavailable" in resp.text.lower()
+
+
+def flex_call(params: dict, client: httpx.Client | None = None):
+    """One synchronous chat completion at the flex tier, standard as fallback.
+
+    Returns a shimmed message carrying `route`, so the cost table prices the
+    tier that actually served the request — a fallback to standard must not
+    be billed at flex rates in the report.
+    """
+    from .llm import _shim_message
+
+    client = client or _flex_client()
+    body = openai_body(params)
+    for attempt in range(FLEX_ATTEMPTS):
+        tier = "flex" if attempt < FLEX_ATTEMPTS - 1 else "auto"
+        resp = client.post("/chat/completions", json={**body, "service_tier": tier})
+        if resp.status_code < 400:
+            data = resp.json()
+            msg = _shim_message(data)
+            msg.model = params["model"]  # requested slug, not a dated snapshot
+            # what the server actually served, not what we asked for
+            msg.route = (
+                "openai_flex" if data.get("service_tier") == "flex" else "openai_sync"
+            )
+            return msg
+        if not _is_resource_unavailable(resp) or attempt == FLEX_ATTEMPTS - 1:
+            resp.raise_for_status()
+        time.sleep(FLEX_BACKOFF_SECONDS[min(attempt, len(FLEX_BACKOFF_SECONDS) - 1)])
+    raise RuntimeError("unreachable")
+
+
+def run_openai_flex(requests, label, progress, on_result=None) -> dict:
+    """Threaded flex fan-out: {custom_id: message | None}. No journal — a
+    synchronous call has no server-side handle to orphan, so a crash loses
+    only what `_results.jsonl` has not yet recorded (ADR-0002 §4)."""
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    out = {}
+    task = progress.add_task(f"{label} (flex)", total=len(requests)) if progress else None
+    client = _flex_client()
+    try:
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            futures = {
+                pool.submit(flex_call, r["params"], client): r["custom_id"]
+                for r in requests
+            }
+            for future in as_completed(futures):
+                cid = futures[future]
+                try:
+                    msg = future.result()
+                except Exception as exc:  # noqa: BLE001 - None = errored, as batch
+                    _say(progress, f"flex {cid} failed: {exc}")
+                    msg = None
+                if on_result is not None:
+                    on_result(cid, msg)
+                out[cid] = msg
+                if task is not None:
+                    progress.advance(task)
+    finally:
+        if task is not None:
+            progress.remove_task(task)
+    return out
 
 
 def _input_jsonl(requests: list[dict]) -> bytes:

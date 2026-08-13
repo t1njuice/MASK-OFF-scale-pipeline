@@ -34,14 +34,76 @@ def _req(cid, model="openai/gpt-5.6-sol", user="hi"):
 def test_route_is_price_and_latency_driven(monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "k")
     assert batch_providers.route("claude-opus-4-8", "day") == "anthropic_batch"
-    assert batch_providers.route("openai/gpt-5.6-sol", "day") == "openai_batch"
-    # a 24h window is never eligible inside a wave loop (ADR-0002 §3)
-    assert batch_providers.route("openai/gpt-5.6-sol", "wave") == "openrouter_sync"
-    # no pinned batch discount (terra-pro) -> sync even at day latency
+    # flex carries batch rates synchronously, so it wins at BOTH classes —
+    # including the wave loop, where a 24h window is ineligible (ADR-0002 §3)
+    assert batch_providers.route("openai/gpt-5.6-sol", "day") == "openai_flex"
+    assert batch_providers.route("openai/gpt-5.6-sol", "wave") == "openai_flex"
+    # no pinned discount (terra-pro) -> sync at either class
     assert batch_providers.route("openai/gpt-5.6-terra-pro", "day") == "openrouter_sync"
     assert batch_providers.route("moonshotai/kimi-k3", "day") == "openrouter_sync"
     monkeypatch.delenv("OPENAI_API_KEY")
     assert batch_providers.route("openai/gpt-5.6-sol", "day") == "openrouter_sync"
+
+
+def test_route_override_forces_batch_for_a_large_fanout(monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "k")
+    monkeypatch.setattr(
+        config, "ROUTE_OVERRIDES", {"openai/gpt-5.6-sol": "openai_batch"}
+    )
+    assert batch_providers.route("openai/gpt-5.6-sol", "wave") == "openai_batch"
+
+
+def test_flex_falls_back_to_standard_after_resource_unavailable(monkeypatch):
+    monkeypatch.setattr(batch_providers, "FLEX_BACKOFF_SECONDS", (0, 0))
+    tiers = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        tier = json.loads(request.read())["service_tier"]
+        tiers.append(tier)
+        if tier == "flex":  # not billed when this happens
+            return httpx.Response(429, json={"error": {
+                "code": "resource_unavailable", "message": "no capacity"}})
+        return httpx.Response(200, json={
+            "model": "gpt-5.6-sol", "service_tier": "default",
+            "choices": [{"message": {"content": "served"}, "finish_reason": "stop"}],
+            "usage": {"prompt_tokens": 10, "completion_tokens": 2}})
+
+    msg = batch_providers.flex_call(_req("a")["params"], _client(handler))
+    assert tiers == ["flex", "flex", "auto"], "backoff on flex, then standard"
+    # priced at the tier that actually served it, not the one requested
+    assert msg.route == "openai_sync"
+    assert config.PRICES[("openai/gpt-5.6-sol", "openai_sync")]["out"] == 30.0
+
+
+def test_flex_success_is_priced_at_flex_rates():
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert json.loads(request.read())["service_tier"] == "flex"
+        return httpx.Response(200, json={
+            "model": "gpt-5.6-sol-2026-07-01", "service_tier": "flex",
+            "choices": [{"message": {"content": "ok"}, "finish_reason": "stop"}],
+            "usage": {"prompt_tokens": 100, "completion_tokens": 5,
+                      "prompt_tokens_details": {"cached_tokens": 90}}})
+
+    msg = batch_providers.flex_call(_req("a")["params"], _client(handler))
+    assert msg.route == "openai_flex"
+    assert msg.model == "openai/gpt-5.6-sol"  # requested slug, not the snapshot
+    assert msg.usage.input_tokens == 10  # convention U
+    assert msg.usage.cache_read_input_tokens == 90
+    rates = config.PRICES[("openai/gpt-5.6-sol", "openai_flex")]
+    assert rates["out"] == 15.0, "flex bills at Batch API rates"
+
+
+def test_a_non_429_error_is_not_retried_as_capacity(monkeypatch):
+    monkeypatch.setattr(batch_providers, "FLEX_BACKOFF_SECONDS", (0, 0))
+    calls = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(1)
+        return httpx.Response(400, json={"error": {"message": "bad schema"}})
+
+    with pytest.raises(httpx.HTTPStatusError):
+        batch_providers.flex_call(_req("a")["params"], _client(handler))
+    assert len(calls) == 1, "a programmer error must raise, not burn retries"
 
 
 def test_openai_body_translation():

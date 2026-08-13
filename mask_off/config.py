@@ -129,6 +129,11 @@ VALIDITY_MAX_TOKENS = 30000  # 22 notes (one holds a written reasoning chain)
                              # a ~9K-token system prompt
 FROZEN_MAX_ITERATIONS = 5   # pilot; frozen spec allows 5 at scale
 
+# Cheap code checks on a fresh candidate BEFORE the panel votes (word cap, the
+# fixed tone line, confession register). A failure buys one extra generator call
+# — at most one per iteration — instead of a full panel round.
+GENERATOR_LINT = True
+
 # Which generator prompt the frozen path loads. v4 reads the fielded seed
 # contract (seed_brief.md); flip to "generator_system_v3.md" for the pilot's
 # 2-seed control arm (map ticket 05 / D9).
@@ -173,12 +178,21 @@ PRICES = {
         {"in": 0.08, "out": 0.18, "cached_in": 0.016},
     ("openai/gpt-5.6-terra-pro", "openrouter_sync"):
         {"in": 1.0, "out": 6.0, "cached_in": 0.1},
-    # native OpenAI batch = 50% of native sync (sol sync: 5 in / 30 out)
+    # native OpenAI batch = 50% of native sync (sol sync: 5 in / 30 out).
+    # Flex carries the SAME Batch API rates on a synchronous call, and prompt
+    # caching stacks on top (verified 2026-08-13).
     ("openai/gpt-5.6-sol", "openai_batch"):
+        {"in": 2.5, "out": 15.0, "cached_in": 0.25},
+    ("openai/gpt-5.6-sol", "openai_flex"):
         {"in": 2.5, "out": 15.0, "cached_in": 0.25},
     ("openai/gpt-5.6-sol", "openai_sync"):
         {"in": 5.0, "out": 30.0, "cached_in": 0.5},
 }
+
+# Force a model onto a specific route, bypassing the price comparison. The
+# case this exists for: a Stage B fan-out large enough that flex would hit the
+# synchronous tokens-per-minute ceiling belongs on `openai_batch` instead.
+ROUTE_OVERRIDES: dict[str, str] = {}
 
 # --- Seed authoring + cheap screen (map ticket 03 / D8, D11, D12) -----------
 SEEDGEN_MODEL = "deepseek/deepseek-v4-flash-0731"  # authors and cheap-screens

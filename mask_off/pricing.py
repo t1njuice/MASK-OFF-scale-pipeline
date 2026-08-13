@@ -78,7 +78,13 @@ def route_of(usage: dict) -> str:
     if usage.get("route"):
         return usage["route"]
     model = usage.get("model") or ""
-    return "anthropic_batch" if model.startswith("claude") else "openrouter_sync"
+    guess = "anthropic_batch" if model.startswith("claude") else "openrouter_sync"
+    if ("legacy", model) not in _warned:
+        _warned.add(("legacy", model))
+        print(f"[pricing] {model!r} usage carries no route; guessing {guess!r} "
+              f"from the model prefix. Records written before the route field "
+              f"existed price wrong if they ran on flex or a native batch.")
+    return guess
 
 
 def usage_cost(usage: dict) -> float:

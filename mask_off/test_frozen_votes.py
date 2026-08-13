@@ -5,15 +5,13 @@ constraints named; the pre-vote lint fires only on the checks it owns.
 
 Run: pytest mask_off/test_frozen_votes.py
 """
-import pytest
 from types import SimpleNamespace
-from unittest.mock import patch
 
 from . import config
-from .frozen_pipeline import lint_pass, resubmit_votes, wave_id
+from .frozen_pipeline import SeedState, apply_lint, lint_request, wave_id
 from .generator import lint_candidate
 from .schemas import Candidate, ConstraintCheck, ValidityConstraints, ValidityReview
-from .validity import build_vote_requests, id_direction, merge_feedback, parse_vote, tally
+from .validity import build_vote_requests, id_direction, merge_feedback, tally
 
 
 def _vote(verdict="revise", seed_defect=False, failed=(), feedback=None, slot=None):
@@ -34,10 +32,6 @@ def _vote(verdict="revise", seed_defect=False, failed=(), feedback=None, slot=No
 
 def _msg(text):
     return SimpleNamespace(content=[SimpleNamespace(type="text", text=text)])
-
-
-def _reqs(n):
-    return [{"custom_id": f"cand-x__vote{i}", "params": {}} for i in range(n)]
 
 
 def test_seed_defect_is_strict_majority_not_accept_threshold():
@@ -168,61 +162,48 @@ def test_confession_scan_is_conservative():
 
 
 def _state(system_prompt, name="00_seed", iteration=1):
-    return {
-        "seed": SimpleNamespace(name=name, source="e2e20", text="SEED"),
-        "cid": wave_id(name, iteration),
-        "iteration": iteration,
-        "candidate": _cand(system_prompt),
-    }
+    """A seed already holding a parsed candidate, as the scheduler leaves it
+    after a generator batch: `lint_findings` is what routed it to the stage."""
+    candidate = _cand(system_prompt)
+    return SeedState(
+        seed=SimpleNamespace(name=name, source="e2e20", text="SEED"),
+        cid=wave_id(name, iteration),
+        iteration=iteration,
+        candidate=candidate,
+        lint_findings=lint_candidate(candidate),
+    )
 
 
-def test_lint_pass_regenerates_only_the_dirty_draft_once():
-    clean, dirty = _state("word " * 100 + TONE, "00_ok"), _state("word " * 240 + TONE, "01_long")
-    logged, sent = [], []
-
-    def fake_retry(reqs, label, progress=None, refresh=None):
-        sent.append([r["custom_id"] for r in reqs])
-        return {r["custom_id"]: _msg(_cand("word " * 100 + TONE).model_dump_json())
-                for r in reqs}
-
-    with patch("mask_off.frozen_pipeline.run_batch_retry", fake_retry):
-        lint_pass([clean, dirty], progress=None, log=logged.append)
+def test_only_a_dirty_draft_buys_a_regeneration_and_it_gets_its_own_id():
+    clean = _state("word " * 100 + TONE, "00_ok")
+    dirty = _state("word " * 240 + TONE, "01_long")
+    assert clean.lint_findings == "", "a clean draft names no findings to fix"
+    assert dirty.lint_findings, "the over-long draft must be flagged"
 
     # exactly one regeneration, for the dirty seed only, under its own custom_id
     # — distinct from the wave's own id, so the cache cannot serve the linted
     # draft back as its own replacement
-    assert sent == [["01_long__w1__lint"]]
-    assert sent[0][0] != dirty["cid"]
-    assert clean["candidate"].system_prompt.startswith("word"), "clean draft untouched"
-    assert lint_candidate(dirty["candidate"]) == "", "dirty draft replaced by a clean one"
+    request = lint_request(dirty)
+    assert request["custom_id"] == "01_long__w1__lint"
+    assert request["custom_id"] != dirty.cid
+    assert "over the 200-word ceiling" in str(request["params"]), \
+        "the findings must reach the regeneration prompt"
+
+    logged = []
+    apply_lint(dirty, _msg(_cand("word " * 100 + TONE).model_dump_json()), logged.append)
+    assert clean.candidate.system_prompt.startswith("word"), "clean draft untouched"
+    assert lint_candidate(dirty.candidate) == "", "dirty draft replaced by a clean one"
     assert [r["seed_name"] for r in logged] == ["01_long"]
     assert logged[0]["regenerated"] and logged[0]["residual"] == ""
 
 
-def test_lint_pass_keeps_the_original_when_regeneration_fails():
+def test_the_lint_keeps_the_original_when_regeneration_fails():
     dirty = _state("word " * 240 + TONE, "01_long")
-    original, logged = dirty["candidate"], []
-
-    def fake_retry(reqs, label, progress=None, refresh=None):
-        return {r["custom_id"]: _msg("not json") for r in reqs}
-
-    with patch("mask_off.frozen_pipeline.run_batch_retry", fake_retry):
-        lint_pass([dirty], progress=None, log=logged.append)
-
+    original, logged = dirty.candidate, []
+    apply_lint(dirty, _msg("not json"), logged.append)
     # the panel still gets a candidate: the lint may never cost a seed its round
-    assert dirty["candidate"] is original
+    assert dirty.candidate is original
     assert logged[0]["regenerated"] is False and "error" in logged[0]
-
-
-def test_lint_pass_is_a_no_op_when_every_draft_is_clean():
-    """No call, and nothing logged. lint_pass returns no cost since ticket 11 —
-    the ledger prices the `lint` record instead of a caller accumulating it."""
-    logged = []
-    with patch("mask_off.frozen_pipeline.run_batch_retry",
-               lambda *a, **k: pytest.fail("no generator call for a clean wave")):
-        assert lint_pass([_state("word " * 100 + TONE)], progress=None,
-                         log=logged.append) is None
-    assert logged == []
 
 
 def test_a_lint_record_carries_its_usage_so_the_ceiling_can_see_it():
@@ -240,9 +221,7 @@ def test_a_lint_record_carries_its_usage_so_the_ceiling_can_see_it():
         cache_creation_input_tokens=0, cache_read_input_tokens=0,
     )
     logged = []
-    with patch("mask_off.frozen_pipeline.run_batch_retry",
-               lambda *a, **k: {f"{dirty['cid']}__lint": regenerated}):
-        lint_pass([dirty], progress=None, log=logged.append)
+    apply_lint(dirty, regenerated, logged.append)
 
     assert logged and logged[0]["stage"] == "lint"
     assert logged[0]["usage"]["output_tokens"] == 5000, (
@@ -251,34 +230,6 @@ def test_a_lint_record_carries_its_usage_so_the_ceiling_can_see_it():
     priced = ledger.record_entries(logged[0])
     assert priced and all(e.stage == "lint" for e in priced)
     assert ledger.total(priced) > 0, "lint regeneration is not free"
-
-
-def test_resubmit_votes_refills_missing_and_unparseable_then_stops():
-    good = _msg(_vote().model_dump_json())
-    calls = []
-
-    def fake_retry(reqs, label, progress=None, refresh=None):
-        calls.append([r["custom_id"] for r in reqs])
-        return {r["custom_id"]: good for r in reqs}
-
-    # vote0 parsed, vote1 unparseable, vote2 missing: one pass refills both.
-    start = {"cand-x__vote0": good, "cand-x__vote1": _msg("not json")}
-    with patch("mask_off.frozen_pipeline.run_batch_retry", fake_retry):
-        out = resubmit_votes(_reqs(3), dict(start), progress=None)
-    assert calls == [["cand-x__vote1", "cand-x__vote2"]]
-    for i in range(3):
-        parse_vote(out[f"cand-x__vote{i}"])  # every slot now parses
-
-    # a slot that never recovers is retried exactly 3 times, then given up on.
-    calls.clear()
-
-    def never_recovers(reqs, label, progress=None, refresh=None):
-        calls.append(label)
-        return {r["custom_id"]: _msg("still not json") for r in reqs}
-
-    with patch("mask_off.frozen_pipeline.run_batch_retry", never_recovers):
-        resubmit_votes(_reqs(2), {}, progress=None)
-    assert len(calls) == 3
 
 
 def test_two_waves_of_one_seed_produce_disjoint_request_ids(

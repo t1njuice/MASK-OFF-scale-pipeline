@@ -125,7 +125,13 @@ def _bad(msg) -> bool:
 # --- Files ----------------------------------------------------------------
 
 _CACHES: dict[Path, dict] = {}  # run_dir -> {key: payload}, loaded once per process
-_WRITE_LOCK = threading.Lock()  # sync-route workers append from pool threads
+# Reentrant, and it guards the lazy load as well as the appends. `append_result`
+# takes it and then calls `_cache`, and since ticket 10 two stage threads can
+# call `cached_batch` on a cold cache at the same moment: unguarded, both would
+# load, and the loser's dict — holding rows the winner appended meanwhile —
+# would be dropped. The rows survive on disk either way, but an in-process miss
+# on a row already paid for is a re-billing.
+_WRITE_LOCK = threading.RLock()
 
 
 def _now() -> str:
@@ -142,17 +148,18 @@ def _journal_path(run_dir: Path) -> Path:
 
 def _cache(run_dir: Path) -> dict:
     run_dir = Path(run_dir).resolve()
-    if run_dir not in _CACHES:
-        loaded = {}
-        path = _results_path(run_dir)
-        if path.exists():
-            for line in path.read_text(encoding="utf-8").splitlines():
-                if not line.strip():
-                    continue
-                row = json.loads(line)
-                loaded[row["key"]] = row["payload"]  # latest-wins
-        _CACHES[run_dir] = loaded
-    return _CACHES[run_dir]
+    with _WRITE_LOCK:
+        if run_dir not in _CACHES:
+            loaded = {}
+            path = _results_path(run_dir)
+            if path.exists():
+                for line in path.read_text(encoding="utf-8").splitlines():
+                    if not line.strip():
+                        continue
+                    row = json.loads(line)
+                    loaded[row["key"]] = row["payload"]  # latest-wins
+            _CACHES[run_dir] = loaded
+        return _CACHES[run_dir]
 
 
 def append_result(run_dir: Path, key: str, custom_id: str, payload: dict) -> None:

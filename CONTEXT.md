@@ -108,6 +108,15 @@ One generator → validity round inside a Stage A cohort. Several waves occur pe
 cohort because rejected candidates revise and resubmit.
 _Avoid_: iteration, round
 
+**Stage of a wave**:
+One kind of request inside a wave: the generator draft, the pre-gate lint
+regeneration, the panel vote. It is the `stage` field on a run-log record and
+what the ledger prices by. Each stage holds at most one batch in flight and
+carries whichever seeds happen to be waiting at it, so several stages run at
+once and no seed waits on a call it needs nothing from. Not to be confused with
+Stage A / Stage B above, which are the two halves of the pipeline.
+_Avoid_: step, phase, pass, leg
+
 **Stop rule**:
 The decision, taken from one seed's wave history alone, whether that seed gets
 another wave and if not why. The iteration cap is one implementation of it, and

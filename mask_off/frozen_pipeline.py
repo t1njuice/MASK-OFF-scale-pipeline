@@ -3,6 +3,15 @@
 No target model runs inside this loop (amendment 2026-08-03). Accepted items go
 to evaluate.py for the thermometer/judge/probe stage.
 
+Stage A is a **scheduler**, not a lockstep loop (ticket 10). `Scheduler` owns
+one `SeedState` per seed and answers exactly two questions: which requests
+should go out now (`ready`), and how results change the state (`deliver`).
+`drive` is the thin executor around it — one batch in flight per stage, several
+stages at once. Everything that decides accept / revise / exhaust lives in the
+scheduler and needs no network, so the ordering defects this loop actually has
+(which seed advanced, which feedback was attached, whether the direction ruling
+carried forward) are unit-testable instead of only observable in a paid wave.
+
 CLI:
     python -m mask_off.frozen_pipeline --n 3 --seeds kimi_100    # smoke
     python -m mask_off.frozen_pipeline --n 20 --seeds kimi_100   # pilot
@@ -14,6 +23,9 @@ import datetime
 import json
 import sys
 import uuid
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
+from contextvars import copy_context
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from . import config, ledger, stoprule
@@ -59,105 +71,83 @@ def wave_id(seed_name: str, iteration: int) -> str:
     return f"{seed_name}__w{iteration}"
 
 
-def resubmit_votes(vote_reqs: list[dict], vote_msgs: dict, progress) -> dict:
-    """Bounded resubmission (<=3 passes) of missing or unparseable vote slots.
+def bad_vote(msg) -> bool:
+    """A vote slot that must be resubmitted: no message, or one that won't parse.
 
-    run_batch_retry only covers no-message and max_tokens truncation within a
+    `run_batch_retry` only covers no-message and max_tokens truncation within a
     single pass; a vote whose message came back but whose JSON doesn't parse
-    (empty content, schema drift) needs its own resubmission. A round is only
-    tallied with all configured votes present — after 3 passes the caller
-    proceeds with what parsed and flags the decision `short_votes`.
+    (empty content, schema drift) needs its own resubmission. The bound lives
+    in the scheduler (`VOTE_RESUBMITS`); this only names the condition.
     """
-
-    def _bad(cid: str) -> bool:
-        msg = vote_msgs.get(cid)
-        if msg is None:
-            return True
-        try:
-            parse_vote(msg)
-            return False
-        except Exception:  # noqa: BLE001
-            return True
-
-    for attempt in range(3):
-        resubmit = [r for r in vote_reqs if _bad(r["custom_id"])]
-        if not resubmit:
-            break
-        # refresh: a cached-but-unparseable vote must be superseded, not served
-        # back from the cache — without this, resubmission under a run_dir is a
-        # permanent no-op and the gate silently tightens (ADR-0002 §9/F1)
-        vote_msgs.update(
-            run_batch_retry(
-                resubmit,
-                f"Validity gate (resubmit {attempt + 1})",
-                progress,
-                refresh={r["custom_id"] for r in resubmit},
-            )
-        )
-    return vote_msgs
+    if msg is None:
+        return True
+    try:
+        parse_vote(msg)
+        return False
+    except Exception:  # noqa: BLE001
+        return True
 
 
-def lint_pass(ready: list[dict], progress, log) -> None:
-    """Regenerate once, before the panel votes, every candidate the lint rejects.
+LINT_PREFIX = (
+    "PRE-GATE LINT — a mechanical check on your draft failed before the "
+    "panel saw it. This is not a reviewer verdict; fix exactly what it "
+    "names and change nothing else.\n"
+)
 
-    Bounded at ONE extra generator call per seed per iteration: the lint keeps a
+
+def lint_request(state: "SeedState") -> dict:
+    """The one regeneration a lint-dirty candidate buys, as a request.
+
+    Bounded at ONE extra generator call per seed per wave: the lint keeps a
     mechanically-broken draft out of a paid panel round (3 votes at ~15k output
-    tokens each), it is not a loop that iterates to cleanliness. A regeneration
-    that fails to parse — or that still lints dirty — leaves the original
-    candidate standing and the panel judges that, so the lint can never cost a
-    seed its round.
+    tokens each), it is not a loop that iterates to cleanliness.
+
+    Distinct custom_id: reusing the wave's id would let the batch cache serve
+    the linted draft straight back as its own replacement. `cid` is already
+    wave-scoped (see wave_id), so the suffix names the kind and nothing else.
+    """
+    return build_gen_request(
+        f"{state.cid}__lint",
+        state.seed.text,
+        [],
+        LINT_PREFIX + state.lint_findings,
+        state.candidate,
+        revision_round=state.iteration - 1,
+        frozen=True,
+    )
+
+
+def apply_lint(state: "SeedState", msg, log) -> None:
+    """Fold a lint regeneration into the seed, and log what it cost.
+
+    A regeneration that fails to parse — or that still lints dirty — leaves the
+    original candidate standing and the panel judges that, so the lint can
+    never cost a seed its round.
 
     The record carries `usage`, so the ledger prices this call at stage
     `lint`. It did not until ticket 11: lint regeneration was in the figure
     printed at the end of a run but invisible to `--max-cost` and to the
     metrics report, so the cost ceiling under-counted every run that linted.
-
-    Mutates `ready` in place: a clean regeneration replaces `s["candidate"]`.
     """
-    flagged = [(s, text) for s in ready if (text := lint_candidate(s["candidate"]))]
-    if not flagged:
-        return
-
-    # Distinct custom_id: reusing the round's id would let the batch cache serve
-    # the linted draft straight back as its own replacement. `cid` is already
-    # wave-scoped (see wave_id), so the suffix names the kind and nothing else.
-    reqs = [
-        build_gen_request(
-            f"{s['cid']}__lint",
-            s["seed"].text,
-            [],
-            "PRE-GATE LINT — a mechanical check on your draft failed before the "
-            "panel saw it. This is not a reviewer verdict; fix exactly what it "
-            "names and change nothing else.\n" + text,
-            s["candidate"],
-            revision_round=s["iteration"] - 1,
-            frozen=True,
-        )
-        for s, text in flagged
-    ]
-    msgs = run_batch_retry(reqs, "Generator (lint regen)", progress)
-
-    for s, text in flagged:
-        msg = msgs.get(f"{s['cid']}__lint")
-        rec = {
-            "seed_name": s["seed"].name,
-            "iteration": s["iteration"],
-            "stage": "lint",
-            "findings": text,
-            "usage": usage_summary_of(msg) if msg else {},
-            "ts": now_iso(),
-        }
-        try:
-            if msg is None:
-                raise RuntimeError("lint regeneration returned no message")
-            cand = parse_gen(msg)
-            s["candidate"] = cand
-            rec["regenerated"] = True
-            rec["residual"] = lint_candidate(cand)
-        except Exception as e:  # noqa: BLE001 - never lose a round to the lint
-            rec["regenerated"] = False
-            rec["error"] = repr(e)
-        log(rec)
+    rec = {
+        "seed_name": state.seed.name,
+        "iteration": state.iteration,
+        "stage": "lint",
+        "findings": state.lint_findings,
+        "usage": usage_summary_of(msg) if msg else {},
+        "ts": now_iso(),
+    }
+    try:
+        if msg is None:
+            raise RuntimeError("lint regeneration returned no message")
+        cand = parse_gen(msg)
+        state.candidate = cand
+        rec["regenerated"] = True
+        rec["residual"] = lint_candidate(cand)
+    except Exception as e:  # noqa: BLE001 - never lose a round to the lint
+        rec["regenerated"] = False
+        rec["error"] = repr(e)
+    log(rec)
 
 
 def accepted_seed_names(items_path: Path) -> set[tuple[str, str]]:
@@ -177,6 +167,387 @@ def accepted_seed_names(items_path: Path) -> set[tuple[str, str]]:
             if line.strip()
         )
     }
+
+
+# --- The wave scheduler ---------------------------------------------------
+#
+# A **stage** is one kind of request: the generator draft, the pre-gate lint
+# regeneration, the panel vote. A seed sits at exactly one stage at a time and
+# walks generator -> (lint) -> validity -> generator again on a revise.
+#
+# The lockstep loop this replaces issued up to six strictly sequential batch
+# round-trips per wave for the whole cohort, and the lint barrier was the
+# sharpest of them: a candidate that linted clean could not start its panel
+# round until every dirty sibling had been regenerated, though it needed
+# nothing from that call.
+
+GENERATOR, LINT, VALIDITY = "generator", "lint", "validity"
+
+# The order stages are offered a submission slot in. Generator first, so a seed
+# the panel just sent back re-enters flight in the same pass that freed it.
+STAGES = (GENERATOR, LINT, VALIDITY)
+
+# Resubmission passes for a vote slot that came back missing or unparseable. A
+# wave is only tallied with all configured votes present; after this many
+# passes the scheduler proceeds with what parsed and flags `short_votes`.
+VOTE_RESUBMITS = 3
+
+
+@dataclass
+class SeedState:
+    """One seed's whole position in Stage A.
+
+    `stage` is where it waits, `in_flight` whether the batch carrying it is
+    out. Everything else is what the next request is built from (`feedback`,
+    `previous`, `id_dir`), what the last one produced (`candidate`,
+    `lint_findings`, `votes`), or what the stop rule reads (`waves`).
+    """
+
+    seed: object
+    iteration: int = 0
+    stage: str = GENERATOR
+    in_flight: bool = False
+    done: bool = False
+    cid: str | None = None  # this wave's request id; see wave_id
+    candidate: object | None = None
+    lint_findings: str = ""
+    votes: dict = field(default_factory=dict)  # vote custom_id -> message
+    vote_attempts: int = 0
+    feedback: str | None = None
+    previous: object | None = None
+    id_dir: str | None = None  # the direction ruling carried into the next wave
+    waves: list = field(default_factory=list)  # the stop rule's whole input
+    entered: str | None = None  # when this seed took a slot; see stoprule.flight
+    accepted_item: dict | None = None
+
+
+@dataclass(frozen=True)
+class Work:
+    """One stage's submission: what to send, and which seeds are riding on it."""
+
+    stage: str
+    label: str
+    requests: list
+    refresh: frozenset
+    seeds: tuple
+
+
+class Scheduler:
+    """Seed state, and the two questions asked of it.
+
+    `ready(stage)` — which requests should go out for this stage now. None when
+    the stage has nothing waiting. Claiming is part of the answer: the seeds it
+    returns are marked in flight, which is what stops the stage submitting a
+    second batch on top of its first.
+
+    `deliver(work, msgs)` — how those results change the state. Every accept /
+    revise / exhaust transition happens here, from messages alone: no network,
+    no clock beyond the record timestamp, nothing to monkeypatch.
+
+    Side effects are injected, not performed: `log` writes a run-log record,
+    `on_accept(state, item)` persists an accepted item, `note` prints. That is
+    what lets a test drive the whole policy with three lists.
+    """
+
+    def __init__(self, states, log, on_accept=None, note=None):
+        self.states = list(states)
+        self._log = log
+        self._on_accept = on_accept or (lambda state, item: None)
+        self._note = note or (lambda text: None)
+
+    def note(self, text: str) -> None:
+        self._note(text)
+
+    # -- question 1: what goes out now ------------------------------------
+
+    def waiting(self, stage: str) -> list[SeedState]:
+        """Seeds parked at `stage` with no batch of their own in flight."""
+        return [
+            s for s in self.states
+            if not s.done and not s.in_flight and s.stage == stage
+        ]
+
+    def ready(self, stage: str) -> Work | None:
+        """The batch `stage` should submit now, or None if it has no work.
+
+        There is no timer and no gathering window. A batch takes tens of
+        minutes, so seeds accumulate behind the one in flight and this sweeps
+        up everything that arrived meanwhile. The stage batches itself.
+        """
+        group = self.waiting(stage)
+        if not group:
+            return None
+        label, requests, refresh = {
+            GENERATOR: self._generator_batch,
+            LINT: self._lint_batch,
+            VALIDITY: self._vote_batch,
+        }[stage](group)
+        for s in group:
+            s.in_flight = True
+        return Work(stage, label, requests, frozenset(refresh), tuple(group))
+
+    def _generator_batch(self, group):
+        for s in group:
+            s.iteration += 1
+            s.cid = wave_id(s.seed.name, s.iteration)
+            # Entering flight is dispatch, not the record that ends the wave:
+            # `ts` alone would date the seed's arrival one wave late and
+            # understate the idle share of every slot.
+            s.entered = s.entered or now_iso()
+            s.candidate = None
+            s.lint_findings = ""
+            s.votes = {}
+            s.vote_attempts = 0
+        return "Generator", [
+            build_gen_request(
+                s.cid,
+                s.seed.text,
+                [],
+                s.feedback,
+                s.previous,
+                lessons="",  # amendment 1: no harvested-lessons loop
+                revision_round=s.iteration - 1,
+                frozen=True,  # v3 prompt: validity frame, no C10 unlock
+            )
+            for s in group
+        ], frozenset()
+
+    def _lint_batch(self, group):
+        return ("Generator (lint regen)",
+                [lint_request(s) for s in group], frozenset())
+
+    def _vote_batch(self, group):
+        """New votes and resubmissions in one batch, since they share a stage.
+
+        A resubmitted slot keeps its identifier and rides in the `refresh` set:
+        a cached-but-unparseable vote must be superseded, not served back from
+        the cache — without that, resubmission under a run_dir is a permanent
+        no-op and the gate silently tightens (ADR-0002 §9/F1). Making the id
+        unique per attempt would instead accumulate a row per attempt.
+        """
+        requests, refresh = [], set()
+        for s in group:
+            slots = build_vote_requests(s.cid, s.candidate, s.id_dir)
+            if s.vote_attempts:
+                slots = [r for r in slots if bad_vote(s.votes.get(r["custom_id"]))]
+                refresh |= {r["custom_id"] for r in slots}
+            requests += slots
+        label = "Validity gate"
+        if refresh:
+            label += f" (resubmit {len(refresh)})"
+        return label, requests, refresh
+
+    # -- question 2: how results change the state --------------------------
+
+    def deliver(self, work: Work, msgs: dict | None) -> None:
+        """Fold one stage's results back into every seed that batch carried."""
+        msgs = msgs or {}
+        took = {
+            GENERATOR: self._took_generator,
+            LINT: self._took_lint,
+            VALIDITY: self._took_votes,
+        }[work.stage]
+        for s in work.seeds:
+            s.in_flight = False
+            took(s, msgs)
+
+    def _took_generator(self, s: SeedState, msgs: dict) -> None:
+        msg = msgs.get(s.cid)
+        try:
+            if msg is None:
+                raise RuntimeError("generator batch returned no message")
+            s.candidate = parse_gen(msg)
+        except Exception as e:  # noqa: BLE001
+            self._spent_wave(s, GENERATOR, {
+                "error": repr(e),
+                "stop_reason": getattr(msg, "stop_reason", None),
+                "usage": usage_summary_of(msg) if msg else {},
+            })
+            return
+        s.lint_findings = lint_candidate(s.candidate) if config.GENERATOR_LINT else ""
+        # The whole point of the scheduler: a clean draft goes to the panel now,
+        # without waiting for a sibling's regeneration it needs nothing from.
+        s.stage = LINT if s.lint_findings else VALIDITY
+
+    def _took_lint(self, s: SeedState, msgs: dict) -> None:
+        apply_lint(s, msgs.get(f"{s.cid}__lint"), self._log)
+        s.stage = VALIDITY
+
+    def _took_votes(self, s: SeedState, msgs: dict) -> None:
+        slots = [f"{s.cid}__vote{i}" for i in range(config.VALIDITY_VOTES)]
+        for cid in slots:
+            if cid in msgs:  # a resubmission only carries the slots it refilled
+                s.votes[cid] = msgs[cid]
+        if any(bad_vote(s.votes.get(cid)) for cid in slots):
+            if s.vote_attempts < VOTE_RESUBMITS:
+                s.vote_attempts += 1
+                return  # stays at VALIDITY; the next submission sweeps it up
+        self._tally(s)
+
+    # -- the accept / revise / exhaust policy -------------------------------
+
+    def _spent_wave(self, s: SeedState, stage: str, extra: dict) -> None:
+        """A wave that never reached a decision is still a wave the seed spent,
+        so the stop rule sees it like any other."""
+        s.waves.append(stoprule.Wave(s.iteration, stage=stage))
+        rec = {
+            "seed_name": s.seed.name,
+            "iteration": s.iteration,
+            "stage": stage,
+            **extra,
+            "entered": s.entered,
+            "ts": now_iso(),
+        }
+        verdict = stoprule.decide(s.waves)
+        if verdict.stop:
+            s.done = True
+            rec["stopped"] = verdict.reason
+        else:
+            s.stage = GENERATOR
+        self._log(rec)
+
+    def _tally(self, s: SeedState) -> None:
+        votes, vote_dumps, vote_errors = [], [], []
+        for i in range(config.VALIDITY_VOTES):
+            msg = s.votes.get(f"{s.cid}__vote{i}")
+            if msg is None:
+                vote_errors.append("no message")
+                continue
+            try:
+                v = parse_vote(msg, slot=i)
+                votes.append(v)
+                vote_dumps.append(v.model_dump())
+            except Exception as e:  # noqa: BLE001
+                vote_errors.append(repr(e))
+        if not votes:
+            self._spent_wave(s, VALIDITY, {"error": "; ".join(vote_errors)})
+            return
+        decision = tally(votes)
+        carried_dir = s.id_dir  # the ruling the direction lock applied
+        s.id_dir = id_direction(votes)
+        if len(votes) < config.VALIDITY_VOTES:
+            decision["short_votes"] = True
+        s.waves.append(
+            stoprule.Wave(
+                iteration=s.iteration,
+                accepted=decision["accepted"],
+                seed_defect=decision["seed_defect"],
+                failed=stoprule.failed_union(vote_dumps),
+                id_dir=s.id_dir,
+                id_dir_in=carried_dir,
+            )
+        )
+        verdict = stoprule.decide(s.waves)
+        # One decision record per (seed, wave), carrying this wave's generator
+        # block and every parsed vote. `ledger._key` deduplicates on
+        # (seed_name, iteration, stage) and would keep only the last piece of a
+        # stage split across records, so a wave must never log its spend twice.
+        rec = {
+            "seed_name": s.seed.name,
+            "seed_source": s.seed.source,
+            "iteration": s.iteration,
+            "candidate": s.candidate.model_dump(),
+            "votes": vote_dumps,
+            "vote_errors": vote_errors,
+            **decision,
+            "stop_rule": stoprule.instrument(s.waves),
+            "generator_model": config.GENERATOR_MODEL,
+            # the seats in slot order, so a replay can name the model behind
+            # vote i without reading today's config
+            "validity_model": [seat.model for seat in config.VALIDITY_PANEL],
+            "usage": {
+                "generator": getattr(s.candidate, "_llm_usage", {}) or {},
+                "votes": [getattr(v, "_llm_usage", {}) or {} for v in votes],
+            },
+            "entered": s.entered,
+            "ts": now_iso(),
+        }
+        if verdict.stop:
+            rec["stopped"] = verdict.reason
+        self._log(rec)
+        if verdict.reason == stoprule.ACCEPTED:
+            item = {
+                "result_id": f"maskoff-{uuid.uuid4().hex[:12]}",
+                "seed_name": s.seed.name,
+                "seed_source": s.seed.source,
+                "iterations": s.iteration,
+                **s.candidate.model_dump(),
+            }
+            s.accepted_item = item
+            s.done = True
+            self._on_accept(s, item)
+            self._note(
+                f"accepted {s.seed.name} (iter {s.iteration}, "
+                f"{decision['n_accept']}/{decision['n_votes']} votes)"
+            )
+        elif verdict.stop:
+            s.done = True
+            self._note(
+                f"exhausted {s.seed.name}"
+                + (" (seed defect)" if verdict.reason == stoprule.SEED_DEFECT else "")
+            )
+        else:
+            s.feedback = (
+                "VALIDITY REVISION — the gate rejected the previous "
+                "attempt on construction grounds. Diagnosis:\n"
+                + (
+                    decision["feedback"]
+                    or "(no parsed diagnosis; re-audit your item against "
+                    "every construction constraint and rebuild the "
+                    "weakest element)"
+                )
+            )
+            s.previous = s.candidate
+            s.stage = GENERATOR
+
+
+def drive(scheduler: Scheduler, submit) -> None:
+    """Run every stage concurrently until no seed is left waiting.
+
+    `submit(work) -> {custom_id: message | None}` is the only thing here that
+    touches a provider. One batch per stage at a time — a stage holding a
+    future is skipped, so its seeds queue up and its next submission takes them
+    all. Results are folded back on THIS thread, one batch at a time, so the
+    state machine stays single-threaded and its transitions stay ordered.
+
+    A stage runs in a copy of the calling context, deliberately. `run_batch_retry`
+    reads the `batchcache.Policy` contextvar ONCE on its calling thread, and a
+    worker thread starts from an EMPTY context: without the copy the stage
+    would see the default Policy — no cache, no journal — and a paid batch
+    would be unrecoverable if the process died.
+    """
+    flight: dict[str, tuple[Work, object]] = {}
+    with ThreadPoolExecutor(
+        max_workers=len(STAGES), thread_name_prefix="stage"
+    ) as pool:
+        try:
+            while True:
+                for stage in STAGES:
+                    if stage in flight:
+                        continue
+                    work = scheduler.ready(stage)
+                    if work is not None:
+                        flight[stage] = (
+                            work, pool.submit(copy_context().run, submit, work)
+                        )
+                if not flight:
+                    return  # nothing in flight and nothing waiting: all done
+                wait([f for _, f in flight.values()], return_when=FIRST_COMPLETED)
+                for stage, (work, future) in list(flight.items()):
+                    if future.done():
+                        del flight[stage]
+                        scheduler.deliver(work, future.result())
+        except BaseException:
+            # Never discard batch work: the pool's exit waits for the stages
+            # still running, and each request they finish is appended to the
+            # cache by the on_result hook as it lands. Say so, because the wait
+            # can be long and looks like a hang.
+            if flight:
+                scheduler.note(
+                    f"[scheduler] {len(flight)} batch(es) still in flight; "
+                    f"waiting for them so their results reach the cache"
+                )
+            raise
 
 
 def run(n: int, seeds_path: Path, out_stem: Path, launch=None,
@@ -202,200 +573,35 @@ def run(n: int, seeds_path: Path, out_stem: Path, launch=None,
         log_f.flush()
 
     states = [
-        {
-            "seed": s,
-            "cid": None,  # set per wave below; see wave_id
-            "iteration": 0,
-            "feedback": None,
-            "previous": None,
-            "id_dir": None,
-            "waves": [],  # this seed's history, the stop rule's whole input
-            "entered": None,  # when this seed took a slot; see stoprule.flight
-            "done": (s.source, s.name) in done_names,
-            "accepted_item": None,
-        }
-        for s in launch
+        SeedState(seed=s, done=(s.source, s.name) in done_names) for s in launch
     ]
     for s in states:
-        s.update((resume or {}).get(s["seed"].name, {}))
+        for name, value in (resume or {}).get(s.seed.name, {}).items():
+            setattr(s, name, value)
+
+    def keep(state: SeedState, item: dict) -> None:
+        with open(items_path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(item, ensure_ascii=False) + "\n")
+
     progress = batch_progress()
     with progress:
-        while any(not s["done"] for s in states):
-            active = [s for s in states if not s["done"]]
-            for s in active:
-                s["iteration"] += 1
-                s["cid"] = wave_id(s["seed"].name, s["iteration"])
-                # Entering flight is dispatch, not the record that ends the
-                # wave: `ts` alone would date the seed's arrival one wave late
-                # and understate the idle share of every slot.
-                s["entered"] = s["entered"] or now_iso()
-
-            gen_msgs = run_batch_retry(
-                [
-                    build_gen_request(
-                        s["cid"],
-                        s["seed"].text,
-                        [],
-                        s["feedback"],
-                        s["previous"],
-                        lessons="",  # amendment 1: no harvested-lessons loop
-                        revision_round=s["iteration"] - 1,
-                        frozen=True,  # v3 prompt: validity frame, no C10 unlock
-                    )
-                    for s in active
-                ],
-                "Generator",
-                progress,
+        def submit(work: Work) -> dict:
+            return run_batch_retry(
+                work.requests, work.label, progress, refresh=set(work.refresh)
             )
-            ready = []
-            for s in active:
-                msg = gen_msgs.get(s["cid"])
-                try:
-                    if msg is None:
-                        raise RuntimeError("generator batch returned no message")
-                    s["candidate"] = parse_gen(msg)
-                    ready.append(s)
-                except Exception as e:  # noqa: BLE001
-                    # A wave that never reached the panel is still a wave the
-                    # seed spent, so the stop rule sees it like any other.
-                    s["waves"].append(
-                        stoprule.Wave(s["iteration"], stage="generator")
-                    )
-                    rec = {
-                        "seed_name": s["seed"].name,
-                        "iteration": s["iteration"],
-                        "stage": "generator",
-                        "error": repr(e),
-                        "stop_reason": getattr(msg, "stop_reason", None),
-                        "usage": usage_summary_of(msg) if msg else {},
-                        "entered": s["entered"],
-                        "ts": now_iso(),
-                    }
-                    verdict = stoprule.decide(s["waves"])
-                    if verdict.stop:
-                        s["done"] = True
-                        rec["stopped"] = verdict.reason
-                    log(rec)
 
-            if config.GENERATOR_LINT:
-                lint_pass(ready, progress, log)
-
-            vote_reqs = []
-            for s in ready:
-                vote_reqs += build_vote_requests(
-                    s["cid"], s["candidate"], s.get("id_dir")
-                )
-            vote_msgs = run_batch_retry(vote_reqs, "Validity gate", progress)
-
-            vote_msgs = resubmit_votes(vote_reqs, vote_msgs, progress)
-
-            for s in ready:
-                votes, vote_dumps, vote_errors = [], [], []
-                for i in range(config.VALIDITY_VOTES):
-                    msg = vote_msgs.get(f"{s['cid']}__vote{i}")
-                    if msg is None:
-                        vote_errors.append("no message")
-                        continue
-                    try:
-                        v = parse_vote(msg, slot=i)
-                        votes.append(v)
-                        vote_dumps.append(v.model_dump())
-                    except Exception as e:  # noqa: BLE001
-                        vote_errors.append(repr(e))
-                if not votes:
-                    s["waves"].append(stoprule.Wave(s["iteration"], stage="validity"))
-                    rec = {
-                        "seed_name": s["seed"].name,
-                        "iteration": s["iteration"],
-                        "stage": "validity",
-                        "error": "; ".join(vote_errors),
-                        "entered": s["entered"],
-                        "ts": now_iso(),
-                    }
-                    verdict = stoprule.decide(s["waves"])
-                    if verdict.stop:
-                        s["done"] = True
-                        rec["stopped"] = verdict.reason
-                    log(rec)
-                    continue
-                decision = tally(votes)
-                carried_dir = s["id_dir"]  # the ruling the direction lock applied
-                s["id_dir"] = id_direction(votes)
-                if len(votes) < config.VALIDITY_VOTES:
-                    decision["short_votes"] = True
-                s["waves"].append(
-                    stoprule.Wave(
-                        iteration=s["iteration"],
-                        accepted=decision["accepted"],
-                        seed_defect=decision["seed_defect"],
-                        failed=stoprule.failed_union(vote_dumps),
-                        id_dir=s["id_dir"],
-                        id_dir_in=carried_dir,
-                    )
-                )
-                verdict = stoprule.decide(s["waves"])
-                rec = {
-                    "seed_name": s["seed"].name,
-                    "seed_source": s["seed"].source,
-                    "iteration": s["iteration"],
-                    "candidate": s["candidate"].model_dump(),
-                    "votes": vote_dumps,
-                    "vote_errors": vote_errors,
-                    **decision,
-                    "stop_rule": stoprule.instrument(s["waves"]),
-                    "generator_model": config.GENERATOR_MODEL,
-                    # the seats in slot order, so a replay can name the model
-                    # behind vote i without reading today's config
-                    "validity_model": [s.model for s in config.VALIDITY_PANEL],
-                    "usage": {
-                        "generator": getattr(s["candidate"], "_llm_usage", {}) or {},
-                        "votes": [getattr(v, "_llm_usage", {}) or {} for v in votes],
-                    },
-                    "entered": s["entered"],
-                    "ts": now_iso(),
-                }
-                if verdict.stop:
-                    rec["stopped"] = verdict.reason
-                log(rec)
-                if verdict.reason == stoprule.ACCEPTED:
-                    item = {
-                        "result_id": f"maskoff-{uuid.uuid4().hex[:12]}",
-                        "seed_name": s["seed"].name,
-                        "seed_source": s["seed"].source,
-                        "iterations": s["iteration"],
-                        **s["candidate"].model_dump(),
-                    }
-                    s["accepted_item"] = item
-                    s["done"] = True
-                    with open(items_path, "a", encoding="utf-8") as f:
-                        f.write(json.dumps(item, ensure_ascii=False) + "\n")
-                    progress.console.print(
-                        f"accepted {s['seed'].name} (iter {s['iteration']}, "
-                        f"{decision['n_accept']}/{decision['n_votes']} votes)",
-                        markup=False,
-                    )
-                elif verdict.stop:
-                    s["done"] = True
-                    progress.console.print(
-                        f"exhausted {s['seed'].name}"
-                        + (" (seed defect)" if verdict.reason == stoprule.SEED_DEFECT else ""),
-                        markup=False,
-                    )
-                else:
-                    s["feedback"] = (
-                        "VALIDITY REVISION — the gate rejected the previous "
-                        "attempt on construction grounds. Diagnosis:\n"
-                        + (
-                            decision["feedback"]
-                            or "(no parsed diagnosis; re-audit your item against "
-                            "every construction constraint and rebuild the "
-                            "weakest element)"
-                        )
-                    )
-                    s["previous"] = s["candidate"]
+        drive(
+            Scheduler(
+                states,
+                log,
+                on_accept=keep,
+                note=lambda text: progress.console.print(text, markup=False),
+            ),
+            submit,
+        )
 
     log_f.close()
-    accepted = [s["accepted_item"] for s in states if s["accepted_item"]]
+    accepted = [s.accepted_item for s in states if s.accepted_item]
     total = ledger.total(ledger.log_entries(log_path))
     cohort_cost = total - spent_before
     print(

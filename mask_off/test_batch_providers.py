@@ -7,7 +7,7 @@ import json
 import httpx
 import pytest
 
-from . import batch_providers, config
+from . import batch_providers, config, routes
 
 
 def _client(handler):
@@ -33,19 +33,19 @@ def _req(cid, model="openai/gpt-5.6-sol", user="hi"):
 
 def test_route_is_price_and_latency_driven(monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "k")
-    assert batch_providers.route("claude-opus-4-8", "day") == "anthropic_batch"
+    assert routes.route("claude-opus-4-8", "day") == "anthropic_batch"
     # flex carries batch rates synchronously, so it wins at BOTH classes —
     # including the wave loop, where a 24h window is ineligible (ADR-0002 §3)
-    assert batch_providers.route("openai/gpt-5.6-sol", "day") == "openai_flex"
-    assert batch_providers.route("openai/gpt-5.6-sol", "wave") == "openai_flex"
+    assert routes.route("openai/gpt-5.6-sol", "day") == "openai_flex"
+    assert routes.route("openai/gpt-5.6-sol", "wave") == "openai_flex"
     # terra IS pinned on flex, so it routes like sol at both classes
-    assert batch_providers.route("openai/gpt-5.6-terra", "day") == "openai_flex"
-    assert batch_providers.route("openai/gpt-5.6-terra", "wave") == "openai_flex"
+    assert routes.route("openai/gpt-5.6-terra", "day") == "openai_flex"
+    assert routes.route("openai/gpt-5.6-terra", "wave") == "openai_flex"
     # an openai/* slug with no pinned native discount falls back to OpenRouter
-    assert batch_providers.route("openai/gpt-5.6-luna", "day") == "openrouter_sync"
-    assert batch_providers.route("moonshotai/kimi-k3", "day") == "openrouter_sync"
+    assert routes.route("openai/gpt-5.6-luna", "day") == "openrouter_sync"
+    assert routes.route("moonshotai/kimi-k3", "day") == "openrouter_sync"
     monkeypatch.delenv("OPENAI_API_KEY")
-    assert batch_providers.route("openai/gpt-5.6-sol", "day") == "openrouter_sync"
+    assert routes.route("openai/gpt-5.6-sol", "day") == "openrouter_sync"
 
 
 def test_route_override_forces_batch_for_a_large_fanout(monkeypatch):
@@ -53,7 +53,7 @@ def test_route_override_forces_batch_for_a_large_fanout(monkeypatch):
     monkeypatch.setattr(
         config, "ROUTE_OVERRIDES", {"openai/gpt-5.6-sol": "openai_batch"}
     )
-    assert batch_providers.route("openai/gpt-5.6-sol", "wave") == "openai_batch"
+    assert routes.route("openai/gpt-5.6-sol", "wave") == "openai_batch"
 
 
 def test_flex_falls_back_to_standard_after_resource_unavailable(monkeypatch):

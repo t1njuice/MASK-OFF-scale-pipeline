@@ -1,15 +1,10 @@
-"""Native OpenAI batch adapter and the price-driven route decision (ADR-0002).
+"""The two OpenAI transports: the native batch adapter and the flex adapter.
 
-Route: the per-model choice between a discounted batch endpoint and a
-synchronous call, decided by comparing pinned prices in config.PRICES — never
-by which lab owns the model. Latency class (§3) gates eligibility:
+The route decision moved to `routes.py`, the one place that answers "how does
+this request reach a model". Both entry points here are reached through
+`routes.dispatch` and assume the route is already chosen.
 
-- "wave": a sequential iteration turn (the Stage A generator/validity loop).
-  A 24h-window route is never eligible — five waves through a 24h window is
-  five days. Eligible: anthropic_batch, openrouter_sync.
-- "day": Stage B cells and seed authoring. All routes eligible; cheapest wins.
-
-The adapter speaks JSON-safe handle dicts: {"batch_id", "input_file_id"} plus
+The batch adapter speaks JSON-safe handle dicts: {"batch_id", "input_file_id"} plus
 "output_file_id" once poll sees it. The handle IS the `_batches.jsonl` journal
 row; `drain_orphans` re-polls it in any process (ADR-0002 §4).
 
@@ -50,42 +45,6 @@ def _http() -> httpx.Client:
         headers={"Authorization": f"Bearer {os.environ['OPENAI_API_KEY']}"},
         timeout=300,
     )
-
-
-def route(model: str, latency: str) -> str:
-    """The route for one model at one latency class, from pinned prices.
-
-    `openai_flex` is first choice for `openai/*` at BOTH latency classes: it
-    carries Batch API rates on a synchronous call, so unlike a 24h-window
-    route it is eligible inside the wave loop (ADR-0002 §3). Measured on a
-    real gate vote 2026-08-13: flex 187s, standard 286s, and prompt caching
-    stacks (11,473 of 11,476 prompt tokens cached on a repeat call).
-
-    `openai_batch` stays reachable for a Stage B fan-out large enough that
-    flex would hit the sync token-per-minute ceiling — set
-    config.ROUTE_OVERRIDES[model] = "openai_batch".
-    """
-    if model.startswith("claude"):
-        return "anthropic_batch"
-    override = getattr(config, "ROUTE_OVERRIDES", {}).get(model)
-    if override:
-        return override
-    if not (model.startswith("openai/") and os.environ.get("OPENAI_API_KEY")):
-        return "openrouter_sync"
-    sync_rates = config.PRICES.get((model, "openrouter_sync"))
-
-    def cheaper(route_name: str) -> bool:
-        rates = config.PRICES.get((model, route_name))
-        # price-driven, not provider-driven: the discount must be real
-        return rates is not None and (
-            sync_rates is None or rates["out"] < sync_rates["out"]
-        )
-
-    if cheaper("openai_flex"):
-        return "openai_flex"
-    if latency == "day" and cheaper("openai_batch"):
-        return "openai_batch"
-    return "openrouter_sync"
 
 
 # --- request translation --------------------------------------------------

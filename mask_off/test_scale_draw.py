@@ -202,7 +202,7 @@ def test_max_cost_stops_at_the_cohort_boundary(tmp_path, monkeypatch, capsys):
     assert "cost ceiling" in capsys.readouterr().out
 
 
-def test_fill_reruns_only_missing_and_empty_cells(tmp_path, monkeypatch):
+def test_fill_reruns_only_missing_and_empty_cells(tmp_path, transport):
     """DoD: deleted (uncached) cells and empty-text cells re-run under --fill;
     filled cells stay free cache hits."""
     from types import SimpleNamespace
@@ -229,14 +229,8 @@ def test_fill_reruns_only_missing_and_empty_cells(tmp_path, monkeypatch):
             tmp_path, batchcache.request_key(req), req["custom_id"],
             batchcache.normalize(msg(text)),
         )
-    submitted = []
-
-    def fake_run(requests, label, progress=None, on_submit=None, on_result=None,
-                 cancel_on_interrupt=True):
-        submitted.append(sorted(r["custom_id"] for r in requests))
-        return {r["custom_id"]: msg("refilled") for r in requests}
-
-    monkeypatch.setattr(llm, "run_batch", fake_run)
+    transport.respond = lambda r: msg("refilled")
+    submitted = transport.calls
     with batchcache.policy(run_dir=tmp_path):
         out = llm.run_batch_retry(reqs, "Samples", None)
         assert submitted == [["deleted"]], "only the uncached cell is a miss"
@@ -247,7 +241,7 @@ def test_fill_reruns_only_missing_and_empty_cells(tmp_path, monkeypatch):
     assert llm.text_of(out["full"]) == "a real answer"
 
 
-def test_unparseable_cached_vote_is_resubmitted_via_refresh(tmp_path, monkeypatch):
+def test_unparseable_cached_vote_is_resubmitted_via_refresh(tmp_path, transport):
     """DoD: a cached vote that fails parse_vote goes through the refresh set,
     not served from cache (the resubmit_votes + cache composition)."""
     from types import SimpleNamespace
@@ -271,14 +265,8 @@ def test_unparseable_cached_vote_is_resubmitted_via_refresh(tmp_path, monkeypatc
         tmp_path, batchcache.request_key(req), "cand-x__vote0",
         batchcache.normalize(unparseable()),
     )
-    submitted = []
-
-    def fake_run(requests, label, progress=None, on_submit=None, on_result=None,
-                 cancel_on_interrupt=True):
-        submitted.append([r["custom_id"] for r in requests])
-        return {r["custom_id"]: unparseable() for r in requests}
-
-    monkeypatch.setattr(llm, "run_batch", fake_run)
+    transport.respond = lambda r: unparseable()
+    submitted = transport.calls
     with batchcache.policy(run_dir=tmp_path):
         first = llm.run_batch_retry([req], "Validity gate", None)
         assert submitted == [], "the bad vote is a cache hit on the first pass"

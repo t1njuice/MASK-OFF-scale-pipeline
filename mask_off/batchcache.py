@@ -252,31 +252,28 @@ def _run_misses(
     stale_refresh: set = frozenset(),
     latency: str = "wave",
 ) -> dict:
-    from . import batch_providers, llm
+    from . import routes
 
-    routed = {r["custom_id"]: batch_providers.route(r["params"]["model"], latency)
-              for r in misses}
-    openai_grp = [r for r in misses if routed[r["custom_id"]] == "openai_batch"]
-    rest = [r for r in misses if routed[r["custom_id"]] != "openai_batch"]
-    for route_name, group in (
-        ("anthropic", [r for r in rest if llm.is_anthropic_model(r["params"]["model"])]),
-        ("openai_batch", openai_grp),
-    ):
-        if group:
-            _journal(
-                run_dir,
-                {
-                    "kind": "intent",
-                    "label": label,
-                    "route": route_name,
-                    "custom_ids": [r["custom_id"] for r in group],
-                    "keys": {r["custom_id"]: keys[r["custom_id"]] for r in group},
-                    "ts": _now(),
-                },
-            )
+    # The route decision is made once, by the registry (ADR-0002). The cache
+    # used to re-derive it here and llm.run_batch re-derived it again; both
+    # had to agree and could silently drift.
+    for route_name, group in routes.partition(misses, latency).items():
+        if route_name not in routes.JOURNALED:
+            continue  # a synchronous route has no handle to orphan
+        _journal(
+            run_dir,
+            {
+                "kind": "intent",
+                "label": label,
+                "route": route_name,
+                "custom_ids": [r["custom_id"] for r in group],
+                "keys": {r["custom_id"]: keys[r["custom_id"]] for r in group},
+                "ts": _now(),
+            },
+        )
     refresh_batches = []
 
-    def _journal_handle(route_name: str, handle: dict, custom_ids: list[str]) -> None:
+    def on_handle(route_name: str, handle: dict, custom_ids: list[str]) -> None:
         row = {
             "kind": "handle",
             "label": label,
@@ -293,48 +290,17 @@ def _run_misses(
                 refresh_batches.append(handle["batch_id"])
         _journal(run_dir, row)
 
-    def on_submit(batch_id: str, custom_ids: list[str]) -> None:
-        _journal_handle("anthropic", {"batch_id": batch_id}, custom_ids)
-
-    def on_submit_openai(handle: dict, custom_ids: list[str]) -> None:
-        _journal_handle("openai_batch", handle, custom_ids)
-
-    def on_upload_openai(slug: str, file_id: str, custom_ids: list[str]) -> None:
-        # journaled BEFORE create, so a lost create response still leaves the
-        # billed batch findable by its input file (ADR-0002 §9/F6)
-        _journal_handle(
-            "openai_batch",
-            {"batch_id": None, "input_file_id": file_id, "slug": slug},
-            custom_ids,
-        )
-
     def on_result(cid: str, msg) -> None:
         if _bad(msg):
             return  # F1 rule 1: never cache None or a max_tokens final
         append_result(run_dir, keys[cid], cid, normalize(msg))
 
+    hooks = routes.Hooks(
+        on_result=on_result, on_handle=on_handle, cancel_on_interrupt=False
+    )
+
     def _one_pass(requests, pass_label):
-        out = {}
-        oai = [r for r in requests if routed[r["custom_id"]] == "openai_batch"]
-        flex = [r for r in requests if routed[r["custom_id"]] == "openai_flex"]
-        others = [
-            r for r in requests
-            if routed[r["custom_id"]] not in ("openai_batch", "openai_flex")
-        ]
-        if oai:
-            out.update(batch_providers.run_openai_batch(
-                oai, pass_label, progress, on_submit_openai, on_result,
-                on_upload_openai))
-        if flex:
-            # no journal: a synchronous call leaves no server-side handle to
-            # orphan, so on_result durability is the whole story
-            out.update(batch_providers.run_openai_flex(
-                flex, pass_label, progress, on_result))
-        if others:
-            out.update(llm.run_batch(
-                others, pass_label, progress,
-                on_submit=on_submit, on_result=on_result, cancel_on_interrupt=False))
-        return out
+        return routes.dispatch(requests, pass_label, progress, latency, hooks)
 
     out = _one_pass(misses, label)
     retry = [r for r in misses if _bad(out.get(r["custom_id"]))]
@@ -422,7 +388,10 @@ def drain_orphans(run_dir: Path, progress=None, strict: bool = False) -> int:
                 if strict:
                     raise
                 continue
-        elif row["route"] == "anthropic":
+        # "anthropic" is the pre-registry journal name for this route. Journals
+        # written before ticket 05 still carry it, and a harvest must never
+        # fail to recognise a route it wrote itself.
+        elif row["route"] in ("anthropic_batch", "anthropic"):
             results = _fetch_anthropic(row["batch_id"])
         else:
             _log(progress, f"[drain] unsupported route {row['route']!r}, skipped")

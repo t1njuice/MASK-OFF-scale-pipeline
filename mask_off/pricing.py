@@ -38,9 +38,9 @@ def reachable_routes(model: str) -> set[str]:
     `openai_sync` in with it: the flex adapter falls back to standard after a
     capacity 429, and a fallback is billed at standard rates.
     """
-    from . import batch_providers
+    from . import routes as route_registry
 
-    routes = {batch_providers.route(model, latency) for latency in ("wave", "day")}
+    routes = {route_registry.route(model, latency) for latency in ("wave", "day")}
     if "openai_flex" in routes:
         routes.add("openai_sync")
     return routes
@@ -63,6 +63,18 @@ def unpinned() -> list[tuple[str, str]]:
 
 
 def route_of(usage: dict) -> str:
+    """The route that served this usage record.
+
+    Every record produced since ticket 05 carries it: the adapter stamps the
+    route it served before any result hook sees the message, so a flex request
+    that fell back to standard reports `openai_sync` and is billed at standard
+    rates.
+
+    The prefix guess below is the legacy path, for run logs and `_results.jsonl`
+    rows written before the route field existed. It is wrong for anything that
+    ran on flex or on a native OpenAI batch, which is exactly why new records
+    do not use it. Do not extend it.
+    """
     if usage.get("route"):
         return usage["route"]
     model = usage.get("model") or ""

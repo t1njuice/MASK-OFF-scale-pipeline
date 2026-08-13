@@ -112,6 +112,31 @@ write, $2.91 against $8.29 uncached. Do not spend a ticket there.
   `OPENAI_API_KEY`, the sol seat reroutes to OpenRouter, where sol is not
   pinned, and preflight refuses. Set the key or pin the OpenRouter rate; do
   not relax the check. A test covers both directions.
+- **05 closed.** `mask_off/routes.py` is the one place that answers "how does
+  this request reach a model". `route()` moved there from `batch_providers`,
+  and the eligibility rule reads `Adapter.day_only` instead of hardcoding the
+  latency test. The four split sites collapsed to one: `llm.run_batch` is now
+  `llm.run_anthropic_batch`, an adapter that assumes its route is chosen, and
+  the batch cache calls `dispatch` instead of re-partitioning.
+- **Route is stamped before `on_result`, not after dispatch returns.** The
+  cache normalizes inside `on_result`, so a route stamped afterwards would
+  never reach `_results.jsonl` and every replayed cost would be priced by
+  inference. `routes._stamped` is the wrapper; an adapter that already knows
+  better wins, so a flex fallback stays `openai_sync`.
+- **`pricing.route_of` keeps its prefix guess, for legacy rows only.** Records
+  written before ticket 05 carry no route, including the `frozen_19` evidence
+  log. The guess is wrong for anything that ran on flex or a native OpenAI
+  batch, which is why new records never take it. Do not extend it.
+- **The journal route name changed from `anthropic` to `anthropic_batch`.**
+  `drain_orphans` accepts both: a harvest must never fail to recognise a route
+  it wrote itself.
+- **Tests drive the registry now.** `mask_off/conftest.py` registers one fake
+  adapter across all four routes and fires the real hooks through the real
+  stamping wrapper. Monkeypatching `llm.run_batch` only ever worked because
+  the transport had no seam.
+- **Seed authoring passed latency `"wave"` against ADR-0002, which calls it
+  `"day"`.** Aligned. Behaviour-neutral today: the seedgen model is an
+  OpenRouter slug and routes identically at both classes.
 - **Two published figures were wrong and are corrected in `docs/evidence/`.**
   p6 holds 103 log records but **102 waves** (one record is a lint record
   sharing a wave), and **50** of them fall on the 5 seeds that never accepted,

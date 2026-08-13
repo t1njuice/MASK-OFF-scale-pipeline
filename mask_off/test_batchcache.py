@@ -8,7 +8,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from . import batchcache, llm
+import dataclasses
+
+from . import batchcache, llm, routes
 
 
 def _msg(text="hello", stop_reason="end_turn", model="claude-opus-4-8"):
@@ -34,28 +36,6 @@ def fresh_cache_state():
     batchcache._CACHES.clear()
     yield
     batchcache._CACHES.clear()
-
-
-@pytest.fixture
-def fake_run(monkeypatch):
-    """Replace llm.run_batch with a counting fake; returns the call log."""
-    calls = []
-
-    def fake(requests, label, progress=None, on_submit=None, on_result=None,
-             cancel_on_interrupt=True):
-        calls.append([r["custom_id"] for r in requests])
-        if on_submit is not None:
-            on_submit(f"b{len(calls)}", [r["custom_id"] for r in requests])
-        out = {}
-        for r in requests:
-            msg = _msg(text=f"answer:{r['custom_id']}")
-            if on_result is not None:
-                on_result(r["custom_id"], msg)
-            out[r["custom_id"]] = msg
-        return out
-
-    monkeypatch.setattr(llm, "run_batch", fake)
-    return calls
 
 
 def test_second_identical_call_submits_zero(tmp_path, fake_run):
@@ -85,21 +65,11 @@ def test_cache_survives_a_new_process(tmp_path, fake_run):
     assert out["a"].usage.output_tokens == 2
 
 
-def test_none_and_max_tokens_finals_are_never_stored(tmp_path, monkeypatch):
-    calls = []
-
-    def always_bad(requests, label, progress=None, on_submit=None, on_result=None,
-                   cancel_on_interrupt=True):
-        calls.append([r["custom_id"] for r in requests])
-        out = {}
-        for r in requests:
-            msg = None if r["custom_id"] == "gone" else _msg(stop_reason="max_tokens")
-            if on_result is not None:
-                on_result(r["custom_id"], msg)
-            out[r["custom_id"]] = msg
-        return out
-
-    monkeypatch.setattr(llm, "run_batch", always_bad)
+def test_none_and_max_tokens_finals_are_never_stored(tmp_path, transport):
+    transport.respond = lambda r: (
+        None if r["custom_id"] == "gone" else _msg(stop_reason="max_tokens")
+    )
+    calls = transport.calls
     reqs = [_req("gone"), _req("cut")]
     out = batchcache.cached_batch(reqs, "t", None, tmp_path)
     assert out["gone"] is None
@@ -113,20 +83,9 @@ def test_none_and_max_tokens_finals_are_never_stored(tmp_path, monkeypatch):
     assert calls[0] == ["gone", "cut"]
 
 
-def test_refresh_set_bypasses_and_supersedes(tmp_path, monkeypatch):
+def test_refresh_set_bypasses_and_supersedes(tmp_path, transport):
     serial = iter(range(100))
-
-    def versioned(requests, label, progress=None, on_submit=None, on_result=None,
-                  cancel_on_interrupt=True):
-        out = {}
-        for r in requests:
-            msg = _msg(text=f"v{next(serial)}")
-            if on_result is not None:
-                on_result(r["custom_id"], msg)
-            out[r["custom_id"]] = msg
-        return out
-
-    monkeypatch.setattr(llm, "run_batch", versioned)
+    transport.respond = lambda r: _msg(text=f"v{next(serial)}")
     reqs = [_req("a")]
     assert llm.text_of(batchcache.cached_batch(reqs, "t", None, tmp_path)["a"]) == "v0"
     out = batchcache.cached_batch(reqs, "t", None, tmp_path, refresh={"a"})
@@ -148,26 +107,19 @@ def test_duplicate_keys_are_latest_wins_at_load(tmp_path):
     assert stored["content"][0]["text"] == "new"
 
 
-def test_retry_once_lives_below_the_cache(tmp_path, monkeypatch):
+def test_retry_once_lives_below_the_cache(tmp_path, transport):
     """A truncated first pass is retried within one cached_batch call, and only
     the post-retry final is stored."""
     passes = []
 
-    def flaky(requests, label, progress=None, on_submit=None, on_result=None,
-              cancel_on_interrupt=True):
+    def flaky(request):
         first = not passes
-        passes.append(label)
-        out = {}
-        for r in requests:
-            msg = _msg(stop_reason="max_tokens") if first else _msg(text="final")
-            if on_result is not None:
-                on_result(r["custom_id"], msg)
-            out[r["custom_id"]] = msg
-        return out
+        passes.append(first)
+        return _msg(stop_reason="max_tokens") if first else _msg(text="final")
 
-    monkeypatch.setattr(llm, "run_batch", flaky)
+    transport.respond = flaky
     out = batchcache.cached_batch([_req("a")], "t", None, tmp_path)
-    assert passes == ["t", "t (retry)"]
+    assert len(transport.calls) == 2, "one first pass, one retry pass"
     assert llm.text_of(out["a"]) == "final"
     batchcache._CACHES.clear()
     stored = batchcache._cache(tmp_path)
@@ -175,7 +127,7 @@ def test_retry_once_lives_below_the_cache(tmp_path, monkeypatch):
     assert next(iter(stored.values()))["content"][0]["text"] == "final"
 
 
-def test_drain_folds_a_journaled_batch_into_the_cache(tmp_path, monkeypatch):
+def test_drain_folds_a_journaled_batch_into_the_cache(tmp_path, monkeypatch, transport):
     req = _req("a")
     key = batchcache.request_key(req)
     batchcache._journal(tmp_path, {
@@ -187,10 +139,10 @@ def test_drain_folds_a_journaled_batch_into_the_cache(tmp_path, monkeypatch):
     )
     assert batchcache.drain_orphans(tmp_path) == 1
 
-    def must_not_run(*a, **k):
+    def must_not_run(request):
         raise AssertionError("drained result must be a cache hit")
 
-    monkeypatch.setattr(llm, "run_batch", must_not_run)
+    transport.respond = must_not_run
     out = batchcache.cached_batch([req], "t", None, tmp_path)
     assert llm.text_of(out["a"]) == "drained"
 
@@ -230,12 +182,15 @@ def test_crashed_refresh_batch_is_drained_despite_the_stale_cached_row(
     key = batchcache.request_key(req)
     batchcache.append_result(tmp_path, key, "a", batchcache.normalize(_msg(text="stale")))
 
-    def crash_after_submit(requests, label, progress=None, on_submit=None,
-                           on_result=None, cancel_on_interrupt=True):
-        on_submit("b-refresh", [r["custom_id"] for r in requests])
+    def crash_after_submit(requests, label, progress, hooks):
+        hooks.on_handle("anthropic_batch", {"batch_id": "b-refresh"},
+                        [r["custom_id"] for r in requests])
         raise KeyboardInterrupt
 
-    monkeypatch.setattr(llm, "run_batch", crash_after_submit)
+    monkeypatch.setitem(
+        routes.ADAPTERS, "anthropic_batch",
+        dataclasses.replace(routes.ADAPTERS["anthropic_batch"], run=crash_after_submit),
+    )
     with pytest.raises(KeyboardInterrupt):
         batchcache.cached_batch([req], "t", None, tmp_path, refresh={"a"})
 
@@ -282,13 +237,19 @@ def test_run_lock_refuses_a_live_second_invocation(tmp_path):
 def test_default_policy_is_the_legacy_path(monkeypatch):
     seen = []
 
-    def fake(requests, label, progress=None, **kw):
-        seen.append(kw)
+    def fake(requests, label, progress, hooks):
+        seen.append(hooks)
         return {r["custom_id"]: _msg() for r in requests}
 
-    monkeypatch.setattr(llm, "run_batch", fake)
+    monkeypatch.setitem(
+        routes.ADAPTERS, "anthropic_batch",
+        dataclasses.replace(routes.ADAPTERS["anthropic_batch"], run=fake),
+    )
     llm.run_batch_retry([_req("a")], "t", None)
-    assert seen == [{}], "default Policy must not touch cache hooks"
+    assert len(seen) == 1
+    assert seen[0].on_result is None and seen[0].on_handle is None, (
+        "default Policy must not touch cache hooks"
+    )
 
 
 def test_policy_routes_run_batch_retry_through_the_cache(tmp_path, fake_run):

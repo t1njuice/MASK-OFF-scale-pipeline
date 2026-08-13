@@ -228,7 +228,7 @@ def author(rows: list[tuple[str, str]], out_dir: Path) -> Path:
         for i, (domain, row) in enumerate(rows)
     ]
     with batch_progress() as progress:
-        msgs = run_batch_retry(requests, "Seed author", progress)
+        msgs = run_batch_retry(requests, "Seed author", progress, latency="day")
 
     written = []
     with open(log_path, "a", encoding="utf-8") as log_f:
@@ -340,7 +340,7 @@ def cheap_screen(behavior_dir: Path, out_path: Path | None = None) -> dict[str, 
         for i in range(config.CHEAP_AUDIT_VOTES)
     ]
     with batch_progress() as progress:
-        msgs = run_batch_retry(requests, "Cheap gate audit", progress)
+        msgs = run_batch_retry(requests, "Cheap gate audit", progress, latency="day")
 
     audits = {}
     out_path.parent.mkdir(parents=True, exist_ok=True)

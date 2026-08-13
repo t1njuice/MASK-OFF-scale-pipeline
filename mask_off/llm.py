@@ -281,10 +281,14 @@ def _openrouter_call(params: dict):
             time.sleep(5 * (attempt + 1))
 
 
-def _run_openrouter(
+def run_openrouter(
     requests: list[dict], label: str, progress: Progress, on_result=None
 ) -> dict:
-    """Threaded stand-in for the Batches API: {custom_id: message | None}."""
+    """Threaded stand-in for the Batches API: {custom_id: message | None}.
+
+    The `openrouter_sync` adapter. Reached through `routes.dispatch`, never
+    called directly.
+    """
     task = progress.add_task(f"{label} (openrouter)", total=len(requests))
     out = {}
     try:
@@ -403,7 +407,7 @@ def run_batch_retry(
     custom_ids that must bypass it. The default Policy() is the legacy path,
     bit-identical to before the seam existed.
     """
-    from . import batchcache
+    from . import batchcache, routes
 
     pol = batchcache.current_policy()
     if pol.run_dir is not None:
@@ -417,14 +421,14 @@ def run_batch_retry(
             latency=latency,
         )
 
-    out = run_batch(requests, label, progress)
+    out = routes.dispatch(requests, label, progress, latency)
     retry = [r for r in requests if bad_final(out.get(r["custom_id"]))]
     if retry:
-        out.update(run_batch(retry, f"{label} (retry)", progress))
+        out.update(routes.dispatch(retry, f"{label} (retry)", progress, latency))
     return out
 
 
-def run_batch(
+def run_anthropic_batch(
     requests: list[dict],
     label: str,
     progress: Progress | None = None,
@@ -432,7 +436,11 @@ def run_batch(
     on_result=None,
     cancel_on_interrupt: bool = True,
 ) -> dict:
-    """Run capped Anthropic Message Batches.
+    """Run capped Anthropic Message Batches. The `anthropic_batch` adapter.
+
+    Reached through `routes.dispatch`, never called directly: dispatch owns
+    the route decision, and this function assumes every request is already an
+    Anthropic model.
 
     Returns {custom_id: response | None}, where None means the request errored,
     expired, or was canceled. Pass ``progress`` to nest this stage's bars under
@@ -448,34 +456,9 @@ def run_batch(
         return {}
     if progress is None:
         with batch_progress() as progress:
-            return run_batch(
+            return run_anthropic_batch(
                 requests, label, progress, on_submit, on_result, cancel_on_interrupt
             )
-
-    external = [r for r in requests if not is_anthropic_model(r["params"]["model"])]
-    if external:
-        from . import batch_providers
-
-        native = [r for r in requests if is_anthropic_model(r["params"]["model"])]
-        # Flex reaches the uncached path too, not only the scale seam: the 13
-        # experiment scripts call run_batch directly and are where the spend
-        # actually is. Batch routes never apply here — they need a journal,
-        # which only the cache seam has.
-        flex = [
-            r for r in external
-            if batch_providers.route(r["params"]["model"], "wave") == "openai_flex"
-        ]
-        rest = [r for r in external if r not in flex]
-        out = {}
-        if flex:
-            out.update(batch_providers.run_openai_flex(flex, label, progress, on_result))
-        if rest:
-            # ponytail: sequential; overlap the pool with the batch poll if wall-clock matters
-            out.update(_run_openrouter(rest, label, progress, on_result))
-        out.update(
-            run_batch(native, label, progress, on_submit, on_result, cancel_on_interrupt)
-        )
-        return out
 
     batches = client().messages.batches
     buffered_batches = _buffer_batches(requests)

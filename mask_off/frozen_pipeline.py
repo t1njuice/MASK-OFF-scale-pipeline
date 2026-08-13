@@ -565,7 +565,10 @@ def run(n: int, seeds_path: Path, out_stem: Path, launch=None,
     # Under `scale`, log_path is the run directory's shared log and already
     # holds every earlier cohort. Take the total before this cohort writes so
     # the closing line can report what THIS cohort spent as well as the run.
-    spent_before = ledger.run_total(log_path.parent) if log_path.exists() else 0.0
+    # Read log_path itself, not its directory: a standalone run's log is not
+    # named run_log.jsonl, so resolving by directory found nothing and reported
+    # a resumed run's whole spend as if this cohort had just bought it.
+    spent_before = ledger.total(ledger.log_entries(log_path))
     log_f = open(log_path, "a", encoding="utf-8")
 
     def log(rec: dict) -> None:

@@ -134,7 +134,8 @@ def log_entries(path: Path) -> list[Entry]:
 
 
 def usage_entries(usages: Iterable[dict], stage: str,
-                  seed=None, wave=None) -> list[Entry]:
+                  seed: str | None = None,
+                  wave: int | None = None) -> list[Entry]:
     """Priced blocks for usage dicts that never reach a run log (Stage B)."""
     return [_entry(u, stage, seed, wave) for u in usages if u]
 

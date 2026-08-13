@@ -32,7 +32,7 @@ Replay a run log through the records:
 import datetime
 import json
 import sys
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -313,7 +313,7 @@ def accepting_wave(history: Sequence[Wave]) -> int | None:
 def cap_ladder(
     histories: Mapping[str, list[Wave]],
     caps: Iterable[int],
-    cost_of=None,
+    cost_of: Callable[[str, "Wave"], float] | None = None,
 ) -> list[dict]:
     """What each candidate cap would have cost this run, and what it would
     have lost. The counterfactual the next pilot fits its cap from.

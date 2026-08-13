@@ -27,6 +27,7 @@ the panel values, so it imports `Seat` from here and a top-level import of
 `llm` (which imports `config`) would close the cycle.
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass
 
 
@@ -79,9 +80,9 @@ def expand(
     custom_id: str,
     tag: str,
     system: str,
-    user,
-    thinking=None,
-    schema=None,
+    user: str | Callable[[int, "Seat"], str],
+    thinking: dict | None = None,
+    schema: dict | None = None,
     slots: int | None = None,
 ) -> list[dict]:
     """One request per slot, under `{custom_id}__{tag}{slot}`.

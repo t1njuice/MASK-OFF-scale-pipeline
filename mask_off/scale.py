@@ -112,13 +112,6 @@ def save_state(run_dir: Path, state: dict) -> None:
     tmp.rename(_state_path(run_dir))
 
 
-def run_cost(run_dir: Path) -> float:
-    """Cumulative dollars for a run. The counting, and the deduplication rule
-    that makes a replayed cohort cost what it was billed rather than twice
-    that, live in one place now (ticket 11)."""
-    return ledger.run_total(run_dir)
-
-
 def _accepted_items(run_dir: Path) -> list[dict]:
     path = run_dir / "accepted.jsonl"
     if not path.exists():

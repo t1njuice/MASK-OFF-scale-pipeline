@@ -29,6 +29,7 @@ def configured_models() -> list[str]:
         config.THERMOMETER_SEAT.model,
         config.VARIANT_MODEL,
         config.SEEDGEN_MODEL,
+        config.CHEAP_AUDIT_MODEL,
         *([config.OPUS5_SMOKE_SEAT.model] if config.OPUS5_SMOKE_N else []),
     ]
 

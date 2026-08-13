@@ -39,7 +39,10 @@ model prefix. A flex request that falls back to standard reports
 
 import os
 from dataclasses import dataclass
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
+
+if TYPE_CHECKING:
+    from rich.progress import Progress
 
 from . import config
 
@@ -231,7 +234,7 @@ def partition(requests: list[dict], latency: str) -> dict[str, list[dict]]:
 def dispatch(
     requests: list[dict],
     label: str,
-    progress=None,
+    progress: "Progress | None" = None,
     latency: str = "wave",
     hooks: Hooks | None = None,
 ) -> dict:

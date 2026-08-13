@@ -13,6 +13,55 @@ from . import config
 _warned: set = set()
 
 
+def configured_models() -> list[str]:
+    """Every model a run can reach from a panel, roster or judge setting.
+
+    Read from config at call time, not at import, so a test that patches a
+    setting sees its change.
+    """
+    return [
+        config.GENERATOR_MODEL,
+        *(config.VALIDITY_PANEL or [config.VALIDITY_MODEL]),
+        *config.TARGET_MODELS,
+        config.THERMOMETER_MODEL,
+        config.JUDGE_MODEL,
+        config.SEEDGEN_MODEL,
+        *([config.OPUS5_SMOKE_MODEL] if config.OPUS5_SMOKE_N else []),
+    ]
+
+
+def reachable_routes(model: str) -> set[str]:
+    """Every route one model can actually be served on.
+
+    Both latency classes, because Stage A runs at "wave" and Stage B at "day"
+    and a model can route differently at each. `openai_flex` drags
+    `openai_sync` in with it: the flex adapter falls back to standard after a
+    capacity 429, and a fallback is billed at standard rates.
+    """
+    from . import batch_providers
+
+    routes = {batch_providers.route(model, latency) for latency in ("wave", "day")}
+    if "openai_flex" in routes:
+        routes.add("openai_sync")
+    return routes
+
+
+def unpinned() -> list[tuple[str, str]]:
+    """Sorted (model, route) pairs a run can reach that config.PRICES misses.
+
+    An unpinned pair costs 0.0 in every report, so `--max-cost` cannot see it
+    and a whole panel seat can run at an apparently free price. Preflight
+    refuses on a non-empty result — a warning printed after the money is spent
+    is not a check.
+    """
+    return sorted(
+        (model, route)
+        for model in set(configured_models())
+        for route in reachable_routes(model)
+        if (model, route) not in config.PRICES
+    )
+
+
 def route_of(usage: dict) -> str:
     if usage.get("route"):
         return usage["route"]

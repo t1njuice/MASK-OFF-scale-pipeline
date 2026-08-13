@@ -13,7 +13,7 @@ from pathlib import Path
 
 import anthropic
 
-from . import config
+from . import config, pricing
 from .llm import client
 from .seeds import load_seeds
 
@@ -58,9 +58,23 @@ def select_seeds(n: int, seeds_path: Path) -> list:
 def preflight() -> bool:
     """True when a run may submit its first request.
 
-    Checks credentials only. Ticket 04 adds the pinned-price check here.
+    Checks the pinned prices and the credentials, in that order: the price
+    check costs nothing and catches the failure that money makes permanent.
     """
-    # 0) OpenRouter-routed models (any role) need their own key.
+    # 0) Every reachable (model, route) must have a pinned price. An unpinned
+    #    pair costs 0.0 in every report, so --max-cost cannot see it.
+    gaps = pricing.unpinned()
+    if gaps:
+        print(
+            "ERROR: these configured (model, route) pairs have no pinned price "
+            "in config.PRICES, so they would cost $0 in every report and "
+            "--max-cost could not see them:\n"
+            + "\n".join(f"  {model} on {route}" for model, route in gaps)
+            + "\nPin each one before running.",
+            file=sys.stderr,
+        )
+        return False
+    # 1) OpenRouter-routed models (any role) need their own key.
     openrouter_models = [
         model
         for model in [*config.TARGET_MODELS, config.GENERATOR_MODEL,
@@ -74,14 +88,14 @@ def preflight() -> bool:
             file=sys.stderr,
         )
         return False
-    # 1) Construct the client — this is where a missing or unresolvable
+    # 2) Construct the client — this is where a missing or unresolvable
     #    credential fails.
     try:
         anthropic_client = client()
     except anthropic.AnthropicError as exc:
         print(f"{_NO_CREDS_MSG}\n  ({exc})", file=sys.stderr)
         return False
-    # 2) Make one cheap call to prove the credential actually works.
+    # 3) Make one cheap call to prove the credential actually works.
     try:
         anthropic_client.messages.create(
             model=config.GENERATOR_MODEL,

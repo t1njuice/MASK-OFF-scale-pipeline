@@ -88,6 +88,30 @@ write, $2.91 against $8.29 uncached. Do not spend a ticket there.
   generator. Five knobs the ticket missed were dead and went: `REVIEWER_MODEL`,
   `REVIEWER_EFFORT`, `REVIEW_MAX_TOKENS`, `RUN_LOG`, `LESSONS_PATH`. Twelve
   removed in total. Check readers with a scan, not with a list.
+- **04 closed.** The panel on disk now matches the locked gate:
+  kimi-k3 + grok-4.5 + gpt-5.6-sol, 2-of-3, cap 10. Panel and cap are both
+  fingerprint fields, so every existing run directory will refuse to resume
+  without `--force`. That is the gate working; no bypass was added.
+  `launch.preflight` now fails before the first request when any reachable
+  `(model, route)` pair is unpinned, via `pricing.unpinned()`.
+- **The ticket named the wrong terra.** `openai/gpt-5.6-terra-pro` is not a
+  priced OpenAI model id and appears nowhere on their pricing page; pinning it
+  on a native route would have sent it to an endpoint where it does not exist,
+  because `route()` prefers a native route as soon as one is pinned. Pinned
+  `openai/gpt-5.6-terra` instead, on sync, batch and flex. Its flex rate
+  ($1 / $0.10 / $6) matches the figure the gate-config lock measured
+  independently. `diversity/labeling/judge_labels.py` still calls terra-pro as
+  an OpenRouter slug; that path does not use `mask_off.pricing`, so it is
+  unaffected, but it is worth a look in the diversity effort.
+- **`claude-opus-5` is pinned now, at the same rates as opus-4-8.** It was
+  deliberately unpinned as "smoke-test volume only", which is exactly the
+  silent-zero the ticket exists to remove. Rates verified against Anthropic's
+  pricing page; the two batch cache cells apply that page's stated
+  2x-write / 0.1x-read multipliers to the discounted batch input.
+- **The price check is environment-dependent, by design.** Without
+  `OPENAI_API_KEY`, the sol seat reroutes to OpenRouter, where sol is not
+  pinned, and preflight refuses. Set the key or pin the OpenRouter rate; do
+  not relax the check. A test covers both directions.
 - **Two published figures were wrong and are corrected in `docs/evidence/`.**
   p6 holds 103 log records but **102 waves** (one record is a lint record
   sharing a wave), and **50** of them fall on the 5 seeds that never accepted,

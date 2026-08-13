@@ -38,8 +38,11 @@ def test_route_is_price_and_latency_driven(monkeypatch):
     # including the wave loop, where a 24h window is ineligible (ADR-0002 §3)
     assert batch_providers.route("openai/gpt-5.6-sol", "day") == "openai_flex"
     assert batch_providers.route("openai/gpt-5.6-sol", "wave") == "openai_flex"
-    # no pinned discount (terra-pro) -> sync at either class
-    assert batch_providers.route("openai/gpt-5.6-terra-pro", "day") == "openrouter_sync"
+    # terra IS pinned on flex, so it routes like sol at both classes
+    assert batch_providers.route("openai/gpt-5.6-terra", "day") == "openai_flex"
+    assert batch_providers.route("openai/gpt-5.6-terra", "wave") == "openai_flex"
+    # an openai/* slug with no pinned native discount falls back to OpenRouter
+    assert batch_providers.route("openai/gpt-5.6-luna", "day") == "openrouter_sync"
     assert batch_providers.route("moonshotai/kimi-k3", "day") == "openrouter_sync"
     monkeypatch.delenv("OPENAI_API_KEY")
     assert batch_providers.route("openai/gpt-5.6-sol", "day") == "openrouter_sync"

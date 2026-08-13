@@ -17,11 +17,11 @@ import uuid
 from pathlib import Path
 
 from . import config
-from .generator import build_gen_request, parse_gen
+from .generator import build_gen_request, lint_candidate, parse_gen
 from .llm import batch_progress, run_batch_retry, usage_summary_of
 from .pipeline import preflight, run_timestamp, select_seeds
 from .seeds import load_seeds, source_name
-from .validity import build_vote_requests, parse_vote, tally
+from .validity import build_vote_requests, id_direction, parse_vote, tally
 
 # Re-exported here because evaluate.py and the experiment scripts import it
 # from this module; the table itself lives in config.PRICES (ADR-0002 §9/F4).
@@ -70,6 +70,65 @@ def resubmit_votes(vote_reqs: list[dict], vote_msgs: dict, progress) -> dict:
     return vote_msgs
 
 
+def lint_pass(ready: list[dict], progress, log) -> float:
+    """Regenerate once, before the panel votes, every candidate the lint rejects.
+
+    Bounded at ONE extra generator call per seed per iteration: the lint keeps a
+    mechanically-broken draft out of a paid panel round (3 votes at ~15k output
+    tokens each), it is not a loop that iterates to cleanliness. A regeneration
+    that fails to parse — or that still lints dirty — leaves the original
+    candidate standing and the panel judges that, so the lint can never cost a
+    seed its round. Returns the added generator cost.
+
+    Mutates `ready` in place: a clean regeneration replaces `s["candidate"]`.
+    """
+    flagged = [(s, text) for s in ready if (text := lint_candidate(s["candidate"]))]
+    if not flagged:
+        return 0.0
+
+    # Distinct custom_id: reusing the round's id would let the batch cache serve
+    # the linted draft straight back as its own replacement.
+    reqs = [
+        build_gen_request(
+            f"{s['cid']}__lint{s['iteration']}",
+            s["seed"].text,
+            [],
+            "PRE-GATE LINT — a mechanical check on your draft failed before the "
+            "panel saw it. This is not a reviewer verdict; fix exactly what it "
+            "names and change nothing else.\n" + text,
+            s["candidate"],
+            revision_round=s["iteration"] - 1,
+            frozen=True,
+        )
+        for s, text in flagged
+    ]
+    msgs = run_batch_retry(reqs, "Generator (lint regen)", progress)
+
+    cost = 0.0
+    for s, text in flagged:
+        msg = msgs.get(f"{s['cid']}__lint{s['iteration']}")
+        rec = {
+            "seed_name": s["seed"].name,
+            "iteration": s["iteration"],
+            "stage": "lint",
+            "findings": text,
+            "ts": now_iso(),
+        }
+        try:
+            if msg is None:
+                raise RuntimeError("lint regeneration returned no message")
+            cand = parse_gen(msg)
+            cost += usage_cost(getattr(cand, "_llm_usage", {}) or {})
+            s["candidate"] = cand
+            rec["regenerated"] = True
+            rec["residual"] = lint_candidate(cand)
+        except Exception as e:  # noqa: BLE001 - never lose a round to the lint
+            rec["regenerated"] = False
+            rec["error"] = repr(e)
+        log(rec)
+    return cost
+
+
 def accepted_seed_names(items_path: Path) -> set[tuple[str, str]]:
     """(seed_source, seed_name) pairs already accepted in an items file.
 
@@ -114,6 +173,7 @@ def run(n: int, seeds_path: Path, out_stem: Path, launch=None,
             "iteration": 0,
             "feedback": None,
             "previous": None,
+            "id_dir": None,
             "done": (s.source, s.name) in done_names,
             "accepted_item": None,
         }
@@ -170,9 +230,14 @@ def run(n: int, seeds_path: Path, out_stem: Path, launch=None,
                     if s["iteration"] >= config.FROZEN_MAX_ITERATIONS:
                         s["done"] = True
 
+            if config.GENERATOR_LINT:
+                total_cost += lint_pass(ready, progress, log)
+
             vote_reqs = []
             for s in ready:
-                vote_reqs += build_vote_requests(s["cid"], s["candidate"])
+                vote_reqs += build_vote_requests(
+                    s["cid"], s["candidate"], s.get("id_dir")
+                )
             vote_msgs = run_batch_retry(vote_reqs, "Validity gate", progress)
 
             vote_msgs = resubmit_votes(vote_reqs, vote_msgs, progress)
@@ -185,7 +250,7 @@ def run(n: int, seeds_path: Path, out_stem: Path, launch=None,
                         vote_errors.append("no message")
                         continue
                     try:
-                        v = parse_vote(msg)
+                        v = parse_vote(msg, slot=i)
                         votes.append(v)
                         vote_dumps.append(v.model_dump())
                         total_cost += usage_cost(getattr(v, "_llm_usage", {}) or {})
@@ -205,6 +270,7 @@ def run(n: int, seeds_path: Path, out_stem: Path, launch=None,
                         s["done"] = True
                     continue
                 decision = tally(votes)
+                s["id_dir"] = id_direction(votes)
                 if len(votes) < config.VALIDITY_VOTES:
                     decision["short_votes"] = True
                 rec = {

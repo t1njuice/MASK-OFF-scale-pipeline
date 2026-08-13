@@ -134,6 +134,14 @@ write, $2.91 against $8.29 uncached. Do not spend a ticket there.
   adapter across all four routes and fires the real hooks through the real
   stamping wrapper. Monkeypatching `llm.run_batch` only ever worked because
   the transport had no seam.
+- **The seam nearly broke "never discard batch work", and now guards it.**
+  Collapsing the split sites made `openai_batch` reachable on the *uncached*
+  path, where there is no journal: a `ROUTE_OVERRIDES` entry plus a standalone
+  `mask_off.evaluate` run would have submitted a paid 24-hour batch with no
+  journal row, unrecoverable if the process died. The pre-seam code prevented
+  this by never selecting a batch route outside the cache. `dispatch` now
+  refuses a `day_only` route when no `on_handle` hook is present, and says how
+  to fix it. Anthropic batch still runs uncached, exactly as before the seam.
 - **Seed authoring passed latency `"wave"` against ADR-0002, which calls it
   `"day"`.** Aligned. Behaviour-neutral today: the seedgen model is an
   OpenRouter slug and routes identically at both classes.

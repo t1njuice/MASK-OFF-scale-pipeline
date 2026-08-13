@@ -225,12 +225,30 @@ def dispatch(
         with batch_progress() as owned:
             return dispatch(requests, label, owned, latency, hooks)
 
+    groups = partition(requests, latency)
+    # A 24-hour-window route hands back a handle and nothing else: the results
+    # arrive hours later, in some later process. Submitting one with no
+    # `on_handle` would pay for a batch that no journal records, and a process
+    # death would then strand it with no way to harvest — the standing rule is
+    # never to discard batch work. The pre-seam code enforced this by never
+    # selecting a batch route outside the cache; say so out loud instead.
+    if hooks.on_handle is None:
+        orphanable = sorted(n for n in groups if ADAPTERS[n].day_only)
+        if orphanable:
+            raise RuntimeError(
+                f"{orphanable} needs a journal and this dispatch has no "
+                f"on_handle hook, so a paid batch would be unrecoverable if "
+                f"this process died. Run under a run directory "
+                f"(batchcache.policy(run_dir=...)), or drop the "
+                f"config.ROUTE_OVERRIDES entry that forced the batch route."
+            )
+
     out = {}
     # ponytail: route groups run one after another. Every batch route
     # processes server-side in parallel anyway, so this costs only the tail.
     # Ticket 08 interleaves the polls once the 13-model roster makes that tail
     # a real cost.
-    for name, group in sorted(partition(requests, latency).items()):
+    for name, group in sorted(groups.items()):
         results = ADAPTERS[name].run(group, label, progress, hooks)
         for msg in results.values():
             # Belt and braces: a message that never passed through on_result

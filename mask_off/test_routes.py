@@ -120,6 +120,45 @@ def test_an_unpriced_model_still_reaches_a_provider_via_openrouter(transport):
     assert out["x"] is not None
 
 
+def test_a_batch_route_refuses_to_run_without_a_journal(monkeypatch, transport):
+    """Regression: the uncached path could reach openai_batch, submit a paid
+    24h batch with no journal row, and strand it if the process died.
+
+    Reproduce it by forcing the override the escape hatch exists for and
+    calling the uncached path — no Policy, so no run directory and no hooks.
+    """
+    monkeypatch.setattr(
+        config, "ROUTE_OVERRIDES", {"openai/gpt-5.6-sol": "openai_batch"}
+    )
+    request = _req("a", "openai/gpt-5.6-sol")
+    with pytest.raises(RuntimeError, match="needs a journal"):
+        llm.run_batch_retry([request], "Stage B", None, latency="day")
+    assert transport.calls == [], "nothing may be submitted before the refusal"
+
+
+def test_a_journaled_dispatch_accepts_the_same_override(monkeypatch, transport):
+    """The escape hatch still works where the handle can be journaled."""
+    monkeypatch.setattr(
+        config, "ROUTE_OVERRIDES", {"openai/gpt-5.6-sol": "openai_batch"}
+    )
+    handled = []
+    hooks = routes.Hooks(on_handle=lambda route, handle, cids: handled.append(route))
+    routes.dispatch([_req("a", "openai/gpt-5.6-sol")], "t", None, "day", hooks)
+    assert handled == ["openai_batch"]
+
+
+def test_a_synchronous_route_needs_no_journal(transport):
+    """Only the 24h-window route is refused. Flex and OpenRouter leave no
+    server-side handle to orphan, and the Anthropic batch keeps the uncached
+    behaviour it had before the seam existed."""
+    out = routes.dispatch(
+        [_req("a", "claude-opus-4-8"), _req("b", "moonshotai/kimi-k3"),
+         _req("c", "openai/gpt-5.6-sol")],
+        "t", progress=None, latency="day",
+    )
+    assert set(out) == {"a", "b", "c"}
+
+
 def test_only_batch_routes_journal_a_handle(transport):
     handled = []
     hooks = routes.Hooks(on_handle=lambda route, handle, cids: handled.append(route))

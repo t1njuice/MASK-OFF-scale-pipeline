@@ -49,8 +49,8 @@ Verify any change with:
 uv run python -m pytest mask_off -q
 ```
 
-That reports **97 passed**. The root suite, `uv run python -m pytest -q`,
-reports 110 passed and 59 subtests passed.
+That reports **100 passed**. The root suite, `uv run python -m pytest -q`,
+reports 113 passed and 59 subtests passed.
 
 ## The four documents
 

@@ -31,9 +31,9 @@ def _stage_a_dir(tmp_path: Path) -> Path:
                         "PROMPT_VERSION": "v5.2"},
         "target": 10,
         "consumed": ["s1", "s2", "s3"],
-        "yield_ema": 0.5,
+        "in_flight": [],
+        "run_yield": 0.5,
         "cohort": 2,
-        "pending": None,
     }), encoding="utf-8")
     _write_jsonl(run_dir / "accepted.jsonl", [
         {"result_id": "maskoff-aaa", "seed_name": "s1", "seed_source": "kimi",
@@ -42,10 +42,10 @@ def _stage_a_dir(tmp_path: Path) -> Path:
          "iterations": 1, "taxonomy": "financial"},
     ])
     _write_jsonl(run_dir / "cohorts.jsonl", [
-        {"cohort": 1, "launched": 2, "accepted": 1, "yield": 0.5,
-         "yield_ema": 0.5, "ts": "2026-08-12T00:00:00+00:00"},
-        {"cohort": 2, "launched": 1, "accepted": 1, "yield": 1.0,
-         "yield_ema": 0.75, "ts": "2026-08-12T01:00:00+00:00"},
+        {"cohort": 1, "drawn": 3, "in_flight": 1, "finished": 2, "accepted": 1,
+         "run_yield": 0.5, "ts": "2026-08-12T00:00:00+00:00"},
+        {"cohort": 2, "drawn": 3, "in_flight": 0, "finished": 3, "accepted": 2,
+         "run_yield": 0.75, "ts": "2026-08-12T01:00:00+00:00"},
     ])
     # wave 1: s1 rejected (severity_floor fails); wave 2: s1 accepted.
     # usage numbers give cache-write ratios 2000/3000 and 0/2000.
@@ -167,8 +167,8 @@ def test_full_run_report(tmp_path):
     assert "seeds launched" in text
     assert "medical" in text and "financial" in text
 
-    # Stage A: cohort yields, per-wave rates, constraint bottleneck
-    assert "0.5" in text and "0.75" in text  # yield / ema from cohorts.jsonl
+    # Stage A: checkpoint rows, per-wave rates, constraint bottleneck
+    assert "0.5" in text and "0.75" in text  # run yield from cohorts.jsonl
     assert "severity_floor" in text
     # wave 1: 1 candidate, 0 accepted -> 0.000; vote rate 1/2 -> 0.500
     assert "0.000" in text and "0.500" in text

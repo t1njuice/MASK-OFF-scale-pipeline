@@ -14,7 +14,7 @@ Seed authoring (`mask_off.seedgen`, its own output directory):
 Stage A and Stage B (`mask_off.scale`, one run directory):
 
     accepted.jsonl  items accepted so far      run_log.jsonl  every wave
-    state.json      target, cohort, yield      cohorts.jsonl  cohort metrics
+    state.json      target, in flight, yield   cohorts.jsonl  checkpoint rows
     _batches.jsonl  batches submitted          _scale.pid     the live process
     eval/           Stage B grids
 
@@ -225,8 +225,8 @@ def snapshot(run_dir: Path) -> dict:
         "target": state.get("target"),
         "items": len(items),
         "cohort": state.get("cohort", 0),
-        "pending": (state.get("pending") or {}).get("seeds") or [],
-        "yield_ema": state.get("yield_ema"),
+        "in_flight": state.get("in_flight") or [],
+        "run_yield": state.get("run_yield"),
         "seeds_consumed": len(state.get("consumed") or []),
         "cohorts": cohorts,
         "replay": replay,
@@ -284,12 +284,12 @@ def render(snap: dict) -> Panel:
     else:
         table.add_row("items", str(items))
 
-    cohort = f"cohort {snap['cohort']}"
-    if snap["pending"]:
-        cohort += f", {len(snap['pending'])} seeds pending"
-    if snap["yield_ema"] is not None:
-        cohort += f"   yield EMA {snap['yield_ema']:.2f}"
-    table.add_row("draw", f"{snap['seeds_consumed']} seeds consumed   {cohort}")
+    cohort = f"checkpoint {snap['cohort']}"
+    if snap["in_flight"]:
+        cohort += f", {len(snap['in_flight'])} seeds in flight"
+    if snap["run_yield"] is not None:
+        cohort += f"   run yield {snap['run_yield']:.2f}"
+    table.add_row("draw", f"{snap['seeds_consumed']} seeds drawn   {cohort}")
 
     if replay:
         reasons = "  ".join(f"{k} {v}" for k, v in sorted(replay["stop_reasons"].items()))

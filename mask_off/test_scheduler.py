@@ -98,7 +98,7 @@ def _seed(name: str) -> Seed:
 class Harness:
     """A scheduler plus the three side effects it is given, as lists."""
 
-    def __init__(self, *names):
+    def __init__(self, *names, refill=None):
         self.log, self.items, self.notes = [], [], []
         self.states = {n: SeedState(seed=_seed(n)) for n in names}
         self.scheduler = Scheduler(
@@ -106,6 +106,7 @@ class Harness:
             log=self.log.append,
             on_accept=lambda state, item: self.items.append(item),
             note=self.notes.append,
+            refill=refill,
         )
 
     def step(self, stage, respond):
@@ -270,6 +271,9 @@ class _AlwaysOffering:
 
     def __init__(self, offers: int = 6):
         self.offers, self.made, self.delivered = offers, 0, []
+
+    def top_up(self):
+        return 0
 
     def ready(self, stage):
         if stage not in (GENERATOR, VALIDITY) or self.made >= self.offers:
@@ -544,6 +548,62 @@ def test_drive_returns_only_when_every_seed_is_done(monkeypatch):
     drive(h.scheduler, submit)
     assert all(s.done and s.iteration == 3 for s in h.states.values())
     assert calls.count(GENERATOR) == 3, "one generator batch per wave, cohort-wide"
+
+
+def _accept_everything(work):
+    return {r["custom_id"]: message(
+        text=_review("accept") if "__vote" in r["custom_id"] else CLEAN
+    ) for r in work.requests}
+
+
+def test_a_refill_source_admits_seeds_mid_run_and_they_run_to_completion(
+    monkeypatch,
+):
+    """Ticket 12's seam on the real scheduler, not on a stand-in for it.
+
+    One slot. The refill source hands over the next seed only once the slot is
+    free, so the run is three seeds long and never holds two. Three things are
+    load-bearing here and each fails alone: `drive` must consult the source
+    every pass, `top_up` must ADMIT what it gets rather than only ask, and
+    `admit` must extend the seed set the scheduler already owns.
+    """
+    monkeypatch.setattr(config, "FROZEN_MAX_ITERATIONS", 1)
+    queue = [_seed("second"), _seed("third")]
+    asked = []
+
+    def refill(running):
+        asked.append([s.seed.name for s in running])
+        if running or not queue:
+            return []
+        return [queue.pop(0)]
+
+    h = Harness("first", refill=refill)
+    drive(h.scheduler, _accept_everything)
+
+    assert [item["seed_name"] for item in h.items] == ["first", "second", "third"]
+    assert [s.seed.name for s in h.scheduler.states] == [
+        "first", "second", "third"
+    ], "an admitted seed never joined the scheduler's set"
+    assert asked[0] == ["first"], "the source was not asked before anything finished"
+    assert [] in asked, "the source was never asked with a free slot"
+    assert all(s.done for s in h.scheduler.states)
+
+
+def test_run_counts_the_seeds_a_refill_source_admitted(
+    tmp_path, monkeypatch, transport
+):
+    """`run` launched one seed and finished two. Its report, its accepted list
+    and its yield all have to be over the set the scheduler ended with."""
+    monkeypatch.setattr(config, "FROZEN_MAX_ITERATIONS", 1)
+    transport.respond = lambda r: message(
+        text=_review("accept") if "__vote" in r["custom_id"] else CLEAN
+    )
+    queue = [_seed("second")]
+    accepted, _ = run(
+        1, tmp_path, tmp_path / "s", launch=[_seed("first")],
+        refill=lambda running: [] if running or not queue else [queue.pop(0)],
+    )
+    assert sorted(item["seed_name"] for item in accepted) == ["first", "second"]
 
 
 def _one_seed_run(tmp_path, name="seed_a"):

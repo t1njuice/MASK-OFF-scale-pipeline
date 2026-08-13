@@ -180,6 +180,11 @@ def accepted_seed_names(items_path: Path) -> set[tuple[str, str]]:
 # sharpest of them: a candidate that linted clean could not start its panel
 # round until every dirty sibling had been regenerated, though it needed
 # nothing from that call.
+#
+# Ticket 12 removed the last barrier above that one. The seed set is no longer
+# fixed at construction: a `refill` source is asked for more seeds once per
+# scheduling pass, so a seed that finishes is replaced without waiting for its
+# neighbours and a cohort is a checkpoint rather than a gate.
 
 GENERATOR, LINT, VALIDITY = "generator", "lint", "validity"
 
@@ -247,16 +252,54 @@ class Scheduler:
     Side effects are injected, not performed: `log` writes a run-log record,
     `on_accept(state, item)` persists an accepted item, `note` prints. That is
     what lets a test drive the whole policy with three lists.
+
+    `refill(running) -> iterable[Seed]` is the fourth injected side effect and
+    the one ticket 12 adds: consulted once per scheduling pass, it decides
+    whether more seeds should enter the run. Absent, the seed set is fixed at
+    construction and the scheduler behaves exactly as it did before.
     """
 
-    def __init__(self, states, log, on_accept=None, note=None):
+    def __init__(self, states, log, on_accept=None, note=None, refill=None):
         self.states = list(states)
         self._log = log
         self._on_accept = on_accept or (lambda state, item: None)
         self._note = note or (lambda text: None)
+        self._refill = refill
 
     def note(self, text: str) -> None:
         self._note(text)
+
+    # -- keeping a target number of seeds in flight -------------------------
+
+    def running(self) -> list[SeedState]:
+        """Seeds that have not finished. What a refill source sizes against."""
+        return [s for s in self.states if not s.done]
+
+    def admit(self, seeds) -> list[SeedState]:
+        """Put fresh seeds into the run, at the generator stage.
+
+        Refill, not restart: nothing already here is touched, and an admitted
+        seed rides the next batch of whatever stage it reaches rather than
+        waiting for a boundary. A seed that finishes is therefore replaced
+        without waiting for its neighbours — the whole point of ticket 12.
+
+        Done-state is not re-derived here. `run` seeds it from accepted.jsonl
+        for the launch set, and a refilled seed cannot already be accepted
+        because the draw excludes every seed the run has consumed.
+        """
+        added = [SeedState(seed=s) for s in seeds]
+        self.states.extend(added)
+        return added
+
+    def top_up(self) -> int:
+        """Ask the refill source for seeds and admit them; 0 without one.
+
+        Called on the main thread only, once per pass of `drive`, so the state
+        machine and the run state the callback writes both stay single-threaded.
+        """
+        if self._refill is None:
+            return 0
+        return len(self.admit(self._refill(self.running()) or ()))
 
     # -- question 1: what goes out now ------------------------------------
 
@@ -510,6 +553,11 @@ def drive(scheduler: Scheduler, submit) -> None:
     all. Results are folded back on THIS thread, one batch at a time, so the
     state machine stays single-threaded and its transitions stay ordered.
 
+    Every pass opens with `top_up`, before the stages are offered a slot and
+    before the empty-flight check. So a seed admitted by a refill source is
+    picked up in the same pass that freed the slot, and the run ends only when
+    the refill source has nothing left to give AND nothing is in flight.
+
     A stage runs in a copy of the calling context, deliberately. `run_batch_retry`
     reads the `batchcache.Policy` contextvar ONCE on its calling thread, and a
     worker thread starts from an EMPTY context: without the copy the stage
@@ -522,6 +570,7 @@ def drive(scheduler: Scheduler, submit) -> None:
     ) as pool:
         try:
             while True:
+                scheduler.top_up()
                 for stage in STAGES:
                     if stage in flight:
                         continue
@@ -552,22 +601,27 @@ def drive(scheduler: Scheduler, submit) -> None:
 
 def run(n: int, seeds_path: Path, out_stem: Path, launch=None,
         log_path: Path | None = None, items_path: Path | None = None,
-        resume: dict | None = None):
+        resume: dict | None = None, refill=None):
     """resume: {seed_name: state overrides} rebuilt from a prior run log
     (iteration/feedback/previous/done) so an interrupted run continues from
     its last paid round instead of re-billing it. Salvage path only — the
-    scale pipeline resumes via the batch cache instead (ADR-0001)."""
+    scale pipeline resumes via the batch cache instead (ADR-0001).
+
+    refill: `refill(running) -> iterable[Seed]`, consulted once per scheduling
+    pass (ticket 12). It owns the draw, the checkpoint and the stop conditions;
+    this function only admits what it hands over. Absent, `launch` is the whole
+    run and Stage A ends when that set is done."""
     launch = launch or select_seeds(n, seeds_path)
     log_path = log_path or out_stem.with_name(out_stem.name + "_run_log.jsonl")
     items_path = items_path or out_stem.with_name(out_stem.name + "_accepted.jsonl")
     out_stem.parent.mkdir(parents=True, exist_ok=True)
     done_names = accepted_seed_names(items_path)
     # Under `scale`, log_path is the run directory's shared log and already
-    # holds every earlier cohort. Take the total before this cohort writes so
-    # the closing line can report what THIS cohort spent as well as the run.
+    # holds every earlier invocation. Take the total before this one writes, so
+    # the closing line can report what THIS invocation spent as well as the run.
     # Read log_path itself, not its directory: a standalone run's log is not
     # named run_log.jsonl, so resolving by directory found nothing and reported
-    # a resumed run's whole spend as if this cohort had just bought it.
+    # a resumed run's whole spend as if this invocation had just bought it.
     spent_before = ledger.total(ledger.log_entries(log_path))
     log_f = open(log_path, "a", encoding="utf-8")
 
@@ -587,31 +641,34 @@ def run(n: int, seeds_path: Path, out_stem: Path, launch=None,
             f.write(json.dumps(item, ensure_ascii=False) + "\n")
 
     progress = batch_progress()
+    scheduler = Scheduler(
+        states,
+        log,
+        on_accept=keep,
+        note=lambda text: progress.console.print(text, markup=False),
+        refill=refill,
+    )
     with progress:
         def submit(work: Work) -> dict:
             return run_batch_retry(
                 work.requests, work.label, progress, refresh=set(work.refresh)
             )
 
-        drive(
-            Scheduler(
-                states,
-                log,
-                on_accept=keep,
-                note=lambda text: progress.console.print(text, markup=False),
-            ),
-            submit,
-        )
+        drive(scheduler, submit)
 
     log_f.close()
+    # Read the scheduler's list, not the local one: a refill source extends it
+    # in place, and the seeds it admitted are as much a part of this run as the
+    # ones it launched with.
+    states = scheduler.states
     accepted = [s.accepted_item for s in states if s.accepted_item]
     total = ledger.total(ledger.log_entries(log_path))
-    cohort_cost = total - spent_before
+    invocation_cost = total - spent_before
     print(
-        f"\n{len(states)} seeds run, {len(accepted)} accepted "
-        f"({len(accepted)/len(states):.0%} yield). "
-        f"Cost across routes: ${cohort_cost:.2f}"
-        + (f" this cohort, ${total:.2f} for the run" if spent_before else "")
+        f"\n{len(states)} seeds run, {len(accepted)} accepted"
+        + (f" ({len(accepted)/len(states):.0%} yield)." if states else ".")
+        + f" Cost across routes: ${invocation_cost:.2f}"
+        + (f" this invocation, ${total:.2f} for the run" if spent_before else "")
     )
     print(f"Accepted items: {items_path}\nRun log: {log_path}")
     return accepted, items_path

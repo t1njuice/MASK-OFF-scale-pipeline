@@ -244,21 +244,24 @@ def _funnel_panel(state, accepted, eval_rows) -> str:
 
 def _stage_a_panel(cohorts, log_rows) -> str:
     out = ["<h2>Stage A — generation</h2>",
-           '<p class="gloss">Stage A turns seeds into items. A <b>cohort</b> is '
-           'one checkpointed slice of seeds; inside a cohort, each generator '
-           '&rarr; validity round is a <b>wave</b> (wave N holds every '
-           'candidate on its Nth attempt). <b>Yield</b> is accepted items per '
-           'launched seed; <b>ema</b> is its exponential moving average, used '
-           'to size the next cohort.</p>']
+           '<p class="gloss">Stage A turns seeds into items, holding a target '
+           'number of seeds <b>in flight</b> and replacing each one as it '
+           'finishes. Each generator &rarr; validity round for one seed is a '
+           '<b>wave</b>. A <b>cohort</b> is a checkpoint, not a barrier: one '
+           'row below per moment a seed finished. <b>Run yield</b> is '
+           'cumulative — accepted items over every seed the run has finished '
+           'so far — and it is what sizes the next top-up.</p>']
     if cohorts:
         out.append(_table(
-            ["cohort", "launched", "accepted", "yield", "ema", "finished"],
-            [[c.get("cohort"), c.get("launched"), c.get("accepted"),
-              c.get("yield"), c.get("yield_ema"), c.get("ts", "")[:19]]
+            ["cohort", "drawn", "in flight", "finished", "accepted",
+             "run yield", "at"],
+            [[c.get("cohort"), c.get("drawn"), c.get("in_flight"),
+              c.get("finished"), c.get("accepted"), c.get("run_yield"),
+              c.get("ts", "")[:19]]
              for c in cohorts],
         ))
     else:
-        out.append('<p class="notyet">No cohorts recorded yet.</p>')
+        out.append('<p class="notyet">No checkpoints recorded yet.</p>')
 
     decisions = [r for r in log_rows if "votes" in r]
     errors = [r for r in log_rows if "error" in r]

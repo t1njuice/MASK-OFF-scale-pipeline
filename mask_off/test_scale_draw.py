@@ -1,5 +1,9 @@
 """Stage A draw, sizing, fingerprint, keepers, and replay checks. No API calls.
 
+Continuous refill — the target number of seeds in flight, the checkpoint, the
+cost ceiling, the resume contract, and the domain a naive refill starves —
+lives in test_refill.py, which is where `FakeStageA` comes from.
+
 Run: pytest mask_off/test_scale_draw.py
 """
 import dataclasses
@@ -10,6 +14,7 @@ import pytest
 
 from . import batchcache, config, llm, scale
 from .seeds import Seed, harm_class
+from .test_refill import FakeStageA
 
 
 def _seed(name, domain="safety"):
@@ -57,45 +62,18 @@ def test_draw_never_repeats_consumed_seeds():
     assert len(first) + len(second) == len(seeds)
 
 
-def test_cohort_size_adapts_and_clamps():
-    assert scale.cohort_size(1200, None) == config.COHORT_BASE
-    assert scale.cohort_size(3, None) == 3, "a small target must not launch COHORT_BASE"
-    assert scale.cohort_size(50, 0.5) == 100  # ceil(50 / 0.5)
-    assert scale.cohort_size(5, 0.9) == config.COHORT_MIN
-    assert scale.cohort_size(10_000, 0.1) == config.COHORT_MAX
-
-
-def test_quota_keeps_drawing_a_harsh_domain_and_reports_shortfall(
-    tmp_path, monkeypatch, capsys
-):
-    """DoD quota demo: one domain's gate rejects everything. That domain keeps
-    drawing until its pool is empty; the run ends with a reported shortfall."""
-    seeds = _corpus()
-    monkeypatch.setattr(scale, "load_seeds", lambda path: seeds)
-
-    def care_rejects_all(n, seeds_path, out_stem, launch=None, log_path=None,
-                        items_path=None):
-        with open(items_path, "a", encoding="utf-8") as f:
-            for s in launch:
-                if harm_class(s.text) != "care":
-                    f.write(json.dumps(
-                        {"seed_name": s.name, "seed_source": s.source}) + "\n")
-        return [], items_path
-
-    monkeypatch.setattr(scale.frozen_pipeline, "run", care_rejects_all)
-    run_dir = tmp_path / "run"
-    state = scale.generate(run_dir, tmp_path, target=12)
-    assert set(state["consumed"]) == {s.name for s in seeds}, \
-        "every pool, including the harsh domain's, must be fully drawn"
-    assert len(scale._accepted_items(run_dir)) == 8
-    out = capsys.readouterr().out
-    assert "shortfall" in out and "'care': 4" in out
+def test_the_taper_adapts_and_clamps():
+    assert scale.taper(1200, None) == config.COHORT_BASE
+    assert scale.taper(3, None) == 3, "a small target must not launch COHORT_BASE"
+    assert scale.taper(50, 0.5) == 100  # ceil(50 / 0.5)
+    assert scale.taper(5, 0.9) == config.COHORT_MIN
+    assert scale.taper(10_000, 0.1) == config.COHORT_MAX
 
 
 def _write_state(run_dir, fp):
     scale.save_state(run_dir, {
         "draw_seed": 7, "fingerprint": fp, "target": 10,
-        "consumed": [], "yield_ema": None, "cohort": 0, "pending": None,
+        "consumed": [], "in_flight": [], "run_yield": None, "cohort": 0,
     })
 
 
@@ -188,68 +166,10 @@ def test_seed_keepers_restricts_the_draw(tmp_path, monkeypatch):
     monkeypatch.setattr(scale, "load_seeds", lambda path: seeds)
     keepers = tmp_path / "keepers.json"
     keepers.write_text(json.dumps(["safety_0", "privacy_1"]))
-    launched = []
-
-    def fake_run(n, seeds_path, out_stem, launch=None, log_path=None, items_path=None):
-        launched.extend(s.name for s in launch)
-        with open(items_path, "a", encoding="utf-8") as f:
-            for s in launch:
-                f.write(json.dumps({"seed_name": s.name, "seed_source": s.source}) + "\n")
-        return [], items_path
-
-    monkeypatch.setattr(scale.frozen_pipeline, "run", fake_run)
-    run_dir = tmp_path / "run"
-    scale.generate(run_dir, tmp_path, target=2, seed_keepers=keepers)
-    assert sorted(launched) == ["privacy_1", "safety_0"]
-
-
-def test_resume_replays_the_recorded_pending_cohort(tmp_path, monkeypatch):
-    seeds = _corpus()
-    monkeypatch.setattr(scale, "load_seeds", lambda path: seeds)
-    run_dir = tmp_path / "run"
-    run_dir.mkdir()
-    _write_state(run_dir, scale.fingerprint(seeds))
-    state = scale.load_state(run_dir)
-    state["pending"] = {"cohort": 1, "seeds": ["care_2", "privacy_0"]}
-    scale.save_state(run_dir, state)
-    launches = []
-
-    def fake_run(n, seeds_path, out_stem, launch=None, log_path=None, items_path=None):
-        launches.append([s.name for s in launch])
-        with open(items_path, "a", encoding="utf-8") as f:
-            for s in launch:
-                f.write(json.dumps({"seed_name": s.name, "seed_source": s.source}) + "\n")
-        return [], items_path
-
-    monkeypatch.setattr(scale.frozen_pipeline, "run", fake_run)
-    scale.generate(run_dir, tmp_path, target=2)
-    assert launches[0] == ["care_2", "privacy_0"], "resume must not redraw"
-    assert scale.load_state(run_dir)["pending"] is None
-
-
-def test_max_cost_stops_at_the_cohort_boundary(tmp_path, monkeypatch, capsys):
-    """The ceiling stops BEFORE launching a new cohort; it never kills one
-    mid-flight (design.md §7.6)."""
-    seeds = _corpus()
-    monkeypatch.setattr(scale, "load_seeds", lambda path: seeds)
-    launches = []
-
-    def costly_run(n, seeds_path, out_stem, launch=None, log_path=None,
-                   items_path=None):
-        launches.append(len(launch))
-        with open(items_path, "a", encoding="utf-8") as f:
-            for s in launch[:1]:  # low yield forces a second cohort
-                f.write(json.dumps({"seed_name": s.name, "seed_source": s.source}) + "\n")
-        with open(log_path, "a", encoding="utf-8") as f:
-            for s in launch:  # $0.0125 of opus-4-8 batch output per seed
-                f.write(json.dumps({"seed_name": s.name, "usage": {"generator": {
-                    "model": "claude-opus-4-8", "output_tokens": 1000}}}) + "\n")
-        return [], items_path
-
-    monkeypatch.setattr(scale.frozen_pipeline, "run", costly_run)
-    scale.generate(tmp_path / "run", tmp_path, target=6, max_cost=0.01)
-    assert len(launches) == 1, "the second cohort must not launch over the ceiling"
-    assert "cost ceiling" in capsys.readouterr().out
+    fake = FakeStageA(lambda seed: True)
+    monkeypatch.setattr(scale.frozen_pipeline, "run", fake)
+    scale.generate(tmp_path / "run", tmp_path, target=2, seed_keepers=keepers)
+    assert sorted(n for a in fake.admitted for n in a) == ["privacy_1", "safety_0"]
 
 
 def test_fill_reruns_only_missing_and_empty_cells(tmp_path, transport):

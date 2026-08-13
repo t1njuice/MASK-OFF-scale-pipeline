@@ -263,19 +263,27 @@ draw and a flat quota look identical *until yield varies by domain*. The quota
 exists only for that case: a domain the validity gate treats harshly keeps
 drawing instead of being silently underrepresented.
 
-Cohort size adapts to observed yield:
+**Amended 2026-08-13 (ticket 12).** Cohorts stopped being slices of Stage A, so
+there is nothing left to average over and `yield_ema` was deleted. The seeds in
+flight are sized instead, from the cumulative run yield:
 
 ```python
 COHORT_BASE, COHORT_MIN, COHORT_MAX = 200, 25, 250
 
-size = COHORT_BASE if yield_ema is None \
-       else clamp(ceil(remaining / yield_ema), COHORT_MIN, COHORT_MAX)
+# scale.taper(remaining, run_yield)
+size = min(COHORT_BASE, remaining) if run_yield is None \
+       else clamp(ceil(remaining / run_yield), COHORT_MIN, COHORT_MAX)
 ```
 
-The first cohort has no observed yield, so it runs at `COHORT_BASE`. From the
-second onward, `yield_ema` is the exponential moving average of
-`accepted / launched` over completed cohorts, and is stored in `state.json` so
-resume does not restart the average.
+`run_yield` is accepted items over every seed the run has FINISHED so far,
+recomputed each scheduling pass and stored in `state.json`. Seeds still in
+flight are not in its denominator; they have not answered yet. Before any seed
+finishes there is no observed yield, so the run holds `COHORT_BASE` slots — or
+`--in-flight`, which is the ceiling `taper` is clamped against.
+
+The superseded rule read `size = COHORT_BASE if yield_ema is None else
+clamp(ceil(remaining / yield_ema), ...)`, where `yield_ema` was an exponential
+moving average of `accepted / launched` over completed cohorts.
 
 At 93% yield a fixed 200-seed cohort would overshoot 1200 by up to 186 items.
 Adaptive sizing bounds overshoot to one cohort, and no seed is launched that is
@@ -394,13 +402,24 @@ Mismatch aborts with a diff. `--force` proceeds and stamps the change into
 
 ### 7.6 Cost ceiling
 
-Cumulative cost lives in `state.json` and persists across invocations. Before
-launching each cohort, project its cost from the running per-seed average; if it
-would exceed `--max-cost`, stop cleanly and print what remains and what
-finishing would cost.
+Cumulative cost is read from the run log by `mask_off/ledger.py`. Before drawing
+new seeds, project their cost; if it would exceed `--max-cost`, stop drawing and
+print what remains and what finishing would cost.
 
-Checked at cohort boundaries only. Killing a cohort mid-flight would strand paid
-batches — the exact failure this whole design exists to prevent.
+**Amended 2026-08-13 (ticket 12).** This said "checked at cohort boundaries
+only", because killing a cohort mid-flight would strand paid batches. Cohorts
+are no longer barriers, so the rule is restated over the set of seeds in flight:
+the ceiling is read in `refill`, the one place seeds enter the run, and all it
+can do there is decline to draw. Every seed already in flight keeps its slot and
+finishes. Nothing is stranded, which is the guarantee the old wording protected.
+
+**`--max-cost` is a soft ceiling and cannot be otherwise.** A run finishes above
+it by whatever its in-flight seeds still owe when it trips. The projection
+counts that liability — spend, plus the remaining waves of the seeds in flight,
+plus the seeds a top-up would draw — so the ceiling trips early enough for the
+overshoot to be roughly one wave of the in-flight set rather than a multiple of
+the budget. It is not a hard bound. `FROZEN_MAX_ITERATIONS` × `--in-flight` is
+what actually bounds the worst case.
 
 ## 8. `mask_off/metrics.py`
 

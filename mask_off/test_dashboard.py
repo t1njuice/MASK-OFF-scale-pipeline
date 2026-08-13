@@ -26,8 +26,8 @@ def run_dir(tmp_path):
     _write(tmp_path / "run_log.jsonl", rows)
     _write(tmp_path / "accepted.jsonl", [r for r in rows if r.get("accepted")])
     (tmp_path / "state.json").write_text(json.dumps({
-        "target": 300, "cohort": 1, "consumed": ["a", "b"], "yield_ema": 0.737,
-        "pending": None,
+        "target": 300, "cohort": 1, "consumed": ["a", "b"], "run_yield": 0.737,
+        "in_flight": ["b"],
     }), encoding="utf-8")
     return tmp_path
 

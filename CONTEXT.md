@@ -98,14 +98,24 @@ an existing run directory resumes it.
 _Avoid_: output dir, workspace
 
 **Cohort**:
-One checkpointed slice of a stage — a fixed number of seeds in Stage A, a fixed
-number of items in Stage B. The interval at which state is written and metrics
-are recorded. Exists for durability and reporting, not for any modelling reason.
-_Avoid_: wave, chunk, batch, epoch
+A checkpoint: the moment state is written and metrics are recorded. In Stage B
+it still slices a fixed number of items. In Stage A it slices nothing — the
+run holds a target number of seeds in flight and replaces each as it finishes,
+so a cohort there is one row of metrics per moment a seed finished, and never
+something another seed waits behind. Exists for durability and reporting, not
+for any modelling reason.
+_Avoid_: wave, chunk, batch, epoch; and "cohort boundary" for anything that
+blocks
+
+**Seeds in flight**:
+How many seeds Stage A is working on at once — the slots it holds open,
+`--in-flight`, default `COHORT_BASE`. A finished seed frees its slot and the
+next draw fills it. This, not the cohort, is what sizes a Stage A batch.
+_Avoid_: cohort size, concurrency, parallelism
 
 **Wave**:
-One generator → validity round inside a Stage A cohort. Several waves occur per
-cohort because rejected candidates revise and resubmit. A wave's ordinal
+One generator → validity round for one seed. Several waves occur per seed
+because rejected candidates revise and resubmit. A wave's ordinal
 position within its seed is its *iteration*, and that word is kept for the
 ordinal alone — it is the field name every run log on disk already carries, so
 renaming it would strand the evidence logs. "Iteration cap" is the rule's name.
@@ -138,8 +148,20 @@ _Avoid_: utilisation, efficiency, fill rate
 **Quota**:
 The per-domain item target a stage draws against, so that a domain where the
 validity gate is harsh keeps drawing rather than being silently
-underrepresented.
+underrepresented. Under continuous refill the draw also carries a per-domain
+tally of seeds already drawn, and gives each free slot to the least-drawn
+below-quota domain — otherwise a stream of one-slot refills would hand every
+slot to the same domain and starve the rest.
 _Avoid_: budget, allocation
+
+**Run yield**:
+Accepted items over every seed the run has FINISHED so far — cumulative, over
+the whole run, from the same accepted set the quota counts. It is what sizes
+the next top-up. Seeds still in flight are not in its denominator; they have
+not answered yet. It replaced a per-cohort yield and its exponential moving
+average, which had nothing left to average over once cohorts stopped being
+slices.
+_Avoid_: cohort yield, yield EMA, acceptance rate
 
 **Batch cache**:
 The request-level result store keyed by request content. Makes any interrupted

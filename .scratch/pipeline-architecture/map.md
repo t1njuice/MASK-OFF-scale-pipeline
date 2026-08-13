@@ -282,6 +282,150 @@ write, $2.91 against $8.29 uncached. Do not spend a ticket there.
   a human rather than by an agent that cannot stay attached. It landed under
   ticket 07 for want of a ticket of its own.
 
+### Ticket 12
+
+- **12 closed.** Stage A holds `--in-flight` seeds (default `COHORT_BASE`) and
+  tops the set back up as seeds finish. `Scheduler` gained `refill` / `admit` /
+  `top_up` and `drive` consults the source once per pass, before it offers the
+  stages a slot and before its empty-flight check — so a seed admitted now is
+  picked up in the same pass that freed the slot. `scale.generate`'s whole
+  run-level policy is one closure, `refill`, and it is the only place seeds
+  enter the run, state is written, metrics are recorded, the yield is updated
+  and the ceiling is read. The `while True` cohort loop is gone; Stage A is one
+  call to `frozen_pipeline.run`.
+- **The ticket's "measure the tail first, then decide" gate was waived by the
+  user on 2026-08-13.** No tail measurement was taken between tickets 10 and
+  12. `stoprule.flight` computes occupancy in both regimes and is how the
+  before/after would be read if anyone wants it later.
+- **The replacement for per-cohort yield is CUMULATIVE RUN YIELD** (user
+  decision): accepted items over every seed the run has finished so far, read
+  from the same accepted set the quota counts. Not a rolling window, not
+  per-domain. **Its one weakness: it reacts slowly.** A gate that grows harsher
+  mid-run is diluted by every seed that finished under the old harshness, so
+  the projection that tapers the slot count lags reality. That was accepted as
+  the price of a figure that the last handful of seeds to land cannot knock
+  about. `yield_ema` and `EMA_ALPHA` are gone; `state.json` and `cohorts.jsonl`
+  carry `run_yield`.
+- **A one-seed-at-a-time refill is not a stratified draw, and the failure has a
+  shape.** The pre-ticket `draw` offered slots to below-quota domains in name
+  order, so a draw of size 1 was always the alphabetically first below-quota
+  domain. A domain whose gate is harsh never accepts, so its item count never
+  rises, so it never leaves the below-quota set — and it takes **every** refill
+  slot until its own pool empties. Every domain behind it in name order is
+  never attempted at all, and a run stops at its target or its ceiling long
+  before that. `draw` now takes a per-domain tally of seeds already drawn and
+  gives each slot to the least-drawn eligible domain. With every tally at zero
+  that IS the old round-robin, so a single large draw is bit-identical
+  (`test_one_large_draw_is_unchanged_by_the_tally`).
+- **`cohorts.jsonl` changed shape.** Rows are now
+  `{cohort, drawn, in_flight, finished, accepted, run_yield, ts}` and one is
+  written per moment a seed finished — not per scheduling pass, which would
+  make the file a poll log, and not per cohort, because there are none.
+  `dashboard.py` and `metrics.py` were updated with it; `state.json`'s
+  `pending` became `in_flight` and a pre-ticket directory migrates on load.
+- **All 18 mutations of the new code were caught, but only after six survived
+  the first pass.** Five of the six were survivable because every generate-level
+  test drove a fake Stage A that called `refill` itself, so `Scheduler.top_up`,
+  `Scheduler.admit` and `run`'s use of `scheduler.states` were never executed by
+  a test at all. A fake that stands in for the executor cannot cover the seam
+  between the executor and the thing it calls; that seam needs a test against
+  the real `Scheduler` and the real `drive`.
+- **The live drill was NOT run.** "3 seeds survive a kill mid-poll" costs real
+  API spend. `test_a_kill_mid_poll_replays_as_cache_hits_under_refill`
+  simulates it against the fake transport with the real scheduler, real
+  journal, real cache and real `drain_orphans`, and asserts that not one
+  generator request is re-submitted. That is a simulation, not the drill.
+
+## The resume contract, restated over in-flight seeds (ticket 12)
+
+ADR-0001 and the pending-cohort contract assumed one cohort was in flight at a
+time. Ticket 12 restates that invariant over a set of in-flight seeds rather
+than over a cohort. **This is a restatement of the invariant, not a change to
+the batch cache or the journal — ADR-0001 and ADR-0002 hold unaltered.**
+
+> The resume contract is restated over a set of in-flight seeds rather than
+> over a cohort. The no-stranded-batch guarantee is preserved: the cost ceiling
+> is checked only at a point where stopping strands nothing, and no in-flight
+> seed is abandoned to hit a ceiling.
+
+What makes it hold, mechanically:
+
+- `state.json` carries `in_flight`, the seed names that have not finished. It
+  is written **before** the seeds it names are handed over to be launched, so a
+  drawn seed is never live-but-unrecorded. A seed is added to `consumed` in the
+  same write, so the two can never disagree about what has been bought.
+- A resumed run relaunches exactly `in_flight` and nothing else. Those seeds
+  replay from the top; every request the provider already completed is a cache
+  hit (ADR-0001), and every journaled batch is drained before the fingerprint
+  gate (ADR-0002 §9/F6). Nothing is re-billed.
+- The cost ceiling is read in one place, `scale.generate`'s `refill`, and the
+  only thing it can do there is decline to draw. Seeds already in flight keep
+  their slots and finish. The old contract said "a pending cohort always
+  finishes, even past the ceiling"; the new one says "every in-flight seed
+  always finishes, even past the ceiling", and it is the same guarantee with
+  the cohort taken out of it.
+- The pool-exhausted notice waits until nothing is in flight, so the corpus it
+  reports is the final one.
+
+### Ticket 12's review, and what it changed (2026-08-13)
+
+- **The resume contract held. The cost ceiling did not.** The reviewer could
+  not break the no-stranded-batch guarantee — every mutation of it died, and
+  `save_state` before handover survives a crash in either direction without
+  stranding or double-billing. It found four money defects instead, three of
+  them in arithmetic no test touched.
+- **`--max-cost` overshot by up to 3x at the default `--in-flight 200`.** Two
+  causes. `per_seed = spent / len(consumed)` counted a seed that had bought one
+  wave of seven the same as a finished one, so the projection read low, worst
+  exactly mid-run. And the seeds already in flight — which by design keep their
+  slots and finish — were a committed liability counted nowhere. The ceiling now
+  prices the run by the WAVE, projects an in-flight seed's remaining waves from
+  what an average FINISHED seed bought, and adds that liability to the test.
+  Before any seed finishes it assumes the cap: knowing nothing, the expensive
+  guess is the safe one.
+- **`--max-cost` is a soft ceiling and cannot be otherwise**, because ticket 12
+  requires in-flight seeds to finish. The flag's help text said "read only where
+  stopping strands nothing", which reads as a bound. It now says what it does.
+  `FROZEN_MAX_ITERATIONS` x `--in-flight` is the real worst case.
+- **A resume whose target was already met relaunched every in-flight seed and
+  bought it a fresh wave.** The target check lived inside `refill`, which the
+  `or` only reached when nothing was in flight. Up to `--in-flight` seeds x 7
+  waves of pure waste on a resume that should have been a no-op. The target is
+  checked first now. This is the one case where declining to relaunch is not
+  abandonment: `drain_orphans` has already harvested those batches.
+- **`slots()` never returns 0.** `taper` floors at `COHORT_MIN`, so
+  `slots(0, 0.9, 4)` is 4. The target check in `refill` — not the taper — is
+  what stops a run whose target is met. The floor is deliberate; the docstring
+  claimed the opposite and now states it.
+- **`--in-flight 0` silently meant 200** (`in_flight or COHORT_BASE`), and
+  `--in-flight -1` made the run exit 0 having launched nothing, which reads as
+  a finished run. Both are refused now.
+- **Seven mutations, all caught**, in a sandbox copy so the working tree never
+  moved: the ceiling's `return`, the target check, the in-flight liability, the
+  per-seed denominator, the unconditional relaunch, the pre-ticket `consumed`
+  union, and the `--in-flight` `or`. The first four had no test at all before
+  this review. The union matters more than it looks: `draw` excludes `consumed`
+  and knows nothing about what is in flight, so `consumed` must be a superset
+  of the live set or the same seed enters the run twice — two identical
+  `{seed}__w1` ids in one batch, the collision ticket 06 calls impossible.
+- **`cohort_size` became `taper`.** Under refill it sizes the seeds in flight,
+  and "cohort size" is on that entry's `_Avoid_` list. Stage B's
+  `evaluate_corpus(cohort_size=...)` keeps the word: there a cohort really is a
+  slice of items. `frozen_pipeline`'s closing line reports an *invocation*, not
+  a cohort, and its variable is named for that now.
+- **`design.md` §7.1 and §7.6 were stale against shipped code** and are amended
+  in place, each marked with what it superseded: §7.1 documented `yield_ema` and
+  its EMA formula, both deleted; §7.6 said the ceiling is "checked at cohort
+  boundaries only", which was the old wording of the guarantee this ticket
+  restated over in-flight seeds.
+- **A fake standing in for the executor cannot cover the seam to it.** Ticket
+  12's own 18 mutations all died, and its author's claim was true as stated —
+  but every generate-level test drove a fake Stage A that called `refill`
+  itself, so `Scheduler.top_up`, `Scheduler.admit` and `run`'s use of
+  `scheduler.states` were never executed. Six of the author's own mutations
+  survived a first pass for exactly that reason, and all four of the reviewer's
+  survivors sat in the same blind spot. Test against the real scheduler.
+
 ## Not yet specified
 
 - Where the iteration cap belongs after the direction-lock fix. Ticket 09

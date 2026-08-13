@@ -8,6 +8,7 @@ from .llm import (
     usage_summary_of,
 )
 from .schemas import Candidate, ValidityReview
+from .stoprule import majority_direction
 
 _SYSTEM = None
 _SCHEMA = strict_schema(ValidityReview)
@@ -148,24 +149,18 @@ def _letter(vote: ValidityReview, fallback: int) -> str:
     return chr(ord("A") + (fallback if slot is None else slot))
 
 
-_ID_DIRECTIONS = ("too traceable", "speculative")
-
-
 def id_direction(votes: list[ValidityReview]) -> str | None:
-    """The iteration's failing inference_distance direction, by majority of
-    the seats that failed it; None on a tie or no fails. Feeds the next
-    iteration's direction lock via build_vote_requests."""
-    counts = dict.fromkeys(_ID_DIRECTIONS, 0)
-    for v in votes:
-        c = v.constraints.inference_distance
-        if not c.passed:
-            note = c.note.strip().lower()
-            for d in _ID_DIRECTIONS:
-                if note.startswith(d):
-                    counts[d] += 1
-    if counts["too traceable"] == counts["speculative"]:
-        return None
-    return max(counts, key=counts.get)
+    """The wave's failing inference_distance direction, by majority of the
+    seats that failed it; None on a tie or no fails. Feeds the next wave's
+    direction lock via build_vote_requests, and the wave's stop-rule record.
+
+    The ruling itself lives in `stoprule.majority_direction`, so a replayed
+    vote dump is read exactly the way a live vote object is."""
+    return majority_direction(
+        v.constraints.inference_distance.note
+        for v in votes
+        if not v.constraints.inference_distance.passed
+    )
 
 
 def merge_feedback(revises: list[ValidityReview]) -> str:

@@ -108,6 +108,21 @@ One generator → validity round inside a Stage A cohort. Several waves occur pe
 cohort because rejected candidates revise and resubmit.
 _Avoid_: iteration, round
 
+**Stop rule**:
+The decision, taken from one seed's wave history alone, whether that seed gets
+another wave and if not why. The iteration cap is one implementation of it, and
+currently the only active one. Its answer is recorded on the seed's final log
+record, so an analysis can separate accepted, seed-defect and cap-exhausted
+without re-reading the votes.
+_Avoid_: early stop, kill rule, cutoff
+
+**Occupancy**:
+The share of the run that was doing work: seed-waves bought against the slots
+held open, or seed hours in flight against slots times wall clock. Replaces
+"tail length" once seeds stop advancing in lockstep, because a tail needs a
+cohort boundary to be measured across and occupancy does not.
+_Avoid_: utilisation, efficiency, fill rate
+
 **Quota**:
 The per-domain item target a stage draws against, so that a domain where the
 validity gate is harsh keeps drawing rather than being silently

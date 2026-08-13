@@ -31,7 +31,7 @@ def test_a_missing_openai_key_is_a_price_gap_not_a_silent_reroute(monkeypatch):
 
 
 def test_locked_gate_configuration():
-    """The panel, the quorum and the cap match .scratch/gate-config-lock."""
+    """The panel and the quorum match .scratch/gate-config-lock."""
     assert config.VALIDITY_PANEL == [
         "moonshotai/kimi-k3",
         "x-ai/grok-4.5",
@@ -39,7 +39,9 @@ def test_locked_gate_configuration():
     ]
     assert config.VALIDITY_VOTES == 3
     assert config.VALIDITY_ACCEPT == 2
-    assert config.FROZEN_MAX_ITERATIONS == 10
+    # The cap now DIVERGES from the gate-config lock's 10 by user decision
+    # (2026-08-13); panel and quorum still match it.
+    assert config.FROZEN_MAX_ITERATIONS == 7
 
 
 def test_flex_model_also_needs_its_standard_fallback_pinned():

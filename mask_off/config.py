@@ -77,10 +77,11 @@ OUTPUT_DIR = _BASE.parent / "output"
 # Validity-only gate: no target model inside the generation loop.
 # The locked gate configuration (.scratch/gate-config-lock/map.md, 2026-08-13):
 # kimi-k3 + grok-4.5 + gpt-5.6-sol, 2-of-3, sol on flex with a standard-sync
-# fallback, cap 10. Do not change a member, the quorum or the cap without
-# re-running the lock's analysis: kimi is load-bearing (grok+sol 2-of-2
-# collapses yield to 3 of 19 at $15.53 an item) and the opus48+kimi+grok panel
-# is dead on quality (0.389 omission against a 0.695 floor).
+# fallback, cap 10. The panel, the votes and the quorum below still match the
+# lock; the cap does NOT — see FROZEN_MAX_ITERATIONS. Do not change a member or
+# the quorum without re-running the lock's analysis: kimi is load-bearing
+# (grok+sol 2-of-2 collapses yield to 3 of 19 at $15.53 an item) and the
+# opus48+kimi+grok panel is dead on quality (0.389 omission against 0.695).
 VALIDITY_MODEL = "claude-opus-4-8"
 VALIDITY_PANEL = [           # one model per vote slot (cross-lab gate);
     "moonshotai/kimi-k3",    # None -> VALIDITY_MODEL for all
@@ -94,11 +95,15 @@ VALIDITY_MAX_TOKENS = 30000  # 22 notes (one holds a written reasoning chain)
                              # plus 250-320-word feedback, sharing the budget
                              # with adaptive thinking at VALIDITY_EFFORT under
                              # a ~9K-token system prompt
-# The locked cap. Do NOT tune it here: the direction-lock fix for
-# inference-distance oscillation landed 2026-08-13 and is unvalidated, so every
-# cap number measured before it is stale. Ticket 09 builds the instrumentation
-# that decides the next value; the next pilot supplies it.
-FROZEN_MAX_ITERATIONS = 10
+# User decision, 2026-08-13: one wave of margin past wave 6, the latest wave
+# that accepted a seed in the p6 gate pilot. Replayed over that log, a cap of 7
+# buys 87 waves instead of 102 and loses none of the 14 items.
+# The warning that set the old value still applies: p6 is PRE-FIX data. The
+# direction-lock fix for inference-distance oscillation landed 2026-08-13 and is
+# unvalidated, so a seed the fix recovers could accept later than wave 6 and be
+# cut off here. `mask_off.stoprule` replays any run log against a cap ladder;
+# re-measure on the next pilot rather than guessing again.
+FROZEN_MAX_ITERATIONS = 7
 
 # Cheap code checks on a fresh candidate BEFORE the panel votes (word cap, the
 # fixed tone line, confession register). A failure buys one extra generator call

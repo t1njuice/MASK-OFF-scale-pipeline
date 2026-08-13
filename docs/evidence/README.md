@@ -42,6 +42,42 @@ Reproduce every figure above with:
 uv run python docs/evidence/summarize.py
 ```
 
+The same wave figures, per seed and with the stop reason each seed left on —
+`mask_off.stoprule` replays any run log through the stop rule, inferring the
+reason for logs written before the reason was recorded:
+
+```bash
+uv run python -m mask_off.stoprule docs/evidence/p6_gate_pilot_run_log.jsonl
+```
+
+That command also prints the cap ladder below and the occupancy figure. It
+reports what the log contains: p6 ran at a cap of 10, and its figures do not
+move when `config.FROZEN_MAX_ITERATIONS` changes.
+
+**What each cap would have cost this run.** Waves and dollars are what p6 would
+have spent under that cap; items lost are accepted items it would not have
+reached. Dollars carry the same caveat as `frozen_19` below — two seats predate
+the route field and price at zero, so every row is a floor, and the ratios
+between rows are the usable part.
+
+| Cap | Waves | Dollars | Items lost |
+| --- | --- | --- | --- |
+| 5 | 75 | 17.59 | 2 of 14 |
+| 6 | 82 | 19.18 | 0 |
+| **7** (configured) | 87 | 20.43 | 0 |
+| 10 (what p6 ran) | 102 | 23.85 | 0 |
+
+The window between free and expensive is one wave wide, and p6 is PRE-fix data:
+the direction-lock fix landed after it. A seed the fix recovers could accept
+later than wave 6, so this ladder is re-measured on the next pilot, not reused.
+
+**Occupancy — the cohort tail, in one number.** p6 bought 102 seed-waves
+against 19 slots held open for 10 rounds, so 54% of the slot time bought a
+wave. The other 46% is slots idling after their seed accepted, waiting on the
+cohort's 5 cap-burners. Ticket 12 removes the boundary this was measurable
+across; `stoprule.flight` computes it from per-seed enter/leave times instead,
+so it survives the change.
+
 ## `frozen_19_run_log.jsonl`
 
 Source: `output/frozen_19_gen-opus-4-8_gate-opus-4-8_seeds-e2e20_2026-08-06_151137Z_run_log.jsonl`

@@ -16,7 +16,7 @@ import sys
 import uuid
 from pathlib import Path
 
-from . import config
+from . import config, stoprule
 from .generator import build_gen_request, lint_candidate, parse_gen
 from .llm import batch_progress, run_batch_retry, usage_summary_of
 from .launch import preflight, run_timestamp, select_seeds
@@ -174,6 +174,8 @@ def run(n: int, seeds_path: Path, out_stem: Path, launch=None,
             "feedback": None,
             "previous": None,
             "id_dir": None,
+            "waves": [],  # this seed's history, the stop rule's whole input
+            "entered": None,  # when this seed took a slot; see stoprule.flight
             "done": (s.source, s.name) in done_names,
             "accepted_item": None,
         }
@@ -188,6 +190,10 @@ def run(n: int, seeds_path: Path, out_stem: Path, launch=None,
             active = [s for s in states if not s["done"]]
             for s in active:
                 s["iteration"] += 1
+                # Entering flight is dispatch, not the record that ends the
+                # wave: `ts` alone would date the seed's arrival one wave late
+                # and understate the idle share of every slot.
+                s["entered"] = s["entered"] or now_iso()
 
             gen_msgs = run_batch_retry(
                 [
@@ -216,19 +222,26 @@ def run(n: int, seeds_path: Path, out_stem: Path, launch=None,
                     total_cost += usage_cost(getattr(s["candidate"], "_llm_usage", {}) or {})
                     ready.append(s)
                 except Exception as e:  # noqa: BLE001
-                    log(
-                        {
-                            "seed_name": s["seed"].name,
-                            "iteration": s["iteration"],
-                            "stage": "generator",
-                            "error": repr(e),
-                            "stop_reason": getattr(msg, "stop_reason", None),
-                            "usage": usage_summary_of(msg) if msg else {},
-                            "ts": now_iso(),
-                        }
+                    # A wave that never reached the panel is still a wave the
+                    # seed spent, so the stop rule sees it like any other.
+                    s["waves"].append(
+                        stoprule.Wave(s["iteration"], stage="generator")
                     )
-                    if s["iteration"] >= config.FROZEN_MAX_ITERATIONS:
+                    rec = {
+                        "seed_name": s["seed"].name,
+                        "iteration": s["iteration"],
+                        "stage": "generator",
+                        "error": repr(e),
+                        "stop_reason": getattr(msg, "stop_reason", None),
+                        "usage": usage_summary_of(msg) if msg else {},
+                        "entered": s["entered"],
+                        "ts": now_iso(),
+                    }
+                    verdict = stoprule.decide(s["waves"])
+                    if verdict.stop:
                         s["done"] = True
+                        rec["stopped"] = verdict.reason
+                    log(rec)
 
             if config.GENERATOR_LINT:
                 total_cost += lint_pass(ready, progress, log)
@@ -257,22 +270,37 @@ def run(n: int, seeds_path: Path, out_stem: Path, launch=None,
                     except Exception as e:  # noqa: BLE001
                         vote_errors.append(repr(e))
                 if not votes:
-                    log(
-                        {
-                            "seed_name": s["seed"].name,
-                            "iteration": s["iteration"],
-                            "stage": "validity",
-                            "error": "; ".join(vote_errors),
-                            "ts": now_iso(),
-                        }
-                    )
-                    if s["iteration"] >= config.FROZEN_MAX_ITERATIONS:
+                    s["waves"].append(stoprule.Wave(s["iteration"], stage="validity"))
+                    rec = {
+                        "seed_name": s["seed"].name,
+                        "iteration": s["iteration"],
+                        "stage": "validity",
+                        "error": "; ".join(vote_errors),
+                        "entered": s["entered"],
+                        "ts": now_iso(),
+                    }
+                    verdict = stoprule.decide(s["waves"])
+                    if verdict.stop:
                         s["done"] = True
+                        rec["stopped"] = verdict.reason
+                    log(rec)
                     continue
                 decision = tally(votes)
+                carried_dir = s["id_dir"]  # the ruling the direction lock applied
                 s["id_dir"] = id_direction(votes)
                 if len(votes) < config.VALIDITY_VOTES:
                     decision["short_votes"] = True
+                s["waves"].append(
+                    stoprule.Wave(
+                        iteration=s["iteration"],
+                        accepted=decision["accepted"],
+                        seed_defect=decision["seed_defect"],
+                        failed=stoprule.failed_union(vote_dumps),
+                        id_dir=s["id_dir"],
+                        id_dir_in=carried_dir,
+                    )
+                )
+                verdict = stoprule.decide(s["waves"])
                 rec = {
                     "seed_name": s["seed"].name,
                     "seed_source": s["seed"].source,
@@ -281,16 +309,20 @@ def run(n: int, seeds_path: Path, out_stem: Path, launch=None,
                     "votes": vote_dumps,
                     "vote_errors": vote_errors,
                     **decision,
+                    "stop_rule": stoprule.instrument(s["waves"]),
                     "generator_model": config.GENERATOR_MODEL,
                     "validity_model": config.VALIDITY_PANEL or config.VALIDITY_MODEL,
                     "usage": {
                         "generator": getattr(s["candidate"], "_llm_usage", {}) or {},
                         "votes": [getattr(v, "_llm_usage", {}) or {} for v in votes],
                     },
+                    "entered": s["entered"],
                     "ts": now_iso(),
                 }
+                if verdict.stop:
+                    rec["stopped"] = verdict.reason
                 log(rec)
-                if decision["accepted"]:
+                if verdict.reason == stoprule.ACCEPTED:
                     item = {
                         "result_id": f"maskoff-{uuid.uuid4().hex[:12]}",
                         "seed_name": s["seed"].name,
@@ -307,11 +339,11 @@ def run(n: int, seeds_path: Path, out_stem: Path, launch=None,
                         f"{decision['n_accept']}/{decision['n_votes']} votes)",
                         markup=False,
                     )
-                elif decision["seed_defect"] or s["iteration"] >= config.FROZEN_MAX_ITERATIONS:
+                elif verdict.stop:
                     s["done"] = True
                     progress.console.print(
                         f"exhausted {s['seed'].name}"
-                        + (" (seed defect)" if decision["seed_defect"] else ""),
+                        + (" (seed defect)" if verdict.reason == stoprule.SEED_DEFECT else ""),
                         markup=False,
                     )
                 else:

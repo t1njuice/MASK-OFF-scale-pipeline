@@ -1,0 +1,316 @@
+[drain] WARNING: intent 'Validity gate' has 6 custom_ids with no journaled handle and no cached result — a submit may have been billed but lost pre-journal
+[batchcache] Generator: 3 hits, 0 misses
+[batchcache] Validity gate: 0 hits, 9 misses
+[batchcache] Generator: 0 hits, 3 misses
+[batchcache] Validity gate: 0 hits, 9 misses
+openrouter cand-deferred_action_packet__vote2 failed: x-ai/grok-4.5 failed after
+3 attempts: HTTPStatusError("Client error '403 Forbidden' for url 
+'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-hospital_tray_mislabel__vote2 failed: x-ai/grok-4.5 failed after
+3 attempts: HTTPStatusError("Client error '403 Forbidden' for url 
+'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-family_app_location_reset__vote2 failed: x-ai/grok-4.5 failed 
+after 3 attempts: HTTPStatusError("Client error '403 Forbidden' for url 
+'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-hospital_tray_mislabel__vote2 failed: x-ai/grok-4.5 failed after
+3 attempts: HTTPStatusError("Client error '403 Forbidden' for url 
+'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-family_app_location_reset__vote2 failed: x-ai/grok-4.5 failed 
+after 3 attempts: HTTPStatusError("Client error '403 Forbidden' for url 
+'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-deferred_action_packet__vote2 failed: x-ai/grok-4.5 failed after
+3 attempts: HTTPStatusError("Client error '403 Forbidden' for url 
+'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+[batchcache] Validity gate (resubmit 1): 0 hits, 3 misses
+openrouter cand-deferred_action_packet__vote2 failed: x-ai/grok-4.5 failed after
+3 attempts: HTTPStatusError("Client error '403 Forbidden' for url 
+'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-family_app_location_reset__vote2 failed: x-ai/grok-4.5 failed 
+after 3 attempts: HTTPStatusError("Client error '403 Forbidden' for url 
+'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-hospital_tray_mislabel__vote2 failed: x-ai/grok-4.5 failed after
+3 attempts: HTTPStatusError("Client error '403 Forbidden' for url 
+'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-family_app_location_reset__vote2 failed: x-ai/grok-4.5 failed 
+after 3 attempts: HTTPStatusError("Client error '403 Forbidden' for url 
+'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-hospital_tray_mislabel__vote2 failed: x-ai/grok-4.5 failed after
+3 attempts: HTTPStatusError("Client error '403 Forbidden' for url 
+'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-deferred_action_packet__vote2 failed: x-ai/grok-4.5 failed after
+3 attempts: HTTPStatusError("Client error '403 Forbidden' for url 
+'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+[batchcache] Validity gate (resubmit 2): 0 hits, 3 misses
+openrouter cand-family_app_location_reset__vote2 failed: x-ai/grok-4.5 failed 
+after 3 attempts: HTTPStatusError("Client error '403 Forbidden' for url 
+'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-deferred_action_packet__vote2 failed: x-ai/grok-4.5 failed after
+3 attempts: HTTPStatusError("Client error '403 Forbidden' for url 
+'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-hospital_tray_mislabel__vote2 failed: x-ai/grok-4.5 failed after
+3 attempts: HTTPStatusError("Client error '403 Forbidden' for url 
+'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-hospital_tray_mislabel__vote2 failed: x-ai/grok-4.5 failed after
+3 attempts: HTTPStatusError("Client error '403 Forbidden' for url 
+'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-family_app_location_reset__vote2 failed: x-ai/grok-4.5 failed 
+after 3 attempts: HTTPStatusError("Client error '403 Forbidden' for url 
+'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-deferred_action_packet__vote2 failed: x-ai/grok-4.5 failed after
+3 attempts: HTTPStatusError("Client error '403 Forbidden' for url 
+'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+[batchcache] Validity gate (resubmit 3): 0 hits, 3 misses
+openrouter cand-family_app_location_reset__vote2 failed: x-ai/grok-4.5 failed 
+after 3 attempts: HTTPStatusError("Client error '403 Forbidden' for url 
+'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-hospital_tray_mislabel__vote2 failed: x-ai/grok-4.5 failed after
+3 attempts: HTTPStatusError("Client error '403 Forbidden' for url 
+'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-deferred_action_packet__vote2 failed: x-ai/grok-4.5 failed after
+3 attempts: HTTPStatusError("Client error '403 Forbidden' for url 
+'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-hospital_tray_mislabel__vote2 failed: x-ai/grok-4.5 failed after
+3 attempts: HTTPStatusError("Client error '403 Forbidden' for url 
+'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-family_app_location_reset__vote2 failed: x-ai/grok-4.5 failed 
+after 3 attempts: HTTPStatusError("Client error '403 Forbidden' for url 
+'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-deferred_action_packet__vote2 failed: x-ai/grok-4.5 failed after
+3 attempts: HTTPStatusError("Client error '403 Forbidden' for url 
+'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+accepted deferred_action_packet (iter 2, 2/2 votes)
+[batchcache] Generator: 0 hits, 2 misses
+[batchcache] Validity gate: 0 hits, 6 misses
+openrouter cand-hospital_tray_mislabel__vote2 failed: x-ai/grok-4.5 failed after
+3 attempts: HTTPStatusError("Client error '403 Forbidden' for url 
+'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-family_app_location_reset__vote2 failed: x-ai/grok-4.5 failed 
+after 3 attempts: HTTPStatusError("Client error '403 Forbidden' for url 
+'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-family_app_location_reset__vote2 failed: x-ai/grok-4.5 failed 
+after 3 attempts: HTTPStatusError("Client error '403 Forbidden' for url 
+'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-hospital_tray_mislabel__vote2 failed: x-ai/grok-4.5 failed after
+3 attempts: HTTPStatusError("Client error '403 Forbidden' for url 
+'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+[batchcache] Validity gate (resubmit 1): 0 hits, 2 misses
+openrouter cand-family_app_location_reset__vote2 failed: x-ai/grok-4.5 failed 
+after 3 attempts: HTTPStatusError("Client error '403 Forbidden' for url 
+'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-hospital_tray_mislabel__vote2 failed: x-ai/grok-4.5 failed after
+3 attempts: HTTPStatusError("Client error '403 Forbidden' for url 
+'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-family_app_location_reset__vote2 failed: x-ai/grok-4.5 failed 
+after 3 attempts: HTTPStatusError("Client error '403 Forbidden' for url 
+'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-hospital_tray_mislabel__vote2 failed: x-ai/grok-4.5 failed after
+3 attempts: HTTPStatusError("Client error '403 Forbidden' for url 
+'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+[batchcache] Validity gate (resubmit 2): 0 hits, 2 misses
+openrouter cand-family_app_location_reset__vote2 failed: x-ai/grok-4.5 failed 
+after 3 attempts: HTTPStatusError("Client error '403 Forbidden' for url 
+'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-hospital_tray_mislabel__vote2 failed: x-ai/grok-4.5 failed after
+3 attempts: HTTPStatusError("Client error '403 Forbidden' for url 
+'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-hospital_tray_mislabel__vote2 failed: x-ai/grok-4.5 failed after
+3 attempts: HTTPStatusError("Client error '403 Forbidden' for url 
+'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-family_app_location_reset__vote2 failed: x-ai/grok-4.5 failed 
+after 3 attempts: HTTPStatusError("Client error '403 Forbidden' for url 
+'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+[batchcache] Validity gate (resubmit 3): 0 hits, 2 misses
+openrouter cand-hospital_tray_mislabel__vote2 failed: x-ai/grok-4.5 failed after
+3 attempts: HTTPStatusError("Client error '403 Forbidden' for url 
+'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-family_app_location_reset__vote2 failed: x-ai/grok-4.5 failed 
+after 3 attempts: HTTPStatusError("Client error '403 Forbidden' for url 
+'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-family_app_location_reset__vote2 failed: x-ai/grok-4.5 failed 
+after 3 attempts: HTTPStatusError("Client error '403 Forbidden' for url 
+'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-hospital_tray_mislabel__vote2 failed: x-ai/grok-4.5 failed after
+3 attempts: HTTPStatusError("Client error '403 Forbidden' for url 
+'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+accepted hospital_tray_mislabel (iter 3, 2/2 votes)
+[batchcache] Generator: 0 hits, 1 misses
+[batchcache] Validity gate: 0 hits, 3 misses
+openrouter cand-family_app_location_reset__vote2 failed: x-ai/grok-4.5 failed 
+after 3 attempts: HTTPStatusError("Client error '403 Forbidden' for url 
+'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+accepted family_app_location_reset (iter 4, 2/3 votes)
+
+
+3 seeds run, 3 accepted (100% yield). Estimated Anthropic batch cost: $4.47
+Accepted items: output/scale_drill/accepted.jsonl
+Run log: output/scale_drill/run_log.jsonl
+
+Stage A: 3 items accepted (target 3, 1 cohorts).
+Accepted items: output/scale_drill/accepted.jsonl
+Run state:      output/scale_drill/state.json
+Cohort metrics: output/scale_drill/cohorts.jsonl
+Run log:        output/scale_drill/run_log.jsonl

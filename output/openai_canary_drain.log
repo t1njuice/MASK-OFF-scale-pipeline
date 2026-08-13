@@ -1,0 +1,5 @@
+[drain] folded 2 orphaned results into the cache
+folded 2
+[batchcache] openai canary (replay): 2 hits, 0 misses
+canary-0 -> '0' | usage model: openai/gpt-5.6-sol cached
+canary-1 -> '1' | usage model: openai/gpt-5.6-sol cached

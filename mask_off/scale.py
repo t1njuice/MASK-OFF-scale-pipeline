@@ -382,7 +382,7 @@ def main():
                    help="replay and re-run empty or missing cells only")
     args = p.parse_args()
 
-    from .pipeline import preflight
+    from .launch import preflight
 
     if not preflight():
         sys.exit(1)

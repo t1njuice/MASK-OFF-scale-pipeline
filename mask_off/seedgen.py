@@ -486,7 +486,7 @@ def main():
     )
 
     args = p.parse_args()
-    from .pipeline import preflight
+    from .launch import preflight
 
     if not preflight():
         sys.exit(1)
@@ -503,7 +503,7 @@ def main():
     else:
         if args.generator_prompt:
             config.FROZEN_GENERATOR_PROMPT = args.generator_prompt
-        from .pipeline import run_timestamp
+        from .launch import run_timestamp
 
         stem = config.OUTPUT_DIR / (
             f"seedscreen_{args.seeds.name}"

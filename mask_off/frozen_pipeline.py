@@ -19,7 +19,7 @@ from pathlib import Path
 from . import config
 from .generator import build_gen_request, lint_candidate, parse_gen
 from .llm import batch_progress, run_batch_retry, usage_summary_of
-from .pipeline import preflight, run_timestamp, select_seeds
+from .launch import preflight, run_timestamp, select_seeds
 from .seeds import load_seeds, source_name
 from .validity import build_vote_requests, id_direction, parse_vote, tally
 

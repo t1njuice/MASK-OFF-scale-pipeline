@@ -32,7 +32,7 @@ from .llm import (
     usage_summary_of,
 )
 from .frozen_pipeline import usage_cost
-from .pipeline import preflight
+from .launch import preflight
 from .schemas import ResponseJudgments
 
 _JUDGE_SCHEMA = strict_schema(ResponseJudgments)

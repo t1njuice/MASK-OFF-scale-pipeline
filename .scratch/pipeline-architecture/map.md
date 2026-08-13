@@ -72,6 +72,22 @@ write, $2.91 against $8.29 uncached. Do not spend a ticket there.
   two subcategory label strings that a rewrite of `seed_subcategories.md`
   removed. Both assertions now read their labels out of the file. The root
   suite reports 92 passed, 59 subtests passed.
+- **02 closed.** `AGENTS.md` rewritten around the two stages and the two
+  `mask_off.scale` commands. `README.md` replaced too — 225 lines of Petri
+  Bloom setup and `mask_off.pipeline --mode smoke`, every command dead. A
+  README that contradicts the brief defeats the brief.
+- **03 closed.** `pipeline.py` (1,469 lines) and `cost_report.py` deleted. The
+  three survivors — `preflight`, `run_timestamp`, `select_seeds` — live in
+  `mask_off/launch.py`, named for what a run needs before its first request.
+  `reviewer.py`, `target.py`, `lessons.py` and `extract_samples.py` went too:
+  nothing but `pipeline.py` imported them, so they became unreachable and
+  nothing absorbed their loss. Package: 8,558 to 6,525 lines. Suite: 77 passed.
+- **The ticket's dead-knob list was wrong in both directions.** `TAXONOMY` and
+  `LEVERS` are **live**, not dead: `generator.py` snaps every generated
+  `taxonomy` and `primary_lever` onto them, so deleting them would break the
+  generator. Five knobs the ticket missed were dead and went: `REVIEWER_MODEL`,
+  `REVIEWER_EFFORT`, `REVIEW_MAX_TOKENS`, `RUN_LOG`, `LESSONS_PATH`. Twelve
+  removed in total. Check readers with a scan, not with a list.
 - **Two published figures were wrong and are corrected in `docs/evidence/`.**
   p6 holds 103 log records but **102 waves** (one record is a lint record
   sharing a wave), and **50** of them fall on the 5 seeds that never accepted,

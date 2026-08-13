@@ -32,6 +32,36 @@ def now_iso() -> str:
     return datetime.datetime.now(datetime.timezone.utc).isoformat()
 
 
+def wave_id(seed_name: str, iteration: int) -> str:
+    """The Stage A request identifier for one **wave** of one seed.
+
+    A wave is one generator -> validity round for one seed (CONTEXT.md). The
+    wave number is part of the id, and every id derived from it — the lint
+    regeneration `{wave_id}__lint`, the panel votes `{wave_id}__vote{i}` —
+    inherits it, so no request of one wave can be read as a request of another.
+
+    Why the id and not some outer scope: the batch cache keys on
+    sha256(custom_id + canonical params) (ADR-0001), and a revision wave whose
+    params happen to match its predecessor's would otherwise collide with it.
+    The lockstep loop hides that today by running exactly one wave per seed at
+    a time; it is a precondition, not a property of the identifier.
+
+    The wave marker is paid for by dropping the old `cand-` prefix, not added
+    on top of it. Anthropic caps a custom_id at 64 characters — documented as
+    `^[a-zA-Z0-9_-]{1,64}$`, and Stage A's generator and lint requests always
+    take `anthropic_batch` — while a seed name may be 49, which left ten
+    characters for every suffix Stage A appends. OpenAI publishes no
+    custom_id length that could be verified; it does not bind today, because
+    no Stage A request routes through `openai_batch` under the locked gate.
+    Re-check it if one ever does.
+    `cand-` carried no information — every Stage A request is a candidate's —
+    and a bare seed name cannot collide with a Stage B id in the same run
+    directory, because those are built from `maskoff-<hex>` result ids and a
+    seed name admits no hyphen. See the id-budget test in test_frozen_votes.py.
+    """
+    return f"{seed_name}__w{iteration}"
+
+
 def resubmit_votes(vote_reqs: list[dict], vote_msgs: dict, progress) -> dict:
     """Bounded resubmission (<=3 passes) of missing or unparseable vote slots.
 
@@ -87,10 +117,11 @@ def lint_pass(ready: list[dict], progress, log) -> float:
         return 0.0
 
     # Distinct custom_id: reusing the round's id would let the batch cache serve
-    # the linted draft straight back as its own replacement.
+    # the linted draft straight back as its own replacement. `cid` is already
+    # wave-scoped (see wave_id), so the suffix names the kind and nothing else.
     reqs = [
         build_gen_request(
-            f"{s['cid']}__lint{s['iteration']}",
+            f"{s['cid']}__lint",
             s["seed"].text,
             [],
             "PRE-GATE LINT — a mechanical check on your draft failed before the "
@@ -106,7 +137,7 @@ def lint_pass(ready: list[dict], progress, log) -> float:
 
     cost = 0.0
     for s, text in flagged:
-        msg = msgs.get(f"{s['cid']}__lint{s['iteration']}")
+        msg = msgs.get(f"{s['cid']}__lint")
         rec = {
             "seed_name": s["seed"].name,
             "iteration": s["iteration"],
@@ -169,7 +200,7 @@ def run(n: int, seeds_path: Path, out_stem: Path, launch=None,
     states = [
         {
             "seed": s,
-            "cid": f"cand-{s.name}",
+            "cid": None,  # set per wave below; see wave_id
             "iteration": 0,
             "feedback": None,
             "previous": None,
@@ -190,6 +221,7 @@ def run(n: int, seeds_path: Path, out_stem: Path, launch=None,
             active = [s for s in states if not s["done"]]
             for s in active:
                 s["iteration"] += 1
+                s["cid"] = wave_id(s["seed"].name, s["iteration"])
                 # Entering flight is dispatch, not the record that ends the
                 # wave: `ts` alone would date the seed's arrival one wave late
                 # and understate the idle share of every slot.

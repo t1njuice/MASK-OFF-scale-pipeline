@@ -10,7 +10,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from . import config
-from .frozen_pipeline import lint_pass, resubmit_votes
+from .frozen_pipeline import lint_pass, resubmit_votes, wave_id
 from .generator import lint_candidate
 from .schemas import Candidate, ConstraintCheck, ValidityConstraints, ValidityReview
 from .validity import build_vote_requests, id_direction, merge_feedback, parse_vote, tally
@@ -170,7 +170,7 @@ def test_confession_scan_is_conservative():
 def _state(system_prompt, name="00_seed", iteration=1):
     return {
         "seed": SimpleNamespace(name=name, source="e2e20", text="SEED"),
-        "cid": f"cand-{name}",
+        "cid": wave_id(name, iteration),
         "iteration": iteration,
         "candidate": _cand(system_prompt),
     }
@@ -189,7 +189,10 @@ def test_lint_pass_regenerates_only_the_dirty_draft_once():
         lint_pass([clean, dirty], progress=None, log=logged.append)
 
     # exactly one regeneration, for the dirty seed only, under its own custom_id
-    assert sent == [["cand-01_long__lint1"]]
+    # — distinct from the wave's own id, so the cache cannot serve the linted
+    # draft back as its own replacement
+    assert sent == [["01_long__w1__lint"]]
+    assert sent[0][0] != dirty["cid"]
     assert clean["candidate"].system_prompt.startswith("word"), "clean draft untouched"
     assert lint_candidate(dirty["candidate"]) == "", "dirty draft replaced by a clean one"
     assert [r["seed_name"] for r in logged] == ["01_long"]
@@ -243,6 +246,68 @@ def test_resubmit_votes_refills_missing_and_unparseable_then_stops():
     with patch("mask_off.frozen_pipeline.run_batch_retry", never_recovers):
         resubmit_votes(_reqs(2), {}, progress=None)
     assert len(calls) == 3
+
+
+def test_two_waves_of_one_seed_produce_disjoint_request_ids(
+    tmp_path, monkeypatch, transport
+):
+    """Every Stage A id names the wave it belongs to (ticket 06).
+
+    A **wave** is one generator -> validity round for one seed (CONTEXT.md).
+    All three request kinds are covered here: the generator draft, the pre-gate
+    lint regeneration, and each panel vote. Two waves of one seed must share no
+    identifier, because the batch cache keys on the custom id plus the params
+    (ADR-0001) and wave 2's params can be identical to wave 1's.
+    """
+    from .conftest import message
+    from .frozen_pipeline import run
+    from .seeds import Seed
+
+    monkeypatch.setattr(config, "FROZEN_MAX_ITERATIONS", 2)  # two waves, then stop
+    dirty = _cand("word " * 240 + TONE).model_dump_json()  # over the lint's ceiling
+    clean = _cand("word " * 100 + TONE).model_dump_json()
+
+    def respond(request):
+        cid = request["custom_id"]
+        if "__vote" in cid:
+            return message(text=_vote(verdict="revise").model_dump_json())
+        return message(text=clean if "__lint" in cid else dirty)
+
+    transport.respond = respond
+    run(1, tmp_path, tmp_path / "s",
+        launch=[Seed(name="seed_a", text="a seed", source="t")])
+
+    sent = [cid for call in transport.calls for cid in call]
+    first = {cid for cid in sent if "__w1" in cid}
+    second = {cid for cid in sent if "__w2" in cid}
+    assert set(sent) == first | second, "an id that names no wave"
+    assert not first & second, "two waves of one seed shared an identifier"
+    # the same three request kinds in each wave, differing only in the wave
+    assert {cid.replace("__w1", "__wN") for cid in first} == {
+        "seed_a__wN",          # the generator draft
+        "seed_a__wN__lint",    # its regeneration, under its own id
+        *(f"seed_a__wN__vote{i}" for i in range(config.VALIDITY_VOTES)),
+    }
+    assert {cid.replace("__w1", "__wN") for cid in first} == {
+        cid.replace("__w2", "__wN") for cid in second
+    }
+
+
+def test_the_longest_legal_stage_a_id_fits_the_provider_cap():
+    """A custom_id is capped at 64 characters by both batch APIs.
+
+    `seeds.load_seeds` admits a 49-character seed name, so the suffix budget is
+    15 characters and the wave marker spends part of it. The generator and the
+    lint regeneration go to the Anthropic Batch API, which rejects an over-long
+    id outright; a vote only escapes today because the locked panel routes to
+    flex and OpenRouter, where the id never leaves the process. Do not spend
+    the slack without re-checking this.
+    """
+    longest = "s" * 49  # the longest name seeds.load_seeds accepts
+    cid = wave_id(longest, 99)  # two digits of wave, well past any live cap
+    for ident in (cid, f"{cid}__lint",
+                  *(f"{cid}__vote{i}" for i in range(config.VALIDITY_VOTES))):
+        assert len(ident) <= 64, f"{ident} is {len(ident)} chars"
 
 
 def _id_vote(prefix=None):

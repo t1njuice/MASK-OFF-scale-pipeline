@@ -272,3 +272,48 @@ def test_unparseable_cached_vote_is_resubmitted_via_refresh(tmp_path, transport)
         assert submitted == [], "the bad vote is a cache hit on the first pass"
         resubmit_votes([req], first, progress=None)
     assert len(submitted) == 3, "refresh must force real resubmission, 3 passes"
+
+
+def test_resubmission_supersedes_the_cached_row_under_one_key(tmp_path, transport):
+    """Wave-scoped ids must not become per-attempt ids (ticket 06).
+
+    Resubmission reuses the vote's identifier and passes a `refresh` set, so
+    each attempt lands on the SAME cache key and supersedes the stale row
+    (latest-wins, ADR-0002 §9/F1 rule 3). An id made unique per attempt would
+    leave a second key behind and the supersession would silently stop working.
+    """
+    from types import SimpleNamespace
+
+    from .frozen_pipeline import resubmit_votes
+
+    batchcache._CACHES.clear()
+
+    def unparseable():
+        return SimpleNamespace(
+            content=[SimpleNamespace(type="text", text="not json")],
+            stop_reason="end_turn", model="claude-opus-4-8",
+            usage=SimpleNamespace(input_tokens=0, output_tokens=0,
+                                  cache_creation_input_tokens=0,
+                                  cache_read_input_tokens=0),
+        )
+
+    req = {"custom_id": "seed_x__w1__vote0",
+           "params": {"model": "claude-opus-4-8"}}
+    batchcache.append_result(
+        tmp_path, batchcache.request_key(req), req["custom_id"],
+        batchcache.normalize(unparseable()),
+    )
+    transport.respond = lambda r: unparseable()
+    with batchcache.policy(run_dir=tmp_path):
+        first = llm.run_batch_retry([req], "Validity gate", None)
+        resubmit_votes([req], first, progress=None)
+
+    rows = [json.loads(line) for line
+            in (tmp_path / "_results.jsonl").read_text().splitlines() if line.strip()]
+    assert len(rows) > 1, "the resubmitted vote was never stored"
+    assert {row["key"] for row in rows} == {batchcache.request_key(req)}, \
+        "an attempt landed on a second cache key instead of superseding"
+    assert {row["custom_id"] for row in rows} == {req["custom_id"]}
+    # latest-wins: the loaded cache holds one entry, the newest attempt
+    batchcache._CACHES.clear()
+    assert len(batchcache._cache(tmp_path)) == 1

@@ -150,6 +150,47 @@ write, $2.91 against $8.29 uncached. Do not spend a ticket there.
   incomplete OpenRouter-key enumeration in `launch.preflight` (subagent
   review). Both had the same shape: a list of models written by hand where a
   derived one already existed. Derive the set; do not retype it.
+- **08 closed.** Concurrency is an `Adapter` field beside `day_only`; both
+  `max_workers=8` literals are gone (the ticket said three; there were two).
+  Batch polls interleave via `batch_providers.poll_all_until_done`, a
+  single-threaded round-robin generator, with `poll_until_done` as its
+  one-handle case. **The limits stay at 8 and that number is UNMEASURED** —
+  measuring needs paid calls, none were made, none was invented. Do not raise
+  one until a cohort has been timed AND the flex fallback count recorded: a
+  fallback bills at twice flex, so a higher limit can cost more than it saves.
+- **09 closed.** `mask_off/stoprule.py` is the seam; `IterationCap` is its only
+  active implementation. The ticket's "exactly two conditions" was wrong —
+  `seed_defect` was already a third exit, buried in an `or` beside the cap, and
+  is now a named reason. The log key is `stopped`, not `stop_reason`, which
+  generator-error records already use for the provider's own field.
+- **The cap is 7, by user decision 2026-08-13, overriding the ticket.** It
+  diverges from the gate-config lock's 10; the panel and quorum still match it.
+  Replayed over p6: 87 waves against 102, none of the 14 items lost, 1.19 h
+  earlier. Cap 6 also loses none, so 7 buys one wave of margin for $1.25. p6 is
+  PRE-fix data — a seed the direction lock recovers could accept past wave 6
+  and be cut off. `python -m mask_off.stoprule <log>` re-measures the ladder.
+- **A replay must never read today's cap.** Review caught this: the wave counts
+  were cap-independent but the inferred stop REASON was not, so raising the
+  live cap above a finished run's cap reported every cap-burner in it as
+  `running`. Inference now reads the cap the log itself attests to. Anything
+  that describes a past run must derive from the log, never from `config`.
+- **06 closed.** Every Stage A id names its wave: `{seed}__w{n}`, with
+  `__lint` and `__vote{i}` inheriting it. `frozen_pipeline.wave_id` is the one
+  builder. Collision-free by construction, not by luck: `__w` cannot
+  self-overlap, so no seed name can make two (seed, wave) pairs share an id.
+- **The wave marker cost the `cand-` prefix, and had to.** Anthropic caps a
+  custom_id at 64 characters and the corpus behind p6 contains a 49-character
+  seed name, so `cand-{seed}__w{n}__vote{i}` is 66. The prefix carried no
+  information. A test pins the budget; do not append to a Stage A id without
+  re-running it. OpenAI publishes no verifiable custom_id length — inert today
+  because no Stage A request takes `openai_batch` under the locked gate.
+- **06's cache consequence, recorded as the ticket requires.** The cache keys
+  on sha256(custom_id + params), so every Stage A request is a one-time miss:
+  an existing run directory replays from the top and re-bills its Stage A work.
+  Journaled batches still drain — `drain_orphans` matches ids and keys verbatim
+  from `_batches.jsonl` and never recomputes them — so no paid work is lost,
+  only re-bought. User confirmed harmless 2026-08-13; `output/` is empty on
+  this branch and no `_results.jsonl` exists in the checkout.
 - **Two published figures were wrong and are corrected in `docs/evidence/`.**
   p6 holds 103 log records but **102 waves** (one record is a lint record
   sharing a wave), and **50** of them fall on the 5 seeds that never accepted,

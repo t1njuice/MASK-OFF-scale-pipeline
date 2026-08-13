@@ -70,6 +70,10 @@ def build_vote_requests(
 ) -> list[dict]:
     """VALIDITY_VOTES requests (identical prompt; model per slot); ids `{custom_id}__vote{i}`.
 
+    A vote's id is only as wave-scoped as the `custom_id` it is given. Stage A
+    passes `frozen_pipeline.wave_id(...)`, so a vote names its wave and two
+    waves of one seed cannot read each other's votes back out of the cache.
+
     `prev_direction` is the previous iteration's failing inference_distance
     direction ('too traceable' or 'speculative'); when set, the reviewers see
     it and the prompt's direction lock applies."""

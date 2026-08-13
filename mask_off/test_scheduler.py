@@ -677,3 +677,20 @@ def test_an_interrupted_run_resumes_from_the_journal_with_no_re_billing(
     assert "seed_a__w1" not in submitted, "the drained generator wave was re-billed"
     assert submitted, "the votes never ran, so they must be misses"
     assert all("__vote" in cid for cid in submitted)
+
+
+def test_the_vote_label_names_both_counts_not_just_the_resubmits():
+    """The batch cache prints its miss count against this label, and a stage
+    carries whoever is waiting at it — so one retried slot rides with a whole
+    wave of fresh votes. `(resubmit 1)` beside `49 misses` read as a
+    resubmission storm on a healthy run; it was 1 retry and 48 new votes.
+    """
+    h = Harness("a")
+    h.step(GENERATOR, lambda cid: message(text=CLEAN))
+    good = _review("accept")
+    h.step(VALIDITY, lambda cid: message(
+        text="not json" if cid.endswith("vote1") else good))
+
+    resubmit = h.scheduler.ready(VALIDITY)
+    assert resubmit.refresh == {"a__w1__vote1"}
+    assert "1 resubmitted of 1" in resubmit.label, resubmit.label

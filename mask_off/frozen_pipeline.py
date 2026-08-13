@@ -377,7 +377,12 @@ class Scheduler:
             requests += slots
         label = "Validity gate"
         if refresh:
-            label += f" (resubmit {len(refresh)})"
+            # Name both counts. The batch cache prints its miss count against
+            # this label, and a bare "(resubmit 1)" beside "49 misses" reads as
+            # a resubmission storm when it is one retried slot riding with 48
+            # fresh votes — which is what a stage carrying whoever is waiting
+            # looks like.
+            label += f" ({len(refresh)} resubmitted of {len(requests)})"
         return label, requests, refresh
 
     # -- question 2: how results change the state --------------------------

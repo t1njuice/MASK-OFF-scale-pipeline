@@ -22,6 +22,7 @@ CLI:
 """
 
 import json
+import re
 import sys
 from collections.abc import Iterable
 from pathlib import Path
@@ -168,8 +169,69 @@ def by_route(entries_: Iterable[Entry]) -> dict[str, float]:
 
 
 def run_total(run_dir: Path) -> float:
-    """Dollars spent by a scale run so far — what `--max-cost` measures."""
+    """Dollars in the run LOG. Complete waves only — see `committed_total`."""
     return total(log_entries(run_dir))
+
+
+# A Stage A request identifier: `{seed}__w{n}`, with `__lint` and `__vote{i}`
+# inheriting it (frozen_pipeline.wave_id). `.+` is greedy so it binds the LAST
+# `__w<digits>`, which is where the wave marker is appended. A Stage B id
+# carries no wave and does not match — deliberately, since a Stage A ceiling
+# must not be moved by evaluation spend.
+_WAVE_ID = re.compile(r"^(?P<seed>.+)__w(?P<wave>\d+)(?:__(?P<kind>.+))?$")
+
+
+def _stage_of_id(kind: str | None) -> str:
+    if kind is None:
+        return "generator"
+    return "lint" if kind == "lint" else "validity"
+
+
+def cache_entries(run_dir: Path) -> list[Entry]:
+    """Priced blocks for every Stage A request the batch cache holds.
+
+    The cache stores a result the moment it lands, with its usage and the route
+    that served it, so this sees money the run log cannot: a log record is
+    written when a WAVE tallies — generator, lint and all three votes together
+    — and until then the whole wave is invisible. On a 20-seed pilot that was
+    39 minutes and $10.57.
+    """
+    path = Path(run_dir) / "_results.jsonl"
+    if not path.exists():
+        return []
+    out: list[Entry] = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        row = json.loads(line)
+        match = _WAVE_ID.match(row.get("custom_id") or "")
+        usage = (row.get("payload") or {}).get("usage")
+        if match is None or not usage:
+            continue
+        out.append(_entry(usage, _stage_of_id(match["kind"]),
+                          match["seed"], int(match["wave"])))
+    return out
+
+
+def untallied(run_dir: Path) -> list[Entry]:
+    """Cache entries for waves the run log has not recorded yet.
+
+    Deduplication against the log is by (seed, wave), not by request: once a
+    wave tallies, its record carries every block that wave bought, so counting
+    any cached request from that wave again would double-bill it.
+    """
+    logged = {(e.seed, e.wave) for e in log_entries(run_dir)}
+    return [e for e in cache_entries(run_dir) if (e.seed, e.wave) not in logged]
+
+
+def committed_total(run_dir: Path) -> float:
+    """Every dollar the run has actually bought — what a ceiling must measure.
+
+    The run log plus the cached requests of waves that have not tallied yet.
+    `--max-cost` read the log alone and therefore read $0.00 through a whole
+    first wave, admitting seeds against a spend that had already happened.
+    """
+    return total(log_entries(run_dir)) + total(untallied(run_dir))
 
 
 def main() -> None:

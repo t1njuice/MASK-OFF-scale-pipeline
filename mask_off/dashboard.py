@@ -81,24 +81,6 @@ def _iso(value: str) -> datetime.datetime:
     return datetime.datetime.fromisoformat(value)
 
 
-def _committed_cost(run_dir: Path) -> float:
-    """Dollars for every request the batch cache holds, wave tallied or not.
-
-    The run log gets a record when a WAVE tallies — generator, lint and all
-    three votes together — so a 20-seed run shows $0.00 for as long as its
-    first wave takes. That was 39 minutes and $10.57 of real, billed spend on
-    the run this was written for, and `--max-cost` was reading the same empty
-    log. The cache stores each result the moment it lands, with its usage and
-    the route that served it, so it can be priced request by request.
-
-    An estimate only in the sense that it lags the provider by whatever is in
-    flight right now. Everything it counts is already bought.
-    """
-    rows = _rows(run_dir / "_results.jsonl")
-    usages = [u for u in ((r.get("payload") or {}).get("usage") for r in rows) if u]
-    return ledger.total(ledger.usage_entries(usages, "stage_a"))
-
-
 def batches(run_dir: Path) -> dict:
     """Submitted, drained and still-in-flight batch handles, by route.
 
@@ -238,7 +220,9 @@ def snapshot(run_dir: Path) -> dict:
         log, live=state.get("in_flight") or (), infer=not alive
     ) if log else {}
     entries = ledger.log_entries(log_path) if log_path.exists() else []
-    committed = _committed_cost(run_dir)
+    # One definition of what a run has bought, shared with the cost ceiling:
+    # the log, plus the cached requests of waves that have not tallied yet.
+    committed = ledger.committed_total(run_dir)
 
     now = datetime.datetime.now(datetime.timezone.utc)
     started = _iso(log[0]["ts"]) if log else None

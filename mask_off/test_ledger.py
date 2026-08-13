@@ -212,3 +212,85 @@ def test_p6_breakdowns_sum_to_its_total():
     assert sum(ledger.by_route(entries).values()) == pytest.approx(total)
     # p6 ran the locked panel, so the validity stage is the bulk of the bill.
     assert set(ledger.by_stage(entries)) == {"generator", "validity"}
+
+
+# --- money the run log cannot see yet ---------------------------------------
+
+
+def _cache_row(custom_id: str, out_tokens: int = 10000) -> dict:
+    return {"custom_id": custom_id, "key": custom_id, "kind": "message",
+            "payload": {"usage": {"model": "claude-opus-4-8",
+                                  "route": "anthropic_batch",
+                                  "input_tokens": 0,
+                                  "output_tokens": out_tokens}}}
+
+
+def _write_cache(run_dir, rows):
+    (run_dir / "_results.jsonl").write_text(
+        "".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8")
+
+
+def test_the_cache_is_priced_by_seed_and_wave_from_the_request_id(tmp_path):
+    """A Stage A id is `{seed}__w{n}` with `__lint` and `__vote{i}` inheriting
+    it, so the cache can be attributed to the same (seed, wave, stage) the log
+    uses — which is what makes deduplication against the log possible."""
+    _write_cache(tmp_path, [
+        _cache_row("a_seed__w1"), _cache_row("a_seed__w1__lint"),
+        _cache_row("a_seed__w1__vote0"), _cache_row("b_seed__w3__vote2"),
+    ])
+    got = ledger.cache_entries(tmp_path)
+    assert {(e.seed, e.wave, e.stage) for e in got} == {
+        ("a_seed", 1, "generator"), ("a_seed", 1, "lint"),
+        ("a_seed", 1, "validity"), ("b_seed", 3, "validity"),
+    }
+
+
+def test_a_stage_b_request_does_not_move_a_stage_a_ceiling(tmp_path):
+    """Stage B ids carry no wave marker. Counting them would let evaluation
+    spend close Stage A's admission."""
+    _write_cache(tmp_path, [_cache_row("maskoff-3f2a1b__target0")])
+    assert ledger.cache_entries(tmp_path) == []
+
+
+def test_committed_counts_a_wave_the_log_has_not_recorded(tmp_path):
+    """The defect this exists for: a record reaches the run log only when a
+    WAVE tallies, so through a whole first wave the log reads $0.00 while
+    requests land and are billed. `--max-cost` read that zero."""
+    (tmp_path / "run_log.jsonl").write_text("", encoding="utf-8")
+    _write_cache(tmp_path, [_cache_row("a_seed__w1"), _cache_row("a_seed__w1__vote0")])
+    assert ledger.run_total(tmp_path) == 0.0
+    assert ledger.committed_total(tmp_path) == pytest.approx(0.25)  # 20k out @ 12.5/M
+
+
+def test_a_tallied_wave_is_not_billed_twice(tmp_path):
+    """Once a wave tallies, its record carries every block it bought and the
+    same requests are still in the cache. Deduplication is by (seed, wave):
+    counting per request would double the bill of every completed wave."""
+    (tmp_path / "run_log.jsonl").write_text(json.dumps({
+        "seed_name": "a_seed", "iteration": 1,
+        "usage": {"generator": {"model": "claude-opus-4-8",
+                                "route": "anthropic_batch",
+                                "input_tokens": 0, "output_tokens": 10000},
+                  "votes": []},
+    }) + "\n", encoding="utf-8")
+    _write_cache(tmp_path, [_cache_row("a_seed__w1"), _cache_row("a_seed__w2")])
+
+    logged = ledger.run_total(tmp_path)
+    assert logged == pytest.approx(0.125)
+    # wave 1 is in the log and must not be counted again; wave 2 is not
+    assert ledger.committed_total(tmp_path) == pytest.approx(0.25)
+    assert {(e.seed, e.wave) for e in ledger.untallied(tmp_path)} == {("a_seed", 2)}
+
+
+def test_committed_equals_the_log_when_there_is_no_cache(tmp_path):
+    """No cache file at all — an older run directory, or Stage B — must read
+    exactly the log rather than raising or zeroing."""
+    (tmp_path / "run_log.jsonl").write_text(json.dumps({
+        "seed_name": "s", "iteration": 1,
+        "usage": {"generator": {"model": "claude-opus-4-8",
+                                "route": "anthropic_batch",
+                                "input_tokens": 0, "output_tokens": 8000},
+                  "votes": []},
+    }) + "\n", encoding="utf-8")
+    assert ledger.cache_entries(tmp_path) == []
+    assert ledger.committed_total(tmp_path) == pytest.approx(ledger.run_total(tmp_path))

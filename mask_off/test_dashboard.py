@@ -199,11 +199,13 @@ def test_the_dashboard_shows_spend_the_run_log_cannot_see_yet(tmp_path):
 
 
 def test_a_run_whose_waves_have_tallied_does_not_double_report(run_dir):
-    """`committed` is shown only while it is ahead of the log. Once the waves
-    tally, the log is the authority and the extra line goes away."""
+    """`committed` is the log PLUS the cached requests of waves that have not
+    tallied. With every wave tallied it equals the log exactly, so the extra
+    line is not rendered and nothing is counted twice."""
     snap = dashboard.snapshot(run_dir)
     assert snap["cost"] > 0
-    assert snap["committed"] == 0.0, "no cache in this fixture"
+    assert snap["committed"] == pytest.approx(snap["cost"])
+    assert "already bought" not in _text(dashboard.render(snap))
 
 
 def test_a_live_run_is_not_reported_as_cap_exhausted(tmp_path, monkeypatch):

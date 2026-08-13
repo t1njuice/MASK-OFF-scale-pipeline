@@ -493,6 +493,21 @@ What makes it hold, mechanically:
   dashboard shows it whenever it is ahead of the log. `--max-cost` still reads
   the log and still cannot see it; that is the same defect and is NOT fixed.
 - **Six mutations, all caught**, in a sandbox copy.
+- **`--max-cost` had the same blindness and is fixed too.** `ledger` gained
+  `cache_entries` / `untallied` / `committed_total`: the run log, plus the
+  cached requests of waves no log record covers yet. Deduplication against the
+  log is by (seed, wave), not by request, because a tallied record already
+  carries every block that wave bought. Stage A ids parse as
+  `{seed}__w{n}[__lint|__vote{i}]`; a Stage B id carries no wave marker and is
+  deliberately skipped, so evaluation spend cannot close Stage A's admission.
+  The RATE still comes from complete waves only — a wave with just its
+  generator back would count as a whole one and halve `per_wave`, which is the
+  same understatement re-entered by the back door.
+  Measured on the live pilot the moment it landed: **$11.77 logged, $21.63
+  committed.** Nearly half the run's spend was invisible to the ceiling.
+- **One definition, two readers.** `dashboard` and the ceiling both call
+  `ledger.committed_total`; the dashboard's private copy is gone. Seven more
+  mutations, all caught.
 
 ## Not yet specified
 

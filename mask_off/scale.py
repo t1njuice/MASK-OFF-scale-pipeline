@@ -383,8 +383,18 @@ def generate(
                 # reads the run as cheaper per seed than it is, worst exactly
                 # mid-run when the ceiling matters most.
                 entries = ledger.log_entries(run_dir)
-                spent = ledger.total(entries)
-                per_wave = spent / max(len({
+                logged = ledger.total(entries)
+                # A run-log record is written when a WAVE tallies, so the log
+                # alone reads $0.00 through the whole of a first wave — 39
+                # minutes and $10.57 on the pilot this was found on — and the
+                # ceiling admitted seeds against a spend that had happened.
+                # The cache holds each request as it lands; `untallied` is the
+                # part of it no log record covers yet.
+                spent = logged + ledger.total(ledger.untallied(run_dir))
+                # The RATE comes from complete waves only. A wave with just its
+                # generator back would count as a whole one and halve the rate,
+                # which is the same understatement, re-entered by the back door.
+                per_wave = logged / max(len({
                     (e.seed, e.wave) for e in entries if e.seed
                 }), 1)
                 # Waves an average FINISHED seed bought. Before any seed has

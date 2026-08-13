@@ -551,10 +551,41 @@ def test_no_ceiling_means_no_ledger_read(tmp_path, monkeypatch):
     scheduling pass; the ledger re-reads the whole run log each time."""
     seeds = _corpus(per_domain=2)
     reads = []
-    monkeypatch.setattr(scale.ledger, "run_total",
-                        lambda run_dir: reads.append(run_dir) or 0.0)
+    monkeypatch.setattr(scale.ledger, "log_entries",
+                        lambda run_dir: reads.append(run_dir) or [])
     _generate(tmp_path, monkeypatch, seeds, ALL, batch=1, target=6, in_flight=2)
     assert reads == []
+
+
+def test_the_ceiling_counts_requests_the_run_log_has_not_recorded(
+    tmp_path, monkeypatch, capsys
+):
+    """A run-log record is written when a WAVE tallies, so through a first wave
+    the log reads $0.00 while requests land and are billed. The ceiling read
+    that zero and admitted seeds against spend that had already happened — 39
+    minutes and $10.57 on the pilot this was found on.
+
+    Here the log stays empty and the cache holds $2.50 of wave-1 requests. The
+    ceiling must see them.
+    """
+    seeds = _corpus(per_domain=4)
+    run_dir = tmp_path / "run"
+    run_dir.mkdir(parents=True)
+    (run_dir / "_results.jsonl").write_text("".join(
+        json.dumps({"custom_id": f"care_0{i}__w1", "key": f"k{i}",
+                    "kind": "message", "payload": {"usage": {
+                        "model": "claude-opus-4-8", "route": "anthropic_batch",
+                        "input_tokens": 0, "output_tokens": 100_000}}}) + "\n"
+        for i in range(2)
+    ), encoding="utf-8")
+
+    state, _ = _generate(tmp_path, monkeypatch, seeds, ALL, batch=1,
+                         target=12, in_flight=4, max_cost=1.00)
+
+    out = capsys.readouterr().out
+    assert "stopping at the cost ceiling" in out, \
+        "the ceiling could not see $2.50 of cached, billed requests"
+    assert len(state["consumed"]) == 4
 
 
 # --- the resume contract, restated over in-flight seeds ---------------------

@@ -72,19 +72,25 @@ assert len({item for items in taxonomy.values() for item in items}) == 560
 
 taxonomy_rows = taxonomy_embedding_rows(taxonomy)
 assert len(taxonomy_rows) == 560
+# Read the expected first row out of the file rather than hardcoding its
+# labels: the previous fixture pinned two label strings, seed_subcategories.md
+# was rewritten, and both strings vanished — the test then failed at collection
+# and blocked the whole root suite while the parser was correct all along.
+first_category = next(
+    line[2:].strip() for line in taxonomy_text.splitlines() if line.startswith("# ")
+)
+first_subcategory = next(
+    line[2:].strip() for line in taxonomy_text.splitlines() if line.startswith("- ")
+)
 assert taxonomy_rows[0] == {
-    "category": "Consumer / product safety",
-    "subcategory": "children's products & nursery gear",
-    "embedding_text": (
-        "Consumer / product safety: children's products & nursery gear"
-    ),
+    "category": first_category,
+    "subcategory": first_subcategory,
+    "embedding_text": f"{first_category}: {first_subcategory}",
 }
 
-duplicate_taxonomy = taxonomy_text.replace(
-    "- battery-powered devices and lithium cells",
-    "- children's products & nursery gear",
-    1,
-)
+# Duplicate one real label onto another, both taken from the file.
+_labels = [line for line in taxonomy_text.splitlines() if line.startswith("- ")]
+duplicate_taxonomy = taxonomy_text.replace(_labels[1], _labels[0], 1)
 try:
     parse_taxonomy(duplicate_taxonomy)
 except ValueError as error:
@@ -93,12 +99,10 @@ else:
     raise AssertionError("Duplicate taxonomy label was accepted.")
 
 
-for folder in (
-    "omission",
-    "model_omission1",
-    "model_omission_gpt5_6",
-    "grok_omission",
-):
+# kimi_100 is the only seed corpus the clean tree keeps. The omission,
+# model_omission1, model_omission_gpt5_6 and grok_omission corpora this block
+# used to read were deleted with the results tree.
+for folder in ("kimi_100",):
     paths = sorted((root / folder / "scenarios" / "seeds").glob("*.md"))
     assert paths, folder
     unparsed = [

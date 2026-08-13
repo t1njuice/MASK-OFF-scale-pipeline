@@ -58,14 +58,39 @@ write, $2.91 against $8.29 uncached. Do not spend a ticket there.
 
 <!-- one line per closed ticket -->
 
+- **01 closed.** Branch `clean-trunk`, forked from `frozen-design-restore` at
+  4305a0c. 4,223 tracked files cut to 313 with `git rm`; every deleted path is
+  recoverable. `design/` moved to `docs/design/` rather than deleted — it is
+  design record, but at the root it sent agents to the retired v1 loop.
+  `petri_bloom/` held zero real files and nothing imports it, so the
+  `petri-bloom`, `inspect-petri` and `inspect-ai` dependencies were dropped
+  from `pyproject.toml` too. Evidence in `docs/evidence/`, with
+  `summarize.py` asserting every published figure.
+- **Both root collection errors are closed, not deferred.**
+  `test_pipeline_waves.py` was deleted with the v1 test files.
+  `test_seed_diversity.py` was a **stale fixture, not a regression**: it pinned
+  two subcategory label strings that a rewrite of `seed_subcategories.md`
+  removed. Both assertions now read their labels out of the file. The root
+  suite reports 92 passed, 59 subtests passed.
+- **Two published figures were wrong and are corrected in `docs/evidence/`.**
+  p6 holds 103 log records but **102 waves** (one record is a lint record
+  sharing a wave), and **50** of them fall on the 5 seeds that never accepted,
+  not 51. Ticket 09 must assert 102 and 50. The `frozen_19` output share is
+  **87%** of the whole bill ($31.47 of $36.21, cache write and cache read
+  included), not 89%; 89% is the share of output plus input alone. Neither
+  correction changes a conclusion.
+
 ## Not yet specified
 
 - Where the iteration cap belongs after the direction-lock fix. Ticket 09
   produces the instrumentation; the next pilot produces the number.
 - Which 13 models fill the target roster. Ticket 07 makes the roster a list;
   it does not choose the entries.
-- Whether `test_seed_diversity.py` is a real regression or a stale fixture. It
-  errors at collection today. Ticket 01 records it; nobody has diagnosed it.
+- Whether the `.claude/worktrees/diversity-20-construction-e33e67` worktree
+  should go. It is 3,829 files and 128 MB of a second full checkout, so it
+  defeats the point of ticket 01 for any agent that globs rather than lists
+  tracked files. It holds 10 uncommitted changes, so removing it is the user's
+  call, not a ticket's.
 
 ## Out of scope
 

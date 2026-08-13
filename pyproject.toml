@@ -7,7 +7,6 @@ requires-python = ">=3.13"
 dependencies = [
     "marimo>=0.23.13",
     "polars>=1.42.1",
-    "inspect-ai>=0.3.237",
     "pydantic>=2.13.0",
     "pyyaml",
     "rich",
@@ -15,8 +14,6 @@ dependencies = [
     "anthropic>=0.96.0",
     "google-genai>=1.69.0",
     "python-dotenv",
-    "inspect-petri>=3.0.11",
-    "petri-bloom>=0.2.6",
 ]
 
 [dependency-groups]

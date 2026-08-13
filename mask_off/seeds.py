@@ -1,4 +1,4 @@
-"""Load local petri_bloom scenario seeds."""
+"""Load scenario seeds from a local corpus directory, e.g. kimi_100/."""
 
 import re
 from collections import defaultdict

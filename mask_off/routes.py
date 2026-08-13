@@ -26,6 +26,11 @@ Latency class (ADR-0002 §3):
 Flex is eligible at both classes because it carries Batch API rates on a
 synchronous call.
 
+Concurrency is a property of a route too (`Adapter.concurrency`), because two
+providers do not share a rate limit and one shared literal throttled the
+generous one to the strict one's ceiling. Only the synchronous adapters run a
+thread pool; a batch adapter has no per-request fan-out to limit.
+
 Every adapter stamps the route it served onto each message before the result
 hooks see it, so `pricing` reads the route rather than guessing it from the
 model prefix. A flex request that falls back to standard reports
@@ -67,6 +72,14 @@ class Adapter:
     # True -> the provider processes on a 24-hour window, so the route is
     # ineligible inside a wave (ADR-0002 §3).
     day_only: bool = False
+    # How many requests this route may have in flight from this process. The
+    # limit belongs to the route because providers do not share a rate limit:
+    # throttling a generous one to match a strict one is what a single shared
+    # literal did. None means no request pool exists on this route — a batch
+    # adapter hands the whole group to the provider, which fans it out
+    # server-side, so there is no number here to choose. Its polls are
+    # interleaved instead (`batch_providers.poll_all_until_done`).
+    concurrency: int | None = None
 
 
 def _stamp(msg, route_name: str):
@@ -156,8 +169,18 @@ def _run_openrouter(requests, label, progress, hooks: Hooks) -> dict:
 ADAPTERS: dict[str, Adapter] = {
     "anthropic_batch": Adapter("anthropic_batch", _run_anthropic),
     "openai_batch": Adapter("openai_batch", _run_openai_batch, day_only=True),
-    "openai_flex": Adapter("openai_flex", _run_openai_flex),
-    "openrouter_sync": Adapter("openrouter_sync", _run_openrouter),
+    # UNMEASURED. Both numbers are the single literal 8 that used to sit in two
+    # files, moved here and not yet replaced by evidence. The flex tier is
+    # reported at 1M tokens and 5,000 requests per minute, far above 8
+    # concurrent calls, so the ceiling that actually binds this pipeline is
+    # unknown and 8 is a guess in either direction. Raising it on a guess is
+    # the mistake this field exists to fix: a flex 429 falls back to standard,
+    # which bills at twice the flex rate, so a stampede of fallbacks doubles
+    # the price of the stage. Measure a route's throughput first — one
+    # timed Stage B cohort at two limits, wall time and per-route error count
+    # both recorded — then edit its number here and nowhere else.
+    "openai_flex": Adapter("openai_flex", _run_openai_flex, concurrency=8),
+    "openrouter_sync": Adapter("openrouter_sync", _run_openrouter, concurrency=8),
 }
 
 # Routes that write a handle to the journal before polling, so an orphan
@@ -246,8 +269,11 @@ def dispatch(
     out = {}
     # ponytail: route groups run one after another. Every batch route
     # processes server-side in parallel anyway, so this costs only the tail.
-    # Ticket 08 interleaves the polls once the 13-model roster makes that tail
-    # a real cost.
+    # The tail that mattered was inside one group — a Stage B fan-out puts
+    # every openai/* model on `openai_batch` at once — and that is now
+    # interleaved by `batch_providers.poll_all_until_done`. Crossing route
+    # groups too would need a shared progress display and thread-safe hooks;
+    # measure that it costs something before paying for it.
     for name, group in sorted(groups.items()):
         results = ADAPTERS[name].run(group, label, progress, hooks)
         for msg in results.values():

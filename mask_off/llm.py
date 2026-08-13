@@ -288,11 +288,18 @@ def run_openrouter(
 
     The `openrouter_sync` adapter. Reached through `routes.dispatch`, never
     called directly.
+
+    The pool is sized by this route's own entry in the registry, so OpenRouter
+    is not throttled to match whatever limit some other provider needs.
     """
+    from . import routes
+
     task = progress.add_task(f"{label} (openrouter)", total=len(requests))
     out = {}
     try:
-        with ThreadPoolExecutor(max_workers=8) as pool:
+        with ThreadPoolExecutor(
+            max_workers=routes.ADAPTERS["openrouter_sync"].concurrency
+        ) as pool:
             futures = {
                 pool.submit(_openrouter_call, r["params"]): r["custom_id"]
                 for r in requests

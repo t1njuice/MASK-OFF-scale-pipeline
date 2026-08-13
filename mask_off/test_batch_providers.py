@@ -2,12 +2,15 @@
 
 Run: pytest mask_off/test_batch_providers.py
 """
+import dataclasses
 import json
+import threading
+import time
 
 import httpx
 import pytest
 
-from . import batch_providers, config, routes
+from . import batch_providers, config, llm, pricing, routes
 
 
 def _client(handler):
@@ -76,6 +79,69 @@ def test_flex_falls_back_to_standard_after_resource_unavailable(monkeypatch):
     # priced at the tier that actually served it, not the one requested
     assert msg.route == "openai_sync"
     assert config.PRICES[("openai/gpt-5.6-sol", "openai_sync")]["out"] == 30.0
+
+    # The same path through the route's own pool, which is what a raised
+    # concurrency limit would exercise: a capacity 429 arriving on every
+    # worker at once. Each fallback must still be stamped and priced at
+    # standard, because a silent stampede of fallbacks at twice the flex rate
+    # is how raising the limit doubles the price of the stage.
+    tiers.clear()
+    monkeypatch.setattr(batch_providers, "_flex_client", lambda: _client(handler))
+    out = batch_providers.run_openai_flex(
+        [_req(f"c{i}") for i in range(4)], "t", None
+    )
+    assert len(out) == 4 and all(m is not None for m in out.values())
+    assert {m.route for m in out.values()} == {"openai_sync"}
+    # workers interleave, so count rather than sequence
+    assert sorted(tiers) == sorted(["flex", "flex", "auto"] * 4), (
+        "every worker retried on flex twice, then fell back once"
+    )
+    standard = config.PRICES[("openai/gpt-5.6-sol", "openai_sync")]
+    flex = config.PRICES[("openai/gpt-5.6-sol", "openai_flex")]
+    billed = sum(pricing.usage_cost(llm.usage_summary_of(m)) for m in out.values())
+    assert billed == pytest.approx(
+        4 * (10 * standard["in"] + 2 * standard["out"]) / 1e6
+    )
+    assert standard["out"] == 2 * flex["out"], "a fallback costs twice flex"
+
+
+def test_the_flex_pool_reads_its_limit_from_the_route_not_a_literal(monkeypatch):
+    """Concurrency belongs to the route. Flex and OpenRouter have unrelated
+    rate limits, so one number for both throttled the generous provider to the
+    strict one's ceiling."""
+    monkeypatch.setitem(
+        routes.ADAPTERS, "openai_flex",
+        dataclasses.replace(routes.ADAPTERS["openai_flex"], concurrency=2),
+    )
+    lock = threading.Lock()
+    live = peak = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal live, peak
+        with lock:
+            live += 1
+            peak = max(peak, live)
+        time.sleep(0.02)
+        with lock:
+            live -= 1
+        return httpx.Response(200, json={
+            "model": "gpt-5.6-sol", "service_tier": "flex",
+            "choices": [{"message": {"content": "ok"}, "finish_reason": "stop"}],
+            "usage": {"prompt_tokens": 1, "completion_tokens": 1}})
+
+    monkeypatch.setattr(batch_providers, "_flex_client", lambda: _client(handler))
+    out = batch_providers.run_openai_flex(
+        [_req(f"c{i}") for i in range(8)], "t", None
+    )
+    assert len(out) == 8
+    assert 1 < peak <= 2, "the pool runs concurrently, capped by its own route"
+    assert routes.ADAPTERS["openrouter_sync"].concurrency == 8, (
+        "the other synchronous route keeps its own limit"
+    )
+    # A batch route hands the whole group to the provider, which fans it out
+    # server-side. There is no request pool here, so there is no honest number.
+    assert routes.ADAPTERS["openai_batch"].concurrency is None
+    assert routes.ADAPTERS["anthropic_batch"].concurrency is None
 
 
 def test_flex_success_is_priced_at_flex_rates():
@@ -292,6 +358,110 @@ def test_fetch_keeps_the_requested_slug_not_the_dated_snapshot():
     assert ("openai/gpt-5.6-sol", "openai_batch") in config.PRICES
 
 
+def _batch_handler(status_of, content_of):
+    """A submit/poll/fetch wire for run_openai_batch. `status_of(batch_id)`
+    answers one poll; `content_of(output_file_id)` answers one output file."""
+    created = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        path = request.url.path
+        if path == "/v1/files" and request.method == "POST":
+            return httpx.Response(200, json={"id": f"file-{len(created)}"})
+        if path == "/v1/batches" and request.method == "POST":
+            created.append(1)
+            return httpx.Response(200, json={"id": f"batch-{len(created)}"})
+        if path.startswith("/v1/batches/"):
+            return httpx.Response(200, json=status_of(path.rsplit("/", 1)[-1]))
+        if path.startswith("/v1/files/") and path.endswith("/content"):
+            return httpx.Response(200, text=content_of(path.split("/")[3]))
+        raise AssertionError(f"unexpected {request.method} {path}")
+
+    return handler
+
+
+def _out_line(custom_id, text="hello"):
+    return json.dumps({"custom_id": custom_id, "response": {
+        "status_code": 200, "body": {
+            "model": "gpt-5.6-sol",
+            "choices": [{"message": {"content": text}, "finish_reason": "stop"}],
+            "usage": {}}}})
+
+
+def test_batch_polls_interleave_across_models(monkeypatch):
+    """Stage B submits one batch per model. Polled in sequence, the second
+    batch is not even looked at until the first has run its whole window, and
+    the 13-model roster is what turns that tail into the dominant term."""
+    monkeypatch.setattr(batch_providers, "POLL_SECONDS", 0)
+    slow = {"left": 2}  # batch-1 needs three cycles; batch-2 lands on the first
+
+    def status_of(batch_id):
+        if batch_id == "batch-1" and slow["left"]:
+            slow["left"] -= 1
+            return {"id": batch_id, "status": "in_progress"}
+        return {"id": batch_id, "status": "completed",
+                "output_file_id": f"out-{batch_id}"}
+
+    polled = []
+    fetched_after = {}
+
+    def watched(batch_id):
+        polled.append(batch_id)
+        return status_of(batch_id)
+
+    def content_of(file_id):
+        # how many polls had happened when this batch was harvested
+        fetched_after[file_id] = len(polled)
+        cid = "a" if file_id == "out-batch-1" else "b"
+        return _out_line(cid, cid)
+
+    monkeypatch.setattr(
+        batch_providers, "_http", lambda: _client(_batch_handler(watched, content_of))
+    )
+    out = batch_providers.run_openai_batch(
+        [_req("a", model="openai/gpt-5.6-sol"),
+         _req("b", model="openai/gpt-5.6-sol-pro")],
+        "t", None, on_submit=lambda h, cids: None, on_result=None,
+    )
+    assert polled[:2] == ["batch-1", "batch-2"], "both read on the first cycle"
+    assert polled.count("batch-2") == 1, "a finished batch is not re-polled"
+    assert fetched_after["out-batch-2"] < fetched_after["out-batch-1"], (
+        "the fast batch is harvested without waiting out the slow one"
+    )
+    assert set(out) == {"a", "b"}
+    assert out["a"].content[-1].text == "a" and out["b"].content[-1].text == "b"
+
+
+def test_a_stuck_batch_neither_blocks_its_neighbour_nor_loses_a_partial(monkeypatch):
+    """The durability properties survive the interleaving: every handle is
+    journaled before any poll, a batch past the ceiling stays journaled and
+    drainable instead of raising, and an expired batch's billed partials are
+    harvested rather than discarded (ADR-0002 §5 invariant 5)."""
+    monkeypatch.setattr(batch_providers, "POLL_SECONDS", 0)
+    monkeypatch.setattr(batch_providers, "POLL_CEILING_SECONDS", -1)
+    journaled = []
+
+    def status_of(batch_id):
+        if batch_id == "batch-1":
+            return {"id": batch_id, "status": "finalizing"}  # §10 hazard 4
+        return {"id": batch_id, "status": "expired", "output_file_id": "out-2"}
+
+    monkeypatch.setattr(
+        batch_providers,
+        "_http",
+        lambda: _client(_batch_handler(status_of, lambda f: _out_line("b", "partial"))),
+    )
+    out = batch_providers.run_openai_batch(
+        [_req("a", model="openai/gpt-5.6-sol"),
+         _req("b", model="openai/gpt-5.6-sol-pro")],
+        "t", None,
+        on_submit=lambda h, cids: journaled.append(h["batch_id"]),
+        on_result=None,
+    )
+    assert journaled == ["batch-1", "batch-2"], "journaled before the first poll"
+    assert out["b"].content[-1].text == "partial"
+    assert out["a"] is None, "the stuck batch yields no result and no exception"
+
+
 def test_poll_ceiling_gives_up_instead_of_blocking_the_run(monkeypatch):
     monkeypatch.setattr(batch_providers, "POLL_CEILING_SECONDS", -1)
     monkeypatch.setattr(batch_providers, "POLL_SECONDS", 0)
@@ -318,8 +488,8 @@ def test_input_file_partitions_are_single_model_via_run(monkeypatch):
     monkeypatch.setattr(batch_providers, "submit_chunked", fake_submit_chunked)
     monkeypatch.setattr(batch_providers, "_http", lambda: None)
     monkeypatch.setattr(
-        batch_providers, "poll_until_done",
-        lambda h, c, p=None: {"status": "completed"},
+        batch_providers, "poll_all_until_done",
+        lambda hs, c, p=None: ((h, {"status": "completed"}) for h in hs),
     )
     monkeypatch.setattr(batch_providers, "fetch", lambda h, c, slug=None: {})
     batch_providers.run_openai_batch(

@@ -136,14 +136,22 @@ def flex_call(params: dict, client: httpx.Client | None = None):
 def run_openai_flex(requests, label, progress, on_result=None) -> dict:
     """Threaded flex fan-out: {custom_id: message | None}. No journal — a
     synchronous call has no server-side handle to orphan, so a crash loses
-    only what `_results.jsonl` has not yet recorded (ADR-0002 §4)."""
+    only what `_results.jsonl` has not yet recorded (ADR-0002 §4).
+
+    The pool is sized by this route's own entry in the registry: flex and
+    OpenRouter have unrelated rate limits and no longer share one number.
+    """
     from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    from . import routes
 
     out = {}
     task = progress.add_task(f"{label} (flex)", total=len(requests)) if progress else None
     client = _flex_client()
     try:
-        with ThreadPoolExecutor(max_workers=8) as pool:
+        with ThreadPoolExecutor(
+            max_workers=routes.ADAPTERS["openai_flex"].concurrency
+        ) as pool:
             futures = {
                 pool.submit(flex_call, r["params"], client): r["custom_id"]
                 for r in requests
@@ -276,32 +284,61 @@ def poll(handle: dict, client: httpx.Client) -> dict:
     return data
 
 
-def poll_until_done(handle: dict, client: httpx.Client, progress=None) -> dict:
-    """Poll to a terminal status, or give up at POLL_CEILING_SECONDS.
+def poll_all_until_done(handles: list[dict], client: httpx.Client, progress=None):
+    """Poll several batches together, yielding `(handle, data)` as each ends.
 
-    The ceiling exists because drain runs at every process start (§10 hazard
-    4): without it, one batch stuck in `finalizing` blocks every later
-    invocation of the run forever. Giving up is safe — the handle stays
-    journaled and undrained, so the next invocation re-polls it.
+    Interleaved, not one after another: a Stage B fan-out across the 13-model
+    roster submits one batch per model, every provider processes them
+    concurrently, and polling them in sequence waits out the first batch's
+    whole 24-hour window before it so much as looks at the second. One cycle
+    reads every pending batch's status, then sleeps once.
+
+    No thread pool: a poll is a single GET per batch per POLL_SECONDS, so the
+    interleaving costs one loop, not a pool. That is also why `openai_batch`
+    carries no `concurrency` in the registry — there is no request fan-out
+    here to limit.
+
+    A batch past POLL_CEILING_SECONDS is dropped from the loop rather than
+    yielded, and never raises here: the handle stays journaled and undrained,
+    so a later invocation re-polls it (§10 hazard 4). The ceiling exists
+    because otherwise one batch stuck in `finalizing` blocks every later
+    invocation of the run forever.
     """
+    pending = list(handles)
     started = time.monotonic()
-    warned = False
-    while True:
-        data = poll(handle, client)
-        if data["status"] in TERMINAL:
-            return data
-        waited = time.monotonic() - started
-        if not warned and waited > FINALIZING_WARN_SECONDS:
-            warned = True
-            _say(progress, f"[openai_batch] {handle['batch_id']} still "
-                           f"{data['status']} after {int(waited)}s")
-        if waited > POLL_CEILING_SECONDS:
-            _say(progress, f"[openai_batch] {handle['batch_id']} exceeded the "
-                           f"{POLL_CEILING_SECONDS}s poll ceiling in "
-                           f"{data['status']}; leaving it journaled for a later "
-                           f"drain rather than blocking this run")
-            raise PollCeilingExceeded(handle["batch_id"])
-        time.sleep(POLL_SECONDS)
+    warned: set[str] = set()
+    while pending:
+        still = []
+        for handle in pending:
+            data = poll(handle, client)
+            if data["status"] in TERMINAL:
+                yield handle, data
+                continue
+            waited = time.monotonic() - started
+            batch_id = handle["batch_id"]
+            if batch_id not in warned and waited > FINALIZING_WARN_SECONDS:
+                warned.add(batch_id)
+                _say(progress, f"[openai_batch] {batch_id} still "
+                               f"{data['status']} after {int(waited)}s")
+            if waited > POLL_CEILING_SECONDS:
+                _say(progress, f"[openai_batch] {batch_id} exceeded the "
+                               f"{POLL_CEILING_SECONDS}s poll ceiling in "
+                               f"{data['status']}; leaving it journaled for a "
+                               f"later drain rather than blocking this run")
+                continue
+            still.append(handle)
+        pending = still
+        if pending:
+            time.sleep(POLL_SECONDS)
+
+
+def poll_until_done(handle: dict, client: httpx.Client, progress=None) -> dict:
+    """One handle to a terminal status, or PollCeilingExceeded. The drain path
+    holds one batch at a time, so it reads as the one-handle case of the
+    interleaved loop rather than a second copy of the ceiling rule."""
+    for _, data in poll_all_until_done([handle], client, progress):
+        return data
+    raise PollCeilingExceeded(handle["batch_id"])
 
 
 def fetch(handle: dict, client: httpx.Client, slug: str | None = None) -> dict:
@@ -361,17 +398,14 @@ def run_openai_batch(
             )
         ]
     out = {}
-    # ponytail: batches poll sequentially; they all process server-side in
-    # parallel anyway, so this only costs the tail. Interleave the polls if a
-    # Stage B cohort ever fans out to many models at once.
-    for handle in handles:
-        try:
-            data = poll_until_done(handle, client, progress)
-        except PollCeilingExceeded:
-            continue  # journaled and drainable; this run does not block on it
+    # Every handle is journaled by on_submit above before any of them is
+    # polled, so a death here strands nothing. A batch that outlives the poll
+    # ceiling is simply never yielded — it stays journaled and drainable.
+    for handle, data in poll_all_until_done(handles, client, progress):
         if data["status"] != "completed":
             _say(progress, f"[openai_batch] {handle['batch_id']} ended "
                            f"{data['status']}; harvesting partial results")
+        # expired and cancelled batches return billed partials (§5 invariant 5)
         out.update(fetch(handle, client, handle.get("slug")))
     for r in requests:
         msg = out.get(r["custom_id"])

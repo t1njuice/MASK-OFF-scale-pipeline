@@ -49,9 +49,18 @@ must exist anyway) but is never first choice while native keys exist.
 Two classes, passed per call:
 
 - **"wave"** — Stage A wave loop and any sequential iteration. Eligible routes:
-  `anthropic_batch`, `openrouter_sync`. A 24h-window route is never eligible:
-  five sequential waves through a 24h window is five days.
+  `anthropic_batch`, `openai_flex`, `openrouter_sync`. A 24h-window route is
+  never eligible: five sequential waves through a 24h window is five days.
 - **"day"** — Stage B cells, seedgen authoring. All routes eligible; cheapest wins.
+
+**Amended 2026-08-13 (ticket 05).** This section originally named
+`anthropic_batch, openrouter_sync` and nothing else, because `openai_flex` did
+not exist when it was written. Flex is a *synchronous* call billed at Batch API
+rates, so it carries no window and the rule that excludes 24h routes does not
+reach it. `routes.py` therefore makes it eligible at both classes and ranks it
+first, which is the same decision this section already takes — cheapest route
+with a turnaround a wave can wait for. The one route the class still excludes
+is `openai_batch`. Recorded because the code moved before the ADR did.
 
 Decision on the "middle" option (`openai/gpt-5.6-sol:batch` via OpenRouter for
 iteration turns): **rejected.** The window is a flat 24h with no faster tier,

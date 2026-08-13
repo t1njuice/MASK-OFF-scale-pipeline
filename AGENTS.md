@@ -49,8 +49,10 @@ Verify any change with:
 uv run python -m pytest mask_off -q
 ```
 
-That reports **101 passed**. The root suite, `uv run python -m pytest -q`,
-reports 114 passed and 59 subtests passed.
+That reports **209 passed**. The root suite, `uv run python -m pytest -q`,
+reports 222 passed and 59 subtests passed. These counts go stale on every
+ticket. Update them in the same commit that changes them, and read a higher
+number as growth rather than as a regression.
 
 ## The four documents
 
@@ -72,7 +74,14 @@ package; it records what each closed ticket settled, so you do not re-derive it.
   missing ids. Any design that abandons an in-flight batch to hit a ceiling is
   wrong.
 - **End a run report with the output artifact paths.** Every one of them.
-- **Prompts under `mask_off/prompts/` are frozen.** No ticket edits them.
+- **Prompts under `mask_off/prompts/` are frozen.** No ticket edits them. The
+  user tunes them by hand, continuously, and their edits usually sit
+  uncommitted in the working tree while a ticket runs. So: never `git add -A`,
+  never `git commit -a`. Stage the files your ticket changed, by name. Three
+  ticket commits have already swept a prompt edit in under a message that does
+  not mention it, which both breaks this rule and hides the change from the
+  next reader. Editing a prompt also moves `scale.fingerprint` (ADR-0002
+  §9/F3), so every stamped run directory refuses to resume without `--force`.
 - **Run pilots through `mask_off.scale`.** Ad-hoc experiment scripts are no
   longer written; the ones that existed were deleted on 2026-08-13.
 - **Define jargon before you use it.** Readability beats compression.

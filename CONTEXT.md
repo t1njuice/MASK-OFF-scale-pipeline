@@ -105,8 +105,11 @@ _Avoid_: wave, chunk, batch, epoch
 
 **Wave**:
 One generator → validity round inside a Stage A cohort. Several waves occur per
-cohort because rejected candidates revise and resubmit.
-_Avoid_: iteration, round
+cohort because rejected candidates revise and resubmit. A wave's ordinal
+position within its seed is its *iteration*, and that word is kept for the
+ordinal alone — it is the field name every run log on disk already carries, so
+renaming it would strand the evidence logs. "Iteration cap" is the rule's name.
+_Avoid_: iteration or round as a name for the wave itself
 
 **Stage of a wave**:
 One kind of request inside a wave: the generator draft, the pre-gate lint
@@ -146,7 +149,11 @@ _Avoid_: checkpoint, memo, replay log
 **Route**:
 The decision, per model, between a discounted batch endpoint and a synchronous
 call — made by comparing prices per slug, not by which lab owns the model.
-_Avoid_: provider, backend, transport
+The machinery that carries a request once a route is chosen is the *transport
+seam*, `mask_off/routes.py`, and that name is fine. What is not fine is
+calling one route "a transport", because the word then names a decision in one
+sentence and a mechanism in the next.
+_Avoid_: provider, backend, transport (for a route)
 
 **Seat**:
 One position on a panel: which model fills it, at what reasoning effort, and

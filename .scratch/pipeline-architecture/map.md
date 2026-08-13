@@ -199,6 +199,89 @@ write, $2.91 against $8.29 uncached. Do not spend a ticket there.
   included), not 89%; 89% is the share of output plus input alone. Neither
   correction changes a conclusion.
 
+- **07 closed.** `mask_off/panel.py` holds Seat and Panel; the validity gate,
+  the target roster and the judge are all panels. A slot is not a seat: a gate
+  casts more votes than it has seats and `seats()` cycles the panel to fill
+  them, so vote count and accept threshold stay separate settings. Each judge's
+  blinding map is the sorted labels rotated by its slot, so one seat is
+  bit-identical to the old behaviour. Four things the ticket did not know:
+  `fingerprint` round-trips through JSON where a tuple returns as a list and
+  aborts every resume (`_plain()` flattens seats); `JUDGE_MODEL` secretly wrote
+  the probe-2 email and had to split to `VARIANT_MODEL`; the run stem printed
+  `_gate-opus-4-8` while the panel had been kimi+grok+sol since ticket 04; and
+  preflight now refuses duplicate seat labels, `VALIDITY_PANEL` exempt because
+  a vote is identified by slot.
+- **11 closed.** `mask_off/ledger.py` is the one place cost is counted, and the
+  dedup key `(seed_name, iteration, stage)` is stated once inside it. Cost had
+  been counted in four places with the rule in only one, so a resumed run's
+  printed and reported totals already disagreed. The lint record now carries
+  its `usage`: lint spend was in the closing figure but invisible to
+  `--max-cost`, so the ceiling under-counted every run that linted.
+- **10 closed.** Seeds advance independently; each stage holds at most one
+  batch and carries whoever is waiting. `drive`'s in-flight guard is
+  load-bearing — without it a stage whose batch is still out gets resubmitted
+  and the first future is orphaned, which HANGS the run rather than losing
+  work, because results still reach the cache through `on_result`.
+  `batchcache._cache()`'s lazy load moved inside the write lock, now an
+  `RLock`: two stage threads on a cold cache both loaded and the loser's dict
+  was dropped, re-billing rows already paid for.
+- **Mutation testing is what makes a ticket's tests worth having.** Ticket 10's
+  reviewer had no shell and flagged two suspected gaps. Both were real:
+  crossing two seeds' feedback, and deleting `drive`'s in-flight guard, each
+  left all 206 tests green. The fixtures handed every seed byte-identical
+  feedback, so a crossed wire produced identical output. Break the code, watch
+  the test fail, restore it — before reporting a ticket done.
+- **A concurrency test that passes 4 times in 5 has not passed.** The
+  drive-guard test took four attempts. A single-stage stub proves nothing:
+  until something completes, `drive` sits in `wait(FIRST_COMPLETED)` and
+  physically cannot resubmit. Two stages, deterministic, 6 runs of 6.
+
+### From the code review of 01-11 (2026-08-13)
+
+- **Three ticket commits swept the user's prompt edits in.** `fd68d0e`,
+  `dfbd809` and `86505f2` each carry a change to `mask_off/prompts/*` that
+  their message does not mention. The prompts are frozen against tickets, but
+  the user tunes them by hand and their edits sit uncommitted while a ticket
+  runs, so `git add -A` picked them up. `AGENTS.md` now names the mechanism:
+  stage by name, never `-A`, never `-a`. Editing a prompt also moves
+  `scale.fingerprint`, so every stamped run directory refuses to resume
+  without `--force`. No live consequence — `output/` is empty on this branch.
+- **Two vocabulary bans were written wider than the code could obey, and the
+  glossary moved rather than the code.** "Transport" is banned as a synonym for
+  one Route, but `routes.py` IS the transport seam and that is the ticket's own
+  name for it; CONTEXT now bans only the synonym use. "Iteration" is banned as
+  a name for a wave, but `iteration` is the ordinal field every run log on disk
+  carries, so renaming it would strand the evidence logs; CONTEXT now keeps it
+  for the ordinal alone. Still to fix, one word each, deferred only because the
+  files were in use: `config.py:38` says "each seat's transport" where it means
+  route, and `routes.py`'s table header says Transport where it means endpoint.
+- **ADR-0002 §3 named two wave-eligible routes and the code has three.**
+  `openai_flex` is a synchronous call at Batch API rates, so it carries no
+  window and the rule excluding 24h routes never reached it. §3 is amended;
+  `openai_batch` remains the one route the wave class excludes.
+- **Three real defects, fixed in `12f23e3`.** `spent_before` resolved the run
+  log by DIRECTORY, which only exists under `scale`, so a standalone resumed
+  run read 0 and labelled the whole log's spend as this cohort's.
+  `pricing.configured_models()` missed `CHEAP_AUDIT_MODEL` — pinned today, so
+  nothing ran free, but preflight could not have caught a future edit.
+  `scale.run_cost` was a one-line delegation with zero callers.
+- **Known and accepted, not fixed.** `evaluate._judges_in` and
+  `metrics._judge_seats` are the same function with different sentinels, and
+  `metrics` scans `judgments` but not `probe2_judgments`, so a judge appearing
+  only in probe 2 is invisible there. `dashboard.batches()` re-implements the
+  journal dedupe without `drain_orphans`' `handles.pop`, so a pre-create row
+  and its real handle count as two submissions. `docs/evidence/summarize.py`
+  is a third copy of the wave rule with hardcoded opus rates. Ticket 08 gave
+  `poll_all_until_done` to the OpenAI path only; `llm.py:490` still zips the
+  Anthropic polls, which costs progress reporting rather than wall time
+  because the chunks are all submitted first. Ticket 06's "a smoke run accepts
+  the same items it accepted before" has disjoint-id and id-budget tests but
+  no equivalence demonstration; it is a claim, not a result.
+- **`dashboard.py` was not asked for by any ticket.** The user asked for it
+  mid-effort, because a long run has to be watchable from a second terminal by
+  a human rather than by an agent that cannot stay attached. It landed under
+  ticket 07 for want of a ticket of its own.
+
 ## Not yet specified
 
 - Where the iteration cap belongs after the direction-lock fix. Ticket 09

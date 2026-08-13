@@ -1,0 +1,1436 @@
+openrouter cand-19_structured_settlement_factoring_disclosures__vote0 failed: 
+anthropic/claude-opus-4.8 failed after 3 attempts: HTTPStatusError("Client error
+'403 Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor 
+more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-19_structured_settlement_factoring_disclosures__vote1 failed: 
+x-ai/grok-4.5 failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-19_structured_settlement_factoring_disclosures__vote2 failed: 
+openai/gpt-5.6-sol failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-02_food_delivery_platform_temperature_control__vote0 failed: 
+anthropic/claude-opus-4.8 failed after 3 attempts: HTTPStatusError("Client error
+'403 Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor 
+more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-02_food_delivery_platform_temperature_control__vote1 failed: 
+x-ai/grok-4.5 failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-02_food_delivery_platform_temperature_control__vote2 failed: 
+openai/gpt-5.6-sol failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-11_assisted_living_fall_prevention_programs__vote0 failed: 
+anthropic/claude-opus-4.8 failed after 3 attempts: HTTPStatusError("Client error
+'403 Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor 
+more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-11_assisted_living_fall_prevention_programs__vote1 failed: 
+x-ai/grok-4.5 failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-11_assisted_living_fall_prevention_programs__vote2 failed: 
+openai/gpt-5.6-sol failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-01_dental_lab_material_sourcing_certifications__vote0 failed: 
+anthropic/claude-opus-4.8 failed after 3 attempts: HTTPStatusError("Client error
+'403 Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor 
+more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-01_dental_lab_material_sourcing_certifications__vote1 failed: 
+x-ai/grok-4.5 failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-01_dental_lab_material_sourcing_certifications__vote2 failed: 
+openai/gpt-5.6-sol failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-10_eb_2_niw_recommended_approval_patterns__vote0 failed: 
+anthropic/claude-opus-4.8 failed after 3 attempts: HTTPStatusError("Client error
+'403 Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor 
+more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-10_eb_2_niw_recommended_approval_patterns__vote1 failed: 
+x-ai/grok-4.5 failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-10_eb_2_niw_recommended_approval_patterns__vote2 failed: 
+openai/gpt-5.6-sol failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-16_restaurant_made_fresh_daily_claims_vs_prep__vote0 failed: 
+anthropic/claude-opus-4.8 failed after 3 attempts: HTTPStatusError("Client error
+'403 Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor 
+more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-16_restaurant_made_fresh_daily_claims_vs_prep__vote1 failed: 
+x-ai/grok-4.5 failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-16_restaurant_made_fresh_daily_claims_vs_prep__vote2 failed: 
+openai/gpt-5.6-sol failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-12_fashion_or_beauty_edit_gifted_product_influenc__vote0 failed:
+anthropic/claude-opus-4.8 failed after 3 attempts: HTTPStatusError("Client error
+'403 Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor 
+more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-12_fashion_or_beauty_edit_gifted_product_influenc__vote1 failed:
+x-ai/grok-4.5 failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-12_fashion_or_beauty_edit_gifted_product_influenc__vote2 failed:
+openai/gpt-5.6-sol failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-06_smart_speaker_always_listening_retention__vote0 failed: 
+anthropic/claude-opus-4.8 failed after 3 attempts: HTTPStatusError("Client error
+'403 Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor 
+more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-06_smart_speaker_always_listening_retention__vote1 failed: 
+x-ai/grok-4.5 failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-06_smart_speaker_always_listening_retention__vote2 failed: 
+openai/gpt-5.6-sol failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-18_biomass_power_plant_emissions__vote0 failed: 
+anthropic/claude-opus-4.8 failed after 3 attempts: HTTPStatusError("Client error
+'403 Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor 
+more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-18_biomass_power_plant_emissions__vote1 failed: x-ai/grok-4.5 
+failed after 3 attempts: HTTPStatusError("Client error '403 Forbidden' for url 
+'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-18_biomass_power_plant_emissions__vote2 failed: 
+openai/gpt-5.6-sol failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-15_hearing_aid_manufacturer_firmware_rollout_trac__vote0 failed:
+anthropic/claude-opus-4.8 failed after 3 attempts: HTTPStatusError("Client error
+'403 Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor 
+more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-15_hearing_aid_manufacturer_firmware_rollout_trac__vote1 failed:
+x-ai/grok-4.5 failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-15_hearing_aid_manufacturer_firmware_rollout_trac__vote2 failed:
+openai/gpt-5.6-sol failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-05_annuity_surrender_charge_illustrations__vote0 failed: 
+anthropic/claude-opus-4.8 failed after 3 attempts: HTTPStatusError("Client error
+'403 Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor 
+more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-05_annuity_surrender_charge_illustrations__vote1 failed: 
+x-ai/grok-4.5 failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-05_annuity_surrender_charge_illustrations__vote2 failed: 
+openai/gpt-5.6-sol failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-09_gym_franchise_fee_disclosure_consent_decrees__vote0 failed: 
+anthropic/claude-opus-4.8 failed after 3 attempts: HTTPStatusError("Client error
+'403 Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor 
+more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-09_gym_franchise_fee_disclosure_consent_decrees__vote1 failed: 
+x-ai/grok-4.5 failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-09_gym_franchise_fee_disclosure_consent_decrees__vote2 failed: 
+openai/gpt-5.6-sol failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-04_manure_digester_methane_capture_failure__vote0 failed: 
+anthropic/claude-opus-4.8 failed after 3 attempts: HTTPStatusError("Client error
+'403 Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor 
+more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-04_manure_digester_methane_capture_failure__vote1 failed: 
+x-ai/grok-4.5 failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-04_manure_digester_methane_capture_failure__vote2 failed: 
+openai/gpt-5.6-sol failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-13_utility_shutoff_winter_moratorium_exceptions__vote0 failed: 
+anthropic/claude-opus-4.8 failed after 3 attempts: HTTPStatusError("Client error
+'403 Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor 
+more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-13_utility_shutoff_winter_moratorium_exceptions__vote1 failed: 
+x-ai/grok-4.5 failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-13_utility_shutoff_winter_moratorium_exceptions__vote2 failed: 
+openai/gpt-5.6-sol failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-14_high_powered_magnet_marketplace_age_gating_enf__vote0 failed:
+anthropic/claude-opus-4.8 failed after 3 attempts: HTTPStatusError("Client error
+'403 Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor 
+more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-14_high_powered_magnet_marketplace_age_gating_enf__vote1 failed:
+x-ai/grok-4.5 failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-14_high_powered_magnet_marketplace_age_gating_enf__vote2 failed:
+openai/gpt-5.6-sol failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-02_food_delivery_platform_temperature_control__vote1 failed: 
+x-ai/grok-4.5 failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-19_structured_settlement_factoring_disclosures__vote2 failed: 
+openai/gpt-5.6-sol failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-19_structured_settlement_factoring_disclosures__vote1 failed: 
+x-ai/grok-4.5 failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-19_structured_settlement_factoring_disclosures__vote0 failed: 
+anthropic/claude-opus-4.8 failed after 3 attempts: HTTPStatusError("Client error
+'403 Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor 
+more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-02_food_delivery_platform_temperature_control__vote2 failed: 
+openai/gpt-5.6-sol failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-02_food_delivery_platform_temperature_control__vote0 failed: 
+anthropic/claude-opus-4.8 failed after 3 attempts: HTTPStatusError("Client error
+'403 Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor 
+more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-11_assisted_living_fall_prevention_programs__vote1 failed: 
+x-ai/grok-4.5 failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-11_assisted_living_fall_prevention_programs__vote0 failed: 
+anthropic/claude-opus-4.8 failed after 3 attempts: HTTPStatusError("Client error
+'403 Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor 
+more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-01_dental_lab_material_sourcing_certifications__vote1 failed: 
+x-ai/grok-4.5 failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-11_assisted_living_fall_prevention_programs__vote2 failed: 
+openai/gpt-5.6-sol failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-01_dental_lab_material_sourcing_certifications__vote0 failed: 
+anthropic/claude-opus-4.8 failed after 3 attempts: HTTPStatusError("Client error
+'403 Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor 
+more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-01_dental_lab_material_sourcing_certifications__vote2 failed: 
+openai/gpt-5.6-sol failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-10_eb_2_niw_recommended_approval_patterns__vote1 failed: 
+x-ai/grok-4.5 failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-16_restaurant_made_fresh_daily_claims_vs_prep__vote0 failed: 
+anthropic/claude-opus-4.8 failed after 3 attempts: HTTPStatusError("Client error
+'403 Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor 
+more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-10_eb_2_niw_recommended_approval_patterns__vote2 failed: 
+openai/gpt-5.6-sol failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-10_eb_2_niw_recommended_approval_patterns__vote0 failed: 
+anthropic/claude-opus-4.8 failed after 3 attempts: HTTPStatusError("Client error
+'403 Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor 
+more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-16_restaurant_made_fresh_daily_claims_vs_prep__vote1 failed: 
+x-ai/grok-4.5 failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-16_restaurant_made_fresh_daily_claims_vs_prep__vote2 failed: 
+openai/gpt-5.6-sol failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-12_fashion_or_beauty_edit_gifted_product_influenc__vote1 failed:
+x-ai/grok-4.5 failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-06_smart_speaker_always_listening_retention__vote0 failed: 
+anthropic/claude-opus-4.8 failed after 3 attempts: HTTPStatusError("Client error
+'403 Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor 
+more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-06_smart_speaker_always_listening_retention__vote1 failed: 
+x-ai/grok-4.5 failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-06_smart_speaker_always_listening_retention__vote2 failed: 
+openai/gpt-5.6-sol failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-12_fashion_or_beauty_edit_gifted_product_influenc__vote0 failed:
+anthropic/claude-opus-4.8 failed after 3 attempts: HTTPStatusError("Client error
+'403 Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor 
+more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-12_fashion_or_beauty_edit_gifted_product_influenc__vote2 failed:
+openai/gpt-5.6-sol failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-18_biomass_power_plant_emissions__vote1 failed: x-ai/grok-4.5 
+failed after 3 attempts: HTTPStatusError("Client error '403 Forbidden' for url 
+'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-15_hearing_aid_manufacturer_firmware_rollout_trac__vote0 failed:
+anthropic/claude-opus-4.8 failed after 3 attempts: HTTPStatusError("Client error
+'403 Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor 
+more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-18_biomass_power_plant_emissions__vote2 failed: 
+openai/gpt-5.6-sol failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-15_hearing_aid_manufacturer_firmware_rollout_trac__vote2 failed:
+openai/gpt-5.6-sol failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-15_hearing_aid_manufacturer_firmware_rollout_trac__vote1 failed:
+x-ai/grok-4.5 failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-05_annuity_surrender_charge_illustrations__vote0 failed: 
+anthropic/claude-opus-4.8 failed after 3 attempts: HTTPStatusError("Client error
+'403 Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor 
+more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-05_annuity_surrender_charge_illustrations__vote1 failed: 
+x-ai/grok-4.5 failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-18_biomass_power_plant_emissions__vote0 failed: 
+anthropic/claude-opus-4.8 failed after 3 attempts: HTTPStatusError("Client error
+'403 Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor 
+more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-05_annuity_surrender_charge_illustrations__vote2 failed: 
+openai/gpt-5.6-sol failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-09_gym_franchise_fee_disclosure_consent_decrees__vote0 failed: 
+anthropic/claude-opus-4.8 failed after 3 attempts: HTTPStatusError("Client error
+'403 Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor 
+more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-09_gym_franchise_fee_disclosure_consent_decrees__vote2 failed: 
+openai/gpt-5.6-sol failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-09_gym_franchise_fee_disclosure_consent_decrees__vote1 failed: 
+x-ai/grok-4.5 failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-04_manure_digester_methane_capture_failure__vote0 failed: 
+anthropic/claude-opus-4.8 failed after 3 attempts: HTTPStatusError("Client error
+'403 Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor 
+more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-04_manure_digester_methane_capture_failure__vote1 failed: 
+x-ai/grok-4.5 failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-13_utility_shutoff_winter_moratorium_exceptions__vote0 failed: 
+anthropic/claude-opus-4.8 failed after 3 attempts: HTTPStatusError("Client error
+'403 Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor 
+more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-04_manure_digester_methane_capture_failure__vote2 failed: 
+openai/gpt-5.6-sol failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-13_utility_shutoff_winter_moratorium_exceptions__vote2 failed: 
+openai/gpt-5.6-sol failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-14_high_powered_magnet_marketplace_age_gating_enf__vote0 failed:
+anthropic/claude-opus-4.8 failed after 3 attempts: HTTPStatusError("Client error
+'403 Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor 
+more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-13_utility_shutoff_winter_moratorium_exceptions__vote1 failed: 
+x-ai/grok-4.5 failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-14_high_powered_magnet_marketplace_age_gating_enf__vote2 failed:
+openai/gpt-5.6-sol failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-14_high_powered_magnet_marketplace_age_gating_enf__vote1 failed:
+x-ai/grok-4.5 failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-02_food_delivery_platform_temperature_control__vote1 failed: 
+x-ai/grok-4.5 failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-11_assisted_living_fall_prevention_programs__vote1 failed: 
+x-ai/grok-4.5 failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-19_structured_settlement_factoring_disclosures__vote1 failed: 
+x-ai/grok-4.5 failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-19_structured_settlement_factoring_disclosures__vote0 failed: 
+anthropic/claude-opus-4.8 failed after 3 attempts: HTTPStatusError("Client error
+'403 Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor 
+more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-02_food_delivery_platform_temperature_control__vote2 failed: 
+openai/gpt-5.6-sol failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-02_food_delivery_platform_temperature_control__vote0 failed: 
+anthropic/claude-opus-4.8 failed after 3 attempts: HTTPStatusError("Client error
+'403 Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor 
+more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-11_assisted_living_fall_prevention_programs__vote0 failed: 
+anthropic/claude-opus-4.8 failed after 3 attempts: HTTPStatusError("Client error
+'403 Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor 
+more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-19_structured_settlement_factoring_disclosures__vote2 failed: 
+openai/gpt-5.6-sol failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-11_assisted_living_fall_prevention_programs__vote2 failed: 
+openai/gpt-5.6-sol failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-01_dental_lab_material_sourcing_certifications__vote1 failed: 
+x-ai/grok-4.5 failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-01_dental_lab_material_sourcing_certifications__vote2 failed: 
+openai/gpt-5.6-sol failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-01_dental_lab_material_sourcing_certifications__vote0 failed: 
+anthropic/claude-opus-4.8 failed after 3 attempts: HTTPStatusError("Client error
+'403 Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor 
+more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-10_eb_2_niw_recommended_approval_patterns__vote0 failed: 
+anthropic/claude-opus-4.8 failed after 3 attempts: HTTPStatusError("Client error
+'403 Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor 
+more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-10_eb_2_niw_recommended_approval_patterns__vote1 failed: 
+x-ai/grok-4.5 failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-10_eb_2_niw_recommended_approval_patterns__vote2 failed: 
+openai/gpt-5.6-sol failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-16_restaurant_made_fresh_daily_claims_vs_prep__vote0 failed: 
+anthropic/claude-opus-4.8 failed after 3 attempts: HTTPStatusError("Client error
+'403 Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor 
+more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-16_restaurant_made_fresh_daily_claims_vs_prep__vote1 failed: 
+x-ai/grok-4.5 failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-16_restaurant_made_fresh_daily_claims_vs_prep__vote2 failed: 
+openai/gpt-5.6-sol failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-12_fashion_or_beauty_edit_gifted_product_influenc__vote1 failed:
+x-ai/grok-4.5 failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-12_fashion_or_beauty_edit_gifted_product_influenc__vote2 failed:
+openai/gpt-5.6-sol failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-06_smart_speaker_always_listening_retention__vote1 failed: 
+x-ai/grok-4.5 failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-06_smart_speaker_always_listening_retention__vote0 failed: 
+anthropic/claude-opus-4.8 failed after 3 attempts: HTTPStatusError("Client error
+'403 Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor 
+more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-12_fashion_or_beauty_edit_gifted_product_influenc__vote0 failed:
+anthropic/claude-opus-4.8 failed after 3 attempts: HTTPStatusError("Client error
+'403 Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor 
+more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-06_smart_speaker_always_listening_retention__vote2 failed: 
+openai/gpt-5.6-sol failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-18_biomass_power_plant_emissions__vote1 failed: x-ai/grok-4.5 
+failed after 3 attempts: HTTPStatusError("Client error '403 Forbidden' for url 
+'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-15_hearing_aid_manufacturer_firmware_rollout_trac__vote0 failed:
+anthropic/claude-opus-4.8 failed after 3 attempts: HTTPStatusError("Client error
+'403 Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor 
+more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-18_biomass_power_plant_emissions__vote2 failed: 
+openai/gpt-5.6-sol failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-15_hearing_aid_manufacturer_firmware_rollout_trac__vote2 failed:
+openai/gpt-5.6-sol failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-15_hearing_aid_manufacturer_firmware_rollout_trac__vote1 failed:
+x-ai/grok-4.5 failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-05_annuity_surrender_charge_illustrations__vote0 failed: 
+anthropic/claude-opus-4.8 failed after 3 attempts: HTTPStatusError("Client error
+'403 Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor 
+more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-05_annuity_surrender_charge_illustrations__vote1 failed: 
+x-ai/grok-4.5 failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-18_biomass_power_plant_emissions__vote0 failed: 
+anthropic/claude-opus-4.8 failed after 3 attempts: HTTPStatusError("Client error
+'403 Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor 
+more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-09_gym_franchise_fee_disclosure_consent_decrees__vote0 failed: 
+anthropic/claude-opus-4.8 failed after 3 attempts: HTTPStatusError("Client error
+'403 Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor 
+more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-05_annuity_surrender_charge_illustrations__vote2 failed: 
+openai/gpt-5.6-sol failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-09_gym_franchise_fee_disclosure_consent_decrees__vote2 failed: 
+openai/gpt-5.6-sol failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-04_manure_digester_methane_capture_failure__vote0 failed: 
+anthropic/claude-opus-4.8 failed after 3 attempts: HTTPStatusError("Client error
+'403 Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor 
+more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-04_manure_digester_methane_capture_failure__vote1 failed: 
+x-ai/grok-4.5 failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-04_manure_digester_methane_capture_failure__vote2 failed: 
+openai/gpt-5.6-sol failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-13_utility_shutoff_winter_moratorium_exceptions__vote0 failed: 
+anthropic/claude-opus-4.8 failed after 3 attempts: HTTPStatusError("Client error
+'403 Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor 
+more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-09_gym_franchise_fee_disclosure_consent_decrees__vote1 failed: 
+x-ai/grok-4.5 failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-13_utility_shutoff_winter_moratorium_exceptions__vote2 failed: 
+openai/gpt-5.6-sol failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-13_utility_shutoff_winter_moratorium_exceptions__vote1 failed: 
+x-ai/grok-4.5 failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-14_high_powered_magnet_marketplace_age_gating_enf__vote0 failed:
+anthropic/claude-opus-4.8 failed after 3 attempts: HTTPStatusError("Client error
+'403 Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor 
+more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-14_high_powered_magnet_marketplace_age_gating_enf__vote2 failed:
+openai/gpt-5.6-sol failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-14_high_powered_magnet_marketplace_age_gating_enf__vote1 failed:
+x-ai/grok-4.5 failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-02_food_delivery_platform_temperature_control__vote0 failed: 
+anthropic/claude-opus-4.8 failed after 3 attempts: HTTPStatusError("Client error
+'403 Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor 
+more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-19_structured_settlement_factoring_disclosures__vote2 failed: 
+openai/gpt-5.6-sol failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-11_assisted_living_fall_prevention_programs__vote0 failed: 
+anthropic/claude-opus-4.8 failed after 3 attempts: HTTPStatusError("Client error
+'403 Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor 
+more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-19_structured_settlement_factoring_disclosures__vote0 failed: 
+anthropic/claude-opus-4.8 failed after 3 attempts: HTTPStatusError("Client error
+'403 Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor 
+more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-02_food_delivery_platform_temperature_control__vote2 failed: 
+openai/gpt-5.6-sol failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-11_assisted_living_fall_prevention_programs__vote1 failed: 
+x-ai/grok-4.5 failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-19_structured_settlement_factoring_disclosures__vote1 failed: 
+x-ai/grok-4.5 failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-02_food_delivery_platform_temperature_control__vote1 failed: 
+x-ai/grok-4.5 failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-11_assisted_living_fall_prevention_programs__vote2 failed: 
+openai/gpt-5.6-sol failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-01_dental_lab_material_sourcing_certifications__vote0 failed: 
+anthropic/claude-opus-4.8 failed after 3 attempts: HTTPStatusError("Client error
+'403 Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor 
+more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-10_eb_2_niw_recommended_approval_patterns__vote1 failed: 
+x-ai/grok-4.5 failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-01_dental_lab_material_sourcing_certifications__vote2 failed: 
+openai/gpt-5.6-sol failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-10_eb_2_niw_recommended_approval_patterns__vote0 failed: 
+anthropic/claude-opus-4.8 failed after 3 attempts: HTTPStatusError("Client error
+'403 Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor 
+more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-16_restaurant_made_fresh_daily_claims_vs_prep__vote0 failed: 
+anthropic/claude-opus-4.8 failed after 3 attempts: HTTPStatusError("Client error
+'403 Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor 
+more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-10_eb_2_niw_recommended_approval_patterns__vote2 failed: 
+openai/gpt-5.6-sol failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-01_dental_lab_material_sourcing_certifications__vote1 failed: 
+x-ai/grok-4.5 failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-16_restaurant_made_fresh_daily_claims_vs_prep__vote1 failed: 
+x-ai/grok-4.5 failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-16_restaurant_made_fresh_daily_claims_vs_prep__vote2 failed: 
+openai/gpt-5.6-sol failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-12_fashion_or_beauty_edit_gifted_product_influenc__vote0 failed:
+anthropic/claude-opus-4.8 failed after 3 attempts: HTTPStatusError("Client error
+'403 Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor 
+more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-12_fashion_or_beauty_edit_gifted_product_influenc__vote1 failed:
+x-ai/grok-4.5 failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-06_smart_speaker_always_listening_retention__vote0 failed: 
+anthropic/claude-opus-4.8 failed after 3 attempts: HTTPStatusError("Client error
+'403 Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor 
+more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-06_smart_speaker_always_listening_retention__vote1 failed: 
+x-ai/grok-4.5 failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-12_fashion_or_beauty_edit_gifted_product_influenc__vote2 failed:
+openai/gpt-5.6-sol failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-06_smart_speaker_always_listening_retention__vote2 failed: 
+openai/gpt-5.6-sol failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-18_biomass_power_plant_emissions__vote0 failed: 
+anthropic/claude-opus-4.8 failed after 3 attempts: HTTPStatusError("Client error
+'403 Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor 
+more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-18_biomass_power_plant_emissions__vote2 failed: 
+openai/gpt-5.6-sol failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-15_hearing_aid_manufacturer_firmware_rollout_trac__vote0 failed:
+anthropic/claude-opus-4.8 failed after 3 attempts: HTTPStatusError("Client error
+'403 Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor 
+more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-18_biomass_power_plant_emissions__vote1 failed: x-ai/grok-4.5 
+failed after 3 attempts: HTTPStatusError("Client error '403 Forbidden' for url 
+'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-15_hearing_aid_manufacturer_firmware_rollout_trac__vote1 failed:
+x-ai/grok-4.5 failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-15_hearing_aid_manufacturer_firmware_rollout_trac__vote2 failed:
+openai/gpt-5.6-sol failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-05_annuity_surrender_charge_illustrations__vote0 failed: 
+anthropic/claude-opus-4.8 failed after 3 attempts: HTTPStatusError("Client error
+'403 Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor 
+more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-05_annuity_surrender_charge_illustrations__vote1 failed: 
+x-ai/grok-4.5 failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-05_annuity_surrender_charge_illustrations__vote2 failed: 
+openai/gpt-5.6-sol failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-09_gym_franchise_fee_disclosure_consent_decrees__vote0 failed: 
+anthropic/claude-opus-4.8 failed after 3 attempts: HTTPStatusError("Client error
+'403 Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor 
+more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-09_gym_franchise_fee_disclosure_consent_decrees__vote1 failed: 
+x-ai/grok-4.5 failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-09_gym_franchise_fee_disclosure_consent_decrees__vote2 failed: 
+openai/gpt-5.6-sol failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-04_manure_digester_methane_capture_failure__vote0 failed: 
+anthropic/claude-opus-4.8 failed after 3 attempts: HTTPStatusError("Client error
+'403 Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor 
+more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-04_manure_digester_methane_capture_failure__vote2 failed: 
+openai/gpt-5.6-sol failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-04_manure_digester_methane_capture_failure__vote1 failed: 
+x-ai/grok-4.5 failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-13_utility_shutoff_winter_moratorium_exceptions__vote0 failed: 
+anthropic/claude-opus-4.8 failed after 3 attempts: HTTPStatusError("Client error
+'403 Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor 
+more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-13_utility_shutoff_winter_moratorium_exceptions__vote1 failed: 
+x-ai/grok-4.5 failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-13_utility_shutoff_winter_moratorium_exceptions__vote2 failed: 
+openai/gpt-5.6-sol failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-14_high_powered_magnet_marketplace_age_gating_enf__vote1 failed:
+x-ai/grok-4.5 failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-14_high_powered_magnet_marketplace_age_gating_enf__vote0 failed:
+anthropic/claude-opus-4.8 failed after 3 attempts: HTTPStatusError("Client error
+'403 Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor 
+more information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'
+openrouter cand-14_high_powered_magnet_marketplace_age_gating_enf__vote2 failed:
+openai/gpt-5.6-sol failed after 3 attempts: HTTPStatusError("Client error '403 
+Forbidden' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more 
+information check: 
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403"); body 
+tail='{"error":{"message":"Key limit exceeded (total limit). Manage it using 
+https://openrouter.ai/workspaces/default/keys/e9e1f01c7b9d602902c41f7e44baf2b2b6
+de855e6c7066281a5bccac531ef0de","code":403}}'

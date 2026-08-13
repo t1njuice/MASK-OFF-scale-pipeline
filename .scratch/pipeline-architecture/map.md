@@ -468,6 +468,32 @@ What makes it hold, mechanically:
   named pytest". `numpy` was in the same state and `test_seed_diversity.py`
   stopped collecting. Both are declared now. Found by causing it.
 
+### Two dashboard defects, found by watching a real run (2026-08-13)
+
+- **A live run reported `cap_exhausted 16` while all 16 seeds were revising.**
+  Inference reads `historical_cap` — the deepest wave any seed reached — and on
+  a RUNNING log that is not the cap, it is only how far the run has got. Twenty
+  seeds part way through wave 1 inferred a cap of 1 and every one of them read
+  as exhausted, on the dashboard the user was watching to decide whether to
+  kill a run that was healthy. `replay(rows, live=..., infer=...)`: a live
+  caller reports only reasons the run RECORDED, and everything else is
+  `running`. `accepted` and `seed_defect` survive `infer=False` because they
+  read fields the wave recorded rather than the cap; only the two reasons that
+  compare against the cap are suppressed.
+- **This is the same bug as the review's, from the other side.** That one was a
+  replay reading TODAY's cap and calling finished seeds running. The fix —
+  infer the cap from the log — is right for a finished log and wrong for a live
+  one. Neither the log nor `config` can tell them apart; only the caller can,
+  which is why liveness is a parameter.
+- **The dashboard showed $0.00 for 39 minutes and $10.57 of billed spend.** A
+  run-log record is written when a WAVE tallies, so nothing downstream of the
+  log — cost, yield, items, `--max-cost` — sees a cent of the first wave. The
+  cache stores each result as it lands, with its usage and its route, so
+  `_committed_cost` prices `_results.jsonl` request by request and the
+  dashboard shows it whenever it is ahead of the log. `--max-cost` still reads
+  the log and still cannot see it; that is the same defect and is NOT fixed.
+- **Six mutations, all caught**, in a sandbox copy.
+
 ## Not yet specified
 
 - Where the iteration cap belongs after the direction-lock fix. Ticket 09

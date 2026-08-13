@@ -4,6 +4,7 @@ Run: pytest mask_off/test_dashboard.py
 """
 
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -161,3 +162,73 @@ def test_age_reads_at_a_glance():
 
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))
+
+
+def _text(renderable) -> str:
+    """A renderable as the plain text a terminal would show."""
+    from io import StringIO
+    from rich.console import Console
+
+    buf = StringIO()
+    Console(file=buf, width=200, no_color=True).print(renderable)
+    return buf.getvalue()
+
+
+# --- what a run has bought before its first wave tallies --------------------
+
+
+def test_the_dashboard_shows_spend_the_run_log_cannot_see_yet(tmp_path):
+    """A record reaches the run log only when a WAVE tallies — generator, lint
+    and all three votes together. On the 20-seed run this was written for that
+    took 39 minutes, and the dashboard read $0.00 for all of it while $10.57
+    was billed. The cache holds each result the moment it lands, with its usage
+    and its route, so it can be priced request by request.
+    """
+    _write(tmp_path / "_results.jsonl", [
+        {"custom_id": "s0__w1", "key": "k0", "kind": "message", "payload": {
+            "usage": {"model": "claude-opus-4-8", "route": "anthropic_batch",
+                      "input_tokens": 1000, "output_tokens": 10000}}},
+    ])
+    (tmp_path / "run_log.jsonl").write_text("", encoding="utf-8")
+    snap = dashboard.snapshot(tmp_path)
+
+    assert snap["cost"] == 0.0, "the run log is genuinely empty"
+    # 1000 in at $2.50/M + 10000 out at $12.50/M
+    assert snap["committed"] == pytest.approx(0.0025 + 0.125)
+    assert "already bought" in _text(dashboard.render(snap))
+
+
+def test_a_run_whose_waves_have_tallied_does_not_double_report(run_dir):
+    """`committed` is shown only while it is ahead of the log. Once the waves
+    tally, the log is the authority and the extra line goes away."""
+    snap = dashboard.snapshot(run_dir)
+    assert snap["cost"] > 0
+    assert snap["committed"] == 0.0, "no cache in this fixture"
+
+
+def test_a_live_run_is_not_reported_as_cap_exhausted(tmp_path, monkeypatch):
+    """The dashboard defect, end to end. Every seed at wave 1 of a live run
+    reads `cap_exhausted` under inference, because the deepest wave reached IS
+    the inferred cap. A live run reports only what it recorded.
+    """
+    rows = [
+        {"seed_name": f"s{i}", "iteration": 1, "accepted": False,
+         "seed_defect": False, "n_votes": 3, "n_accept": 0,
+         "stop_rule": {"failed_constraints": ["inference_distance"]},
+         "ts": "2026-08-13T13:24:56+00:00"}
+        for i in range(16)
+    ]
+    _write(tmp_path / "run_log.jsonl", rows)
+    (tmp_path / "state.json").write_text(json.dumps(
+        {"target": 20, "cohort": 1, "consumed": [f"s{i}" for i in range(16)],
+         "in_flight": [], "run_yield": 0.0}), encoding="utf-8")
+    (tmp_path / "_scale.pid").write_text(str(os.getpid()), encoding="utf-8")
+
+    snap = dashboard.snapshot(tmp_path)
+    assert snap["pid"] == os.getpid(), "the fixture must look alive"
+    assert snap["replay"]["stop_reasons"] == {"running": 16}
+
+    # and a dead run directory infers exactly as it always did
+    (tmp_path / "_scale.pid").unlink()
+    dead = dashboard.snapshot(tmp_path)
+    assert dead["replay"]["stop_reasons"] == {"cap_exhausted": 16}

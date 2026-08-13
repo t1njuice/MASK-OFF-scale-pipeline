@@ -81,6 +81,24 @@ def _iso(value: str) -> datetime.datetime:
     return datetime.datetime.fromisoformat(value)
 
 
+def _committed_cost(run_dir: Path) -> float:
+    """Dollars for every request the batch cache holds, wave tallied or not.
+
+    The run log gets a record when a WAVE tallies — generator, lint and all
+    three votes together — so a 20-seed run shows $0.00 for as long as its
+    first wave takes. That was 39 minutes and $10.57 of real, billed spend on
+    the run this was written for, and `--max-cost` was reading the same empty
+    log. The cache stores each result the moment it lands, with its usage and
+    the route that served it, so it can be priced request by request.
+
+    An estimate only in the sense that it lags the provider by whatever is in
+    flight right now. Everything it counts is already bought.
+    """
+    rows = _rows(run_dir / "_results.jsonl")
+    usages = [u for u in ((r.get("payload") or {}).get("usage") for r in rows) if u]
+    return ledger.total(ledger.usage_entries(usages, "stage_a"))
+
+
 def batches(run_dir: Path) -> dict:
     """Submitted, drained and still-in-flight batch handles, by route.
 
@@ -207,11 +225,20 @@ def snapshot(run_dir: Path) -> dict:
     items = _rows(run_dir / "accepted.jsonl")
     cohorts = _rows(run_dir / "cohorts.jsonl")
 
-    replay = stoprule.replay(log) if log else {}
-    entries = ledger.log_entries(log_path) if log_path.exists() else []
-
     lock = run_dir / "_scale.pid"
     pid = int(lock.read_text().strip() or 0) if lock.exists() else 0
+    alive = bool(pid and _alive(pid))
+
+    # A live run must not have its stop reasons inferred: inference reads the
+    # cap the log attests to, and on a running log the deepest wave reached is
+    # only how far the run has got. Twenty seeds part way through wave 1 read
+    # as `cap_exhausted 16` against an inferred cap of 1 while every one of
+    # them was about to revise.
+    replay = stoprule.replay(
+        log, live=state.get("in_flight") or (), infer=not alive
+    ) if log else {}
+    entries = ledger.log_entries(log_path) if log_path.exists() else []
+    committed = _committed_cost(run_dir)
 
     now = datetime.datetime.now(datetime.timezone.utc)
     started = _iso(log[0]["ts"]) if log else None
@@ -221,7 +248,7 @@ def snapshot(run_dir: Path) -> dict:
     return {
         "run_dir": run_dir,
         "exists": run_dir.exists(),
-        "pid": pid if pid and _alive(pid) else 0,
+        "pid": pid if alive else 0,
         "target": state.get("target"),
         "items": len(items),
         "cohort": state.get("cohort", 0),
@@ -231,6 +258,7 @@ def snapshot(run_dir: Path) -> dict:
         "cohorts": cohorts,
         "replay": replay,
         "cost": ledger.total(entries),
+        "committed": committed,
         "cost_by_stage": ledger.by_stage(entries),
         "cost_by_route": ledger.by_route(entries),
         "started": started,
@@ -294,6 +322,10 @@ def render(snap: dict) -> Panel:
     if replay:
         reasons = "  ".join(f"{k} {v}" for k, v in sorted(replay["stop_reasons"].items()))
         table.add_row("waves", f"{replay['waves']} over {replay['seeds']} seeds   {reasons}")
+        if snap["pid"]:
+            table.add_row("", Text(
+                "a live run reports only recorded outcomes; `running` means "
+                "the seed is still revising", style="dim"))
         occupancy = replay.get("occupancy") or {}
         if occupancy.get("wave_occupancy") is not None:
             table.add_row("occupancy", f"{occupancy['wave_occupancy']:.0%} of the "
@@ -304,6 +336,13 @@ def render(snap: dict) -> Panel:
     table.add_row("cost", f"{_money(snap['cost'])}{per_item}")
     if stages:
         table.add_row("", Text(stages, style="dim"))
+    # The run log only gains a record when a WAVE tallies, so the line above is
+    # $0.00 for the whole of a run's first wave while requests are landing and
+    # being billed. Show what the cache already holds whenever it is ahead.
+    if snap["committed"] > snap["cost"] + 0.005:
+        table.add_row("", Text(
+            f"{_money(snap['committed'])} already bought "
+            f"(requests landed, waves not yet tallied)", style="yellow"))
 
     batch = snap["batches"]
     open_now = sum(batch["open"].values())

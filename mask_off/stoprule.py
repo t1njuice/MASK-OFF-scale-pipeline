@@ -241,7 +241,8 @@ def historical_cap(histories: Mapping[str, list[Wave]]) -> int:
     return max((w.iteration for h in histories.values() for w in h), default=0)
 
 
-def _reason(history: list[Wave], cap: int) -> tuple[str | None, bool]:
+def _reason(history: list[Wave], cap: int,
+            infer: bool = True) -> tuple[str | None, bool]:
     """(reason, inferred). Prefer the reason the run recorded; else infer it
     from the log, against the cap THAT log ran at.
 
@@ -260,6 +261,12 @@ def _reason(history: list[Wave], cap: int) -> tuple[str | None, bool]:
         return ACCEPTED, True
     if last.seed_defect:
         return SEED_DEFECT, True
+    # Everything above reads a field the wave RECORDED. Everything below reads
+    # the cap, and on a live log the deepest wave reached is not the cap — it
+    # is how far the run has got. So a live caller stops here: this seed has
+    # not accepted, is not defective, and is still revising.
+    if not infer:
+        return None, False
     if last.iteration >= cap:
         return CAP_EXHAUSTED, True
     # It did not accept, was not defective, and never reached the cap this log
@@ -268,14 +275,33 @@ def _reason(history: list[Wave], cap: int) -> tuple[str | None, bool]:
     return STOPPED_UNRECORDED, True
 
 
-def replay(rows: Iterable[Mapping]) -> dict:
-    """Per-wave figures for a whole run log, replayed through the stop rule."""
+def replay(rows: Iterable[Mapping], live: Iterable[str] = (),
+           infer: bool = True) -> dict:
+    """Per-wave figures for a whole run log, replayed through the stop rule.
+
+    `live` names the seeds still in flight and `infer` says whether the log is
+    finished. Both exist because inference reads the cap the log attests to —
+    the deepest wave any seed reached — and on a RUNNING log that is not the
+    cap, it is only how far the run has got. Every seed of a 20-seed run part
+    way through wave 1 therefore looked `cap_exhausted` against an inferred cap
+    of 1, which is the opposite of the truth: they were all about to revise.
+
+    A finished log is the default and infers as it always did. A caller that
+    knows the run is alive passes `infer=False`, and then only a reason the run
+    RECORDED is reported; everything else is `running`, which is what it is.
+    `live` additionally protects a seed that is in flight in a log that looks
+    finished. Neither ever consults `config.FROZEN_MAX_ITERATIONS`.
+    """
     rows = list(rows)
+    live = frozenset(live)
     histories = waves_from_log(rows)
     cap = historical_cap(histories)
     per_seed = []
     for name, history in sorted(histories.items()):
-        reason, inferred = _reason(history, cap)
+        if name in live:
+            reason, inferred = None, False
+        else:
+            reason, inferred = _reason(history, cap, infer=infer)
         accepted = any(w.accepted for w in history)
         per_seed.append({
             "seed_name": name,

@@ -338,3 +338,69 @@ def test_replay_reads_the_failing_set_out_of_legacy_votes():
     assert all(w.iteration == i + 1 for i, w in enumerate(burner))
     assert any(w.failed for w in burner), "no wave named a failed constraint"
     assert any(w.id_dir for w in burner), "no wave carried a direction ruling"
+
+
+# --- a live log is not a finished one --------------------------------------
+
+
+def _live_log(seeds: int, wave: int = 1) -> list[dict]:
+    """`seeds` seeds, each rejected at `wave` and about to revise."""
+    return [
+        {"seed_name": f"s{i}", "iteration": wave, "accepted": False,
+         "seed_defect": False, "n_votes": 3, "n_accept": 0,
+         "stop_rule": {"failed_constraints": ["inference_distance"]},
+         "ts": "2026-08-13T13:24:56+00:00"}
+        for i in range(seeds)
+    ]
+
+
+def test_a_running_log_does_not_report_its_seeds_as_cap_exhausted():
+    """Found on a live 20-seed run. Inference reads the cap the log attests to
+    — the deepest wave any seed reached — and part way through wave 1 that is
+    1, so every seed read `cap_exhausted` against a configured cap of 7 while
+    all of them were about to revise. The opposite of the truth, printed on the
+    dashboard the user was watching to decide whether to kill the run.
+    """
+    rows = _live_log(16)
+    assert stoprule.replay(rows)["stop_reasons"] == {stoprule.CAP_EXHAUSTED: 16}
+    assert stoprule.replay(rows, infer=False)["stop_reasons"] == {"running": 16}
+
+
+def test_a_live_run_still_reports_the_reasons_it_recorded():
+    """`infer=False` suppresses inference, not evidence. A seed the run wrote a
+    `stopped` reason for keeps it, because that is a fact on the record."""
+    rows = _live_log(2)
+    rows[0]["stopped"] = stoprule.SEED_DEFECT
+    got = stoprule.replay(rows, infer=False)["stop_reasons"]
+    assert got == {stoprule.SEED_DEFECT: 1, "running": 1}, got
+
+
+def test_a_live_run_still_reports_an_accepted_seed():
+    """`accepted` and `seed_defect` are fields the wave recorded, not readings
+    of the cap, so they survive `infer=False`. Only the two reasons that
+    compare against the cap are suppressed."""
+    rows = _live_log(2)
+    rows[0].update(accepted=True)
+    rows[1].update(seed_defect=True)
+    got = stoprule.replay(rows, infer=False)["stop_reasons"]
+    assert got == {stoprule.ACCEPTED: 1, stoprule.SEED_DEFECT: 1}, got
+
+
+def test_a_seed_in_flight_is_running_whatever_the_log_looks_like():
+    """A log can look finished while a seed is still out — the run writes a
+    record per wave, so a seed mid-revision has a complete-looking history at
+    the cap. `live` names those seeds from `state.json`."""
+    rows = _live_log(3, wave=7)
+    assert stoprule.replay(rows)["stop_reasons"] == {stoprule.CAP_EXHAUSTED: 3}
+    got = stoprule.replay(rows, live=["s0"])["stop_reasons"]
+    assert got == {stoprule.CAP_EXHAUSTED: 2, "running": 1}, got
+
+
+def test_a_finished_log_still_infers_by_default():
+    """The p6 figures must not move. `infer` defaults to True and `live` to
+    empty, so every existing caller reads exactly what it read before."""
+    rows = [json.loads(line) for line
+            in P6_LOG.read_text(encoding="utf-8").splitlines() if line.strip()]
+    assert stoprule.replay(rows)["stop_reasons"] == {
+        stoprule.CAP_EXHAUSTED: 5, stoprule.ACCEPTED: 14
+    }

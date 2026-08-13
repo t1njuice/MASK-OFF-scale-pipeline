@@ -62,6 +62,28 @@ def test_unpinned_panel_seat_is_reported(monkeypatch):
     assert ("x-ai/grok-9.9", "openrouter_sync") in pricing.unpinned()
 
 
+def test_openrouter_key_check_covers_every_role(monkeypatch, capsys):
+    """Regression: the key check was hand-built from the roster, generator and
+    panel, so it missed the thermometer, seedgen, judge and smoke models. It
+    only caught seedgen while a roster model happened to share its provider.
+
+    Make the roster, generator and panel Claude-only — which ticket 07 is
+    expected to do — and the OpenRouter-routed seedgen model must still be
+    named rather than crashing later with a raw KeyError.
+    """
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    monkeypatch.setattr(config, "TARGET_MODELS", ["claude-opus-4-8"])
+    monkeypatch.setattr(config, "VALIDITY_PANEL", ["claude-opus-4-8"] * 3)
+    monkeypatch.setattr(config, "THERMOMETER_MODEL", "claude-opus-4-8")
+
+    def _no_client():
+        raise AssertionError("preflight built a client before checking the key")
+
+    monkeypatch.setattr(launch, "client", _no_client)
+    assert launch.preflight() is False
+    assert config.SEEDGEN_MODEL in capsys.readouterr().err
+
+
 def test_preflight_fails_on_an_unpinned_model(monkeypatch, capsys):
     """It fails BEFORE any request: no credential is touched and no client is
     built, so an unpinned model cannot reach a provider."""

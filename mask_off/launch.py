@@ -74,17 +74,19 @@ def preflight() -> bool:
             file=sys.stderr,
         )
         return False
-    # 1) OpenRouter-routed models (any role) need their own key.
-    openrouter_models = [
+    # 1) OpenRouter-routed models, in ANY role, need their own key. Derived
+    #    from the same reachable set the price check uses: a hand-built list
+    #    silently omitted the thermometer, seedgen, judge and smoke models,
+    #    and only caught them while a roster model happened to share a slug.
+    openrouter_models = sorted({
         model
-        for model in [*config.TARGET_MODELS, config.GENERATOR_MODEL,
-                      *(config.VALIDITY_PANEL or [config.VALIDITY_MODEL])]
-        if not model.startswith("claude") and not model.startswith("openai/")
-    ]
+        for model in pricing.configured_models()
+        if pricing.reachable_routes(model) & {"openrouter_sync"}
+    })
     if openrouter_models and not os.environ.get("OPENROUTER_API_KEY"):
         print(
-            f"ERROR: {sorted(set(openrouter_models))} route through OpenRouter "
-            f"but OPENROUTER_API_KEY is not set.",
+            f"ERROR: {openrouter_models} route through OpenRouter but "
+            f"OPENROUTER_API_KEY is not set.",
             file=sys.stderr,
         )
         return False

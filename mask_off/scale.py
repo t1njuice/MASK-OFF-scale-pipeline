@@ -21,9 +21,8 @@ import random
 import sys
 from pathlib import Path
 
-from . import config, frozen_pipeline
+from . import config, frozen_pipeline, ledger
 from .batchcache import drain_orphans, policy, run_lock
-from .pricing import usage_cost
 from .seeds import harm_class, load_seeds
 
 # yield_ema = (1 - EMA_ALPHA) * previous + EMA_ALPHA * latest cohort yield
@@ -114,32 +113,10 @@ def save_state(run_dir: Path, state: dict) -> None:
 
 
 def run_cost(run_dir: Path) -> float:
-    """Cumulative dollars from run_log.jsonl usage rows (all routes).
-
-    Deduplicated by (seed_name, iteration): the log is append-only and a
-    replayed cohort re-logs every wave it already ran, with the usage of the
-    rehydrated cached message. That work was billed once, so counting the
-    rows twice would inflate the projection and stop `--max-cost` early.
-    """
-    path = run_dir / "run_log.jsonl"
-    if not path.exists():
-        return 0.0
-    waves = {}
-    for line in path.read_text(encoding="utf-8").splitlines():
-        if not line.strip():
-            continue
-        row = json.loads(line)
-        usage = row.get("usage") or {}
-        if not usage:
-            continue
-        if "generator" in usage:  # decision row: generator + panel votes
-            spend = usage_cost(usage["generator"] or {}) + sum(
-                usage_cost(u or {}) for u in usage.get("votes", [])
-            )
-        else:  # error row: one flat usage dict
-            spend = usage_cost(usage)
-        waves[(row.get("seed_name"), row.get("iteration"), row.get("stage"))] = spend
-    return sum(waves.values())
+    """Cumulative dollars for a run. The counting, and the deduplication rule
+    that makes a replayed cohort cost what it was billed rather than twice
+    that, live in one place now (ticket 11)."""
+    return ledger.run_total(run_dir)
 
 
 def _accepted_items(run_dir: Path) -> list[dict]:
@@ -275,7 +252,7 @@ def generate(
                 # cost ceiling, checked at cohort boundaries only: project the
                 # next cohort from the per-launched-seed average so far
                 if max_cost is not None and state["consumed"]:
-                    spent = run_cost(run_dir)
+                    spent = ledger.run_total(run_dir)
                     per_seed = spent / len(state["consumed"])
                     size = cohort_size(target - total, state["yield_ema"])
                     projected = per_seed * size

@@ -32,7 +32,7 @@ from .llm import (
     text_of,
     usage_summary_of,
 )
-from .frozen_pipeline import usage_cost
+from . import ledger
 from .launch import preflight
 from .schemas import ResponseJudgments
 
@@ -202,7 +202,7 @@ def evaluate(
     prefixes = [seat.label for seat, _ in targets] + (
         [smoke_seat.label] if smoke_n else [])
     judges = [seat.label for seat in config.JUDGE_PANEL]
-    total_cost = 0.0
+    spend: list[ledger.Entry] = []
     progress = batch_progress()
     with progress:
         # ---- wave 1: roleplay samples (+ probes and variants if enabled) ----
@@ -257,7 +257,7 @@ def evaluate(
                     # pricing.py now knows non-Anthropic rates too (F4), so
                     # every route's spend counts, not only the claude share
                     if msg is not None:
-                        total_cost += usage_cost(usage_summary_of(msg))
+                        spend += ledger.usage_entries([usage_summary_of(msg)], stage="target")
             if probes:
                 msg = wave1.get(f"{rid}__probe1")
                 r["probe1_text"] = text_of(msg) if msg else ""
@@ -266,7 +266,7 @@ def evaluate(
                 msg = wave1.get(f"{rid}__variant")
                 r["probe2_email"] = text_of(msg) if msg else ""
                 if msg:
-                    total_cost += usage_cost(usage_summary_of(msg))
+                    spend += ledger.usage_entries([usage_summary_of(msg)], stage="smoke")
             else:
                 r["probe1_text"], r["probe1_pass"], r["probe2_email"] = "", None, ""
             results[rid] = r
@@ -328,7 +328,7 @@ def evaluate(
                                 d["response_label"], d["response_label"])
                             d["judge"] = seat.label
                             r[field].append(d)
-                        total_cost += usage_cost(usage_summary_of(msg))
+                        spend += ledger.usage_entries([usage_summary_of(msg)], stage="judge")
                     except Exception as e:  # noqa: BLE001
                         errors[seat.label] = repr(e)
                 if errors:
@@ -349,7 +349,10 @@ def evaluate(
     summary["judge_panel"] = [
         {"label": seat.label, "model": seat.model} for seat in config.JUDGE_PANEL
     ]
-    summary["estimated_anthropic_cost_usd"] = round(total_cost, 2)
+    summary["estimated_anthropic_cost_usd"] = round(ledger.total(spend), 2)
+    summary["cost_by_stage"] = {
+        stage: round(dollars, 4) for stage, dollars in ledger.by_stage(spend).items()
+    }
     summary_path = out_stem.with_name(out_stem.name + "_eval_summary.json")
     summary_path.write_text(json.dumps(summary, indent=2), encoding="utf-8")
     print(json.dumps(summary, indent=2))

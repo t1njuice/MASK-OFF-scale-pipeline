@@ -215,9 +215,42 @@ def test_lint_pass_keeps_the_original_when_regeneration_fails():
 
 
 def test_lint_pass_is_a_no_op_when_every_draft_is_clean():
+    """No call, and nothing logged. lint_pass returns no cost since ticket 11 —
+    the ledger prices the `lint` record instead of a caller accumulating it."""
+    logged = []
     with patch("mask_off.frozen_pipeline.run_batch_retry",
                lambda *a, **k: pytest.fail("no generator call for a clean wave")):
-        assert lint_pass([_state("word " * 100 + TONE)], progress=None, log=lambda r: None) == 0.0
+        assert lint_pass([_state("word " * 100 + TONE)], progress=None,
+                         log=logged.append) is None
+    assert logged == []
+
+
+def test_a_lint_record_carries_its_usage_so_the_ceiling_can_see_it():
+    """Regression: the lint record logged no usage, so lint regeneration was in
+    the figure printed at the end of a run but invisible to --max-cost and to
+    the metrics report. Every run that linted under-counted its own spend."""
+    from . import ledger
+
+    dirty = _state("word " * 240 + TONE, "01_long")  # over the word cap
+    regenerated = _msg(_cand("word " * 100 + TONE).model_dump_json())
+    regenerated.model = "claude-opus-4-8"
+    regenerated.route = "anthropic_batch"
+    regenerated.usage = SimpleNamespace(
+        input_tokens=1000, output_tokens=5000,
+        cache_creation_input_tokens=0, cache_read_input_tokens=0,
+    )
+    logged = []
+    with patch("mask_off.frozen_pipeline.run_batch_retry",
+               lambda *a, **k: {f"{dirty['cid']}__lint": regenerated}):
+        lint_pass([dirty], progress=None, log=logged.append)
+
+    assert logged and logged[0]["stage"] == "lint"
+    assert logged[0]["usage"]["output_tokens"] == 5000, (
+        "the record must carry usage or the ledger sees nothing"
+    )
+    priced = ledger.record_entries(logged[0])
+    assert priced and all(e.stage == "lint" for e in priced)
+    assert ledger.total(priced) > 0, "lint regeneration is not free"
 
 
 def test_resubmit_votes_refills_missing_and_unparseable_then_stops():

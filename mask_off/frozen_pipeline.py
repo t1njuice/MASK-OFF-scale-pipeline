@@ -16,16 +16,13 @@ import sys
 import uuid
 from pathlib import Path
 
-from . import config, stoprule
+from . import config, ledger, stoprule
 from .generator import build_gen_request, lint_candidate, parse_gen
 from .llm import batch_progress, run_batch_retry, usage_summary_of
 from .launch import preflight, run_timestamp, select_seeds
 from .seeds import load_seeds, source_name
 from .validity import build_vote_requests, id_direction, parse_vote, tally
 
-# Re-exported here because evaluate.py and the experiment scripts import it
-# from this module; the table itself lives in config.PRICES (ADR-0002 §9/F4).
-from .pricing import usage_cost  # noqa: E402,F401  (import placement: after the module docstring block)
 
 
 def now_iso() -> str:
@@ -100,7 +97,7 @@ def resubmit_votes(vote_reqs: list[dict], vote_msgs: dict, progress) -> dict:
     return vote_msgs
 
 
-def lint_pass(ready: list[dict], progress, log) -> float:
+def lint_pass(ready: list[dict], progress, log) -> None:
     """Regenerate once, before the panel votes, every candidate the lint rejects.
 
     Bounded at ONE extra generator call per seed per iteration: the lint keeps a
@@ -108,13 +105,18 @@ def lint_pass(ready: list[dict], progress, log) -> float:
     tokens each), it is not a loop that iterates to cleanliness. A regeneration
     that fails to parse — or that still lints dirty — leaves the original
     candidate standing and the panel judges that, so the lint can never cost a
-    seed its round. Returns the added generator cost.
+    seed its round.
+
+    The record carries `usage`, so the ledger prices this call at stage
+    `lint`. It did not until ticket 11: lint regeneration was in the figure
+    printed at the end of a run but invisible to `--max-cost` and to the
+    metrics report, so the cost ceiling under-counted every run that linted.
 
     Mutates `ready` in place: a clean regeneration replaces `s["candidate"]`.
     """
     flagged = [(s, text) for s in ready if (text := lint_candidate(s["candidate"]))]
     if not flagged:
-        return 0.0
+        return
 
     # Distinct custom_id: reusing the round's id would let the batch cache serve
     # the linted draft straight back as its own replacement. `cid` is already
@@ -135,7 +137,6 @@ def lint_pass(ready: list[dict], progress, log) -> float:
     ]
     msgs = run_batch_retry(reqs, "Generator (lint regen)", progress)
 
-    cost = 0.0
     for s, text in flagged:
         msg = msgs.get(f"{s['cid']}__lint")
         rec = {
@@ -143,13 +144,13 @@ def lint_pass(ready: list[dict], progress, log) -> float:
             "iteration": s["iteration"],
             "stage": "lint",
             "findings": text,
+            "usage": usage_summary_of(msg) if msg else {},
             "ts": now_iso(),
         }
         try:
             if msg is None:
                 raise RuntimeError("lint regeneration returned no message")
             cand = parse_gen(msg)
-            cost += usage_cost(getattr(cand, "_llm_usage", {}) or {})
             s["candidate"] = cand
             rec["regenerated"] = True
             rec["residual"] = lint_candidate(cand)
@@ -157,7 +158,6 @@ def lint_pass(ready: list[dict], progress, log) -> float:
             rec["regenerated"] = False
             rec["error"] = repr(e)
         log(rec)
-    return cost
 
 
 def accepted_seed_names(items_path: Path) -> set[tuple[str, str]]:
@@ -191,6 +191,10 @@ def run(n: int, seeds_path: Path, out_stem: Path, launch=None,
     items_path = items_path or out_stem.with_name(out_stem.name + "_accepted.jsonl")
     out_stem.parent.mkdir(parents=True, exist_ok=True)
     done_names = accepted_seed_names(items_path)
+    # Under `scale`, log_path is the run directory's shared log and already
+    # holds every earlier cohort. Take the total before this cohort writes so
+    # the closing line can report what THIS cohort spent as well as the run.
+    spent_before = ledger.run_total(log_path.parent) if log_path.exists() else 0.0
     log_f = open(log_path, "a", encoding="utf-8")
 
     def log(rec: dict) -> None:
@@ -214,7 +218,6 @@ def run(n: int, seeds_path: Path, out_stem: Path, launch=None,
     ]
     for s in states:
         s.update((resume or {}).get(s["seed"].name, {}))
-    total_cost = 0.0
     progress = batch_progress()
     with progress:
         while any(not s["done"] for s in states):
@@ -251,7 +254,6 @@ def run(n: int, seeds_path: Path, out_stem: Path, launch=None,
                     if msg is None:
                         raise RuntimeError("generator batch returned no message")
                     s["candidate"] = parse_gen(msg)
-                    total_cost += usage_cost(getattr(s["candidate"], "_llm_usage", {}) or {})
                     ready.append(s)
                 except Exception as e:  # noqa: BLE001
                     # A wave that never reached the panel is still a wave the
@@ -276,7 +278,7 @@ def run(n: int, seeds_path: Path, out_stem: Path, launch=None,
                     log(rec)
 
             if config.GENERATOR_LINT:
-                total_cost += lint_pass(ready, progress, log)
+                lint_pass(ready, progress, log)
 
             vote_reqs = []
             for s in ready:
@@ -298,7 +300,6 @@ def run(n: int, seeds_path: Path, out_stem: Path, launch=None,
                         v = parse_vote(msg, slot=i)
                         votes.append(v)
                         vote_dumps.append(v.model_dump())
-                        total_cost += usage_cost(getattr(v, "_llm_usage", {}) or {})
                     except Exception as e:  # noqa: BLE001
                         vote_errors.append(repr(e))
                 if not votes:
@@ -395,10 +396,13 @@ def run(n: int, seeds_path: Path, out_stem: Path, launch=None,
 
     log_f.close()
     accepted = [s["accepted_item"] for s in states if s["accepted_item"]]
+    total = ledger.total(ledger.log_entries(log_path))
+    cohort_cost = total - spent_before
     print(
         f"\n{len(states)} seeds run, {len(accepted)} accepted "
         f"({len(accepted)/len(states):.0%} yield). "
-        f"Estimated cost across routes: ${total_cost:.2f}"
+        f"Cost across routes: ${cohort_cost:.2f}"
+        + (f" this cohort, ${total:.2f} for the run" if spent_before else "")
     )
     print(f"Accepted items: {items_path}\nRun log: {log_path}")
     return accepted, items_path

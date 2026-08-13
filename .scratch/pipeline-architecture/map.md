@@ -145,6 +145,11 @@ write, $2.91 against $8.29 uncached. Do not spend a ticket there.
 - **Seed authoring passed latency `"wave"` against ADR-0002, which calls it
   `"day"`.** Aligned. Behaviour-neutral today: the seedgen model is an
   OpenRouter slug and routes identically at both classes.
+- **Review closed with two bugs found and fixed, both introduced by this
+  effort.** The batch-orphan hole in `dispatch` (self-review) and the
+  incomplete OpenRouter-key enumeration in `launch.preflight` (subagent
+  review). Both had the same shape: a list of models written by hand where a
+  derived one already existed. Derive the set; do not retype it.
 - **Two published figures were wrong and are corrected in `docs/evidence/`.**
   p6 holds 103 log records but **102 waves** (one record is a lint record
   sharing a wave), and **50** of them fall on the 5 seeds that never accepted,

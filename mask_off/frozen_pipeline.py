@@ -343,7 +343,9 @@ def run(n: int, seeds_path: Path, out_stem: Path, launch=None,
                     **decision,
                     "stop_rule": stoprule.instrument(s["waves"]),
                     "generator_model": config.GENERATOR_MODEL,
-                    "validity_model": config.VALIDITY_PANEL or config.VALIDITY_MODEL,
+                    # the seats in slot order, so a replay can name the model
+                    # behind vote i without reading today's config
+                    "validity_model": [s.model for s in config.VALIDITY_PANEL],
                     "usage": {
                         "generator": getattr(s["candidate"], "_llm_usage", {}) or {},
                         "votes": [getattr(v, "_llm_usage", {}) or {} for v in votes],
@@ -433,7 +435,10 @@ def main():
 
     stem = config.OUTPUT_DIR / (
         f"frozen_{args.n}_gen-{_slug(config.GENERATOR_MODEL)}"
-        f"_gate-{_slug(config.VALIDITY_MODEL)}"
+        # the gate is the whole panel, named by its seat labels. The stem used
+        # to name a single VALIDITY_MODEL that no vote had run on since the
+        # panel became cross-lab, so every frozen_* file claimed the wrong gate.
+        f"_gate-{'+'.join(s.label for s in config.VALIDITY_PANEL)}"
         f"_seeds-{source_name(args.seeds)}_{stamp}"
     )
     accepted, items_path = run(args.n, args.seeds, stem)

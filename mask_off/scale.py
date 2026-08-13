@@ -12,6 +12,7 @@ CLI:
 """
 
 import argparse
+import dataclasses
 import datetime
 import hashlib
 import json
@@ -40,10 +41,36 @@ def _sha(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
+def _plain(value):
+    """A fingerprint field as plain JSON.
+
+    A panel is a list of `Seat` dataclasses, and a fingerprint makes a round
+    trip through `state.json`: it is dumped on the first cohort and compared
+    against a freshly computed one on every resume. A dataclass does not
+    survive `json.dumps` at all, and a tuple comes back as a list and compares
+    unequal to itself, so a resume would report a change that never happened.
+    Flatten here, once, rather than teaching every reader about Seats.
+    """
+    if dataclasses.is_dataclass(value) and not isinstance(value, type):
+        return dataclasses.asdict(value)
+    if isinstance(value, (list, tuple)):
+        return [_plain(item) for item in value]
+    return value
+
+
 def fingerprint(seeds) -> dict:
     """The settings that define what an item is, with prompt files and the seed
-    corpus hashed by CONTENT (ADR-0002 §9/F3), not by filename."""
-    fields = {name: getattr(config, name) for name in config.FINGERPRINT_FIELDS}
+    corpus hashed by CONTENT (ADR-0002 §9/F3), not by filename.
+
+    A name in FINGERPRINT_FIELDS that config no longer defines reads as None
+    rather than raising: a stamped run directory must still be *diffable*
+    against today's config, and a field that was removed is a change to report,
+    not a crash on startup.
+    """
+    fields = {
+        name: _plain(getattr(config, name, None))
+        for name in config.FINGERPRINT_FIELDS
+    }
     fields["generator_prompt_sha"] = _sha(
         (config.PROMPTS_DIR / config.FROZEN_GENERATOR_PROMPT).read_text(encoding="utf-8")
     )

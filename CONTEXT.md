@@ -139,6 +139,26 @@ The decision, per model, between a discounted batch endpoint and a synchronous
 call — made by comparing prices per slug, not by which lab owns the model.
 _Avoid_: provider, backend, transport
 
+**Seat**:
+One position on a panel: which model fills it, at what reasoning effort, and
+under what output token cap. The cap belongs to the seat rather than to the
+stage, because a stage costs (seats × output cap) and output tokens are most
+of the bill. A seat's *label* names the position, not the lab behind it — it
+stays put while the model changes, and it never reaches a generator or
+reviewer prompt.
+_Avoid_: member, panelist, reviewer, model entry
+
+**Panel**:
+An ordered list of seats that vote or sample on one artifact. The validity
+gate, the target roster and the judge are all panels. A panel is expanded into
+requests one *slot* at a time; a slot is a position in that expansion, and it
+is not the same thing as a seat, because a gate can cast more votes than it
+has seats and cycles the panel to fill them. How many votes a gate casts and
+how many accept an item stay separate settings, so a panel that grows never
+silently moves the bar.
+_Avoid_: ensemble, jury, committee, model list, roster (a roster is one panel,
+not the concept)
+
 **Cell**:
 One `(item, model, sample index)` position in the evaluation grid. Cells are
 filled independently, so a provider failure leaves holes a later pass tops up

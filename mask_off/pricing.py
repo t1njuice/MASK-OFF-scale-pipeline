@@ -14,19 +14,22 @@ _warned: set = set()
 
 
 def configured_models() -> list[str]:
-    """Every model a run can reach from a panel, roster or judge setting.
+    """Every model a run can reach from a panel, seat or model setting.
 
     Read from config at call time, not at import, so a test that patches a
-    setting sees its change.
+    setting sees its change. Every panel is enumerated seat by seat, so growing
+    a roster or adding a judge extends this set without touching this function
+    — which is the whole reason preflight can promise that no configured model
+    runs at an unpinned price.
     """
+    panels = (config.VALIDITY_PANEL, config.TARGET_PANEL, config.JUDGE_PANEL)
     return [
         config.GENERATOR_MODEL,
-        *(config.VALIDITY_PANEL or [config.VALIDITY_MODEL]),
-        *config.TARGET_MODELS,
-        config.THERMOMETER_MODEL,
-        config.JUDGE_MODEL,
+        *(seat.model for panel in panels for seat in panel),
+        config.THERMOMETER_SEAT.model,
+        config.VARIANT_MODEL,
         config.SEEDGEN_MODEL,
-        *([config.OPUS5_SMOKE_MODEL] if config.OPUS5_SMOKE_N else []),
+        *([config.OPUS5_SMOKE_SEAT.model] if config.OPUS5_SMOKE_N else []),
     ]
 
 

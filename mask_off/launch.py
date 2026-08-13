@@ -13,7 +13,7 @@ from pathlib import Path
 
 import anthropic
 
-from . import config, pricing
+from . import config, panel, pricing
 from .llm import client
 from .seeds import load_seeds
 
@@ -74,7 +74,26 @@ def preflight() -> bool:
             file=sys.stderr,
         )
         return False
-    # 1) OpenRouter-routed models, in ANY role, need their own key. Derived
+    # 1) The panels whose labels key results must label their seats uniquely.
+    #    A roster seat's label is in its request ids and its response keys, so
+    #    two seats under one label share a cache entry: one model's answer is
+    #    served to both and the other is paid for but never sampled. A judge's
+    #    label keys its judgments and its block in the summary, so a duplicate
+    #    merges two judges into one rate.
+    #    VALIDITY_PANEL is exempt on purpose: a gate vote is identified by its
+    #    slot (`__vote{i}`), never by a label, so three votes from one model is
+    #    a legal configuration and always was.
+    for name in ("TARGET_PANEL", "JUDGE_PANEL"):
+        dupes = panel.duplicate_labels(getattr(config, name))
+        if dupes:
+            print(
+                f"ERROR: config.{name} reuses the seat label(s) {dupes}. A "
+                f"label is what a seat's request ids and its reported results "
+                f"key on, so a duplicate silently merges two seats into one.",
+                file=sys.stderr,
+            )
+            return False
+    # 2) OpenRouter-routed models, in ANY role, need their own key. Derived
     #    from the same reachable set the price check uses: a hand-built list
     #    silently omitted the thermometer, seedgen, judge and smoke models,
     #    and only caught them while a roster model happened to share a slug.
@@ -90,14 +109,14 @@ def preflight() -> bool:
             file=sys.stderr,
         )
         return False
-    # 2) Construct the client — this is where a missing or unresolvable
+    # 3) Construct the client — this is where a missing or unresolvable
     #    credential fails.
     try:
         anthropic_client = client()
     except anthropic.AnthropicError as exc:
         print(f"{_NO_CREDS_MSG}\n  ({exc})", file=sys.stderr)
         return False
-    # 3) Make one cheap call to prove the credential actually works.
+    # 4) Make one cheap call to prove the credential actually works.
     try:
         anthropic_client.messages.create(
             model=config.GENERATOR_MODEL,

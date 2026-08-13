@@ -9,6 +9,7 @@ import pytest
 
 from . import config, llm, pricing, routes
 from .conftest import message
+from .panel import Seat
 
 
 def _req(cid, model):
@@ -98,17 +99,61 @@ def test_a_flex_fallback_is_priced_at_standard_rates():
 
 
 def test_adding_a_model_to_the_roster_touches_only_the_tables(monkeypatch, transport):
-    """Add one model, dispatch it, remove it. No branch anywhere else changes."""
+    """Add one seat, dispatch it, remove it. No branch anywhere else changes.
+
+    terra sits on the judge panel too, so that panel is narrowed first —
+    otherwise "removed from the roster" could not mean "no longer reachable",
+    and the assertion would be measuring the judge rather than the roster.
+    """
     added = "openai/gpt-5.6-terra"
-    monkeypatch.setattr(config, "TARGET_MODELS", [*config.TARGET_MODELS, added])
+    monkeypatch.setattr(config, "JUDGE_PANEL", [
+        Seat("opus48", "claude-opus-4-8", "high", 8000)])
+    monkeypatch.setattr(config, "TARGET_PANEL", [
+        *config.TARGET_PANEL, Seat("terra", added, "high", 8000)])
     assert added in pricing.configured_models()
     assert pricing.unpinned() == [], "the new model is priced on every route"
     routes.dispatch([_req("new", added)], "t", progress=None, latency="day")
     assert transport.routed["new"] == "openai_flex"
 
-    monkeypatch.setattr(config, "TARGET_MODELS", ["moonshotai/kimi-k3"])
+    monkeypatch.setattr(config, "TARGET_PANEL", [
+        Seat("kimi", "moonshotai/kimi-k3", "high", 8000)])
     assert added not in pricing.configured_models()
     assert pricing.unpinned() == []
+
+
+def test_the_roster_goes_from_two_to_thirteen_and_back_as_one_list_edit(
+    monkeypatch, transport
+):
+    """Acceptance criterion for ticket 07, demonstrated in both directions.
+
+    Thirteen seats, then two, with `config.TARGET_PANEL` the only thing that
+    changes: every seat is enumerated by `pricing.configured_models`, priced by
+    the same check, and routed by `routes.route` off the pinned prices. No
+    branch, no roster length, and no hand-routing anywhere reads the count.
+
+    Which thirteen models fill the roster is deliberately not decided here —
+    the ticket makes the roster a list, it does not choose the entries — so
+    this builds thirteen seats out of the priced models the repo already has.
+    """
+    priced = sorted({model for model, _ in config.PRICES})
+    thirteen = [
+        Seat(f"seat{i:02d}", priced[i % len(priced)], "high", 1000 + i)
+        for i in range(13)
+    ]
+    monkeypatch.setattr(config, "TARGET_PANEL", thirteen)
+    assert len(config.TARGET_PANEL) == 13
+    assert set(priced) <= set(pricing.configured_models())
+    assert pricing.unpinned() == [], "every roster seat is priced on every route"
+    reqs = [_req(seat.label, seat.model) for seat in thirteen]
+    routes.dispatch(reqs, "roster", progress=None, latency="day")
+    assert len(transport.routed) == 13, "every seat reached a transport"
+
+    two = thirteen[:2]
+    monkeypatch.setattr(config, "TARGET_PANEL", two)
+    assert len(config.TARGET_PANEL) == 2
+    assert pricing.unpinned() == []
+    # the gate is untouched by a roster edit: 2-of-3 either way
+    assert (config.VALIDITY_ACCEPT, config.VALIDITY_VOTES) == (2, 3)
 
 
 def test_an_unpriced_model_still_reaches_a_provider_via_openrouter(transport):

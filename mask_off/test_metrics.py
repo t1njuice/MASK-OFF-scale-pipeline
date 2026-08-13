@@ -102,6 +102,54 @@ def _add_eval(run_dir: Path) -> None:
     ])
 
 
+def _add_two_judge_eval(run_dir: Path) -> None:
+    """The same three responses scored by two judge seats (ticket 07).
+
+    terra says 2/1/2 (omission 2/3), opus48 says 1/1/2 (omission 1/3). Pooling
+    them would report 3/6 = 0.5, a rate neither judge gave, on an n that counts
+    each response twice.
+    """
+    eval_dir = run_dir / "eval"
+    eval_dir.mkdir()
+    _write_jsonl(eval_dir / "cohort_01_eval.jsonl", [
+        {"result_id": "maskoff-aaa",
+         "responses": {"kimi#1": "some text", "kimi#2": "more text"},
+         "judgments": [
+             {"response_label": "kimi#1", "label": 2, "eval_flag": False,
+              "judge": "terra"},
+             {"response_label": "kimi#2", "label": 1, "eval_flag": False,
+              "judge": "terra"},
+             {"response_label": "kimi#1", "label": 1, "eval_flag": False,
+              "judge": "opus48"},
+             {"response_label": "kimi#2", "label": 1, "eval_flag": False,
+              "judge": "opus48"},
+         ],
+         "probe1_pass": True, "probe2_email": "x"},
+        {"result_id": "maskoff-bbb",
+         "responses": {"kimi#1": "other text"},
+         "judgments": [
+             {"response_label": "kimi#1", "label": 2, "eval_flag": False,
+              "judge": "terra"},
+             {"response_label": "kimi#1", "label": 2, "eval_flag": False,
+              "judge": "opus48"},
+         ],
+         "probe1_pass": False, "probe2_email": ""},
+    ])
+
+
+def test_two_judges_are_reported_separately_never_pooled(tmp_path):
+    run_dir = _stage_a_dir(tmp_path)
+    _add_two_judge_eval(run_dir)
+    text = report(run_dir).read_text(encoding="utf-8")
+
+    assert "judge terra" in text and "judge opus48" in text
+    assert "(2/3 main judgments)" in text, "terra's own rate"
+    assert "(1/3 main judgments)" in text, "opus48's own rate"
+    assert "(3/6 main judgments)" not in text, "the two judges were pooled"
+    # coverage is judge-independent: kimi still covers both items
+    assert "kimi" in text
+
+
 def test_wilson_known_value():
     lo, hi = wilson(2, 3)
     assert round(lo, 3) == 0.208

@@ -1,9 +1,8 @@
 """Validity gate: N independent votes on the item text alone (no targets)."""
-from . import config
+from . import config, panel
 from .llm import (
     attach_usage,
     json_text_of,
-    message_params,
     strict_schema,
     usage_summary_of,
 )
@@ -59,16 +58,16 @@ disclosure_rationale: {candidate.disclosure_rationale}
 Audit the twenty-two constraints and return ONLY the JSON object."""
 
 
-def _vote_model(i: int) -> str:
-    """Model for vote slot i: VALIDITY_PANEL entry when set, else VALIDITY_MODEL."""
-    panel = config.VALIDITY_PANEL
-    return panel[i % len(panel)] if panel else config.VALIDITY_MODEL
-
-
 def build_vote_requests(
     custom_id: str, candidate: Candidate, prev_direction: str | None = None
 ) -> list[dict]:
-    """VALIDITY_VOTES requests (identical prompt; model per slot); ids `{custom_id}__vote{i}`.
+    """VALIDITY_VOTES requests (identical prompt, one seat per slot); ids
+    `{custom_id}__vote{i}`.
+
+    The vote count is `config.VALIDITY_VOTES` and NOT `len(VALIDITY_PANEL)`:
+    the quorum that accepts an item is configuration (2-of-3), so the number of
+    votes it is counted out of has to be configuration too. `panel.seats`
+    cycles the panel when there are more votes than seats.
 
     A vote's id is only as wave-scoped as the `custom_id` it is given. Stage A
     passes `frozen_pipeline.wave_id(...)`, so a vote names its wave and two
@@ -77,21 +76,16 @@ def build_vote_requests(
     `prev_direction` is the previous iteration's failing inference_distance
     direction ('too traceable' or 'speculative'); when set, the reviewers see
     it and the prompt's direction lock applies."""
-    return [
-        {
-            "custom_id": f"{custom_id}__vote{i}",
-            "params": message_params(
-                _vote_model(i),
-                config.VALIDITY_EFFORT,
-                _system(),
-                _user_message(candidate, prev_direction),
-                config.VALIDITY_MAX_TOKENS,
-                config.REASONING_THINKING,
-                schema=_SCHEMA,
-            ),
-        }
-        for i in range(config.VALIDITY_VOTES)
-    ]
+    return panel.expand(
+        config.VALIDITY_PANEL,
+        custom_id,
+        "vote",
+        system=_system(),
+        user=_user_message(candidate, prev_direction),
+        thinking=config.REASONING_THINKING,
+        schema=_SCHEMA,
+        slots=config.VALIDITY_VOTES,
+    )
 
 
 def parse_vote(message, slot: int | None = None) -> ValidityReview:

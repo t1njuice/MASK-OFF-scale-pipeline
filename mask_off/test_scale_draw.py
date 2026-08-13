@@ -2,6 +2,7 @@
 
 Run: pytest mask_off/test_scale_draw.py
 """
+import dataclasses
 import json
 import random
 
@@ -118,6 +119,55 @@ def test_fingerprint_mismatch_aborts_and_force_stamps(tmp_path, monkeypatch):
     state = scale.load_state(run_dir)
     assert state["fingerprint"] == fp
     assert state["fingerprint_history"][0]["changed"] == ["GENERATOR_MODEL"]
+
+
+def test_a_panel_fingerprint_survives_the_round_trip_through_state_json():
+    """A fingerprint is stamped into state.json and compared against a fresh
+    one on every resume, so a panel of dataclasses has to come back equal.
+
+    Two ways this breaks silently and both are covered: a dataclass does not
+    serialise at all, and a tuple comes back from JSON as a list and compares
+    unequal to itself — which would abort every resume with a change nobody
+    made, or push the user into `--force` as a habit.
+    """
+    fp = scale.fingerprint([_seed("a")])
+    reloaded = json.loads(json.dumps(fp, sort_keys=True))
+    assert reloaded == fp
+    assert scale.fingerprint_diff(reloaded, fp) == {}
+    # the seats are covered field by field, not just by model id
+    assert fp["VALIDITY_PANEL"][0] == {
+        "label": "kimi", "model": "moonshotai/kimi-k3",
+        "effort": "high", "max_tokens": 30000,
+    }
+
+
+def test_a_seat_edit_is_a_fingerprint_change(monkeypatch):
+    """Swapping a seat's model, effort or output cap changes what an item is,
+    so a run directory built under the old panel must refuse to resume."""
+    seeds = [_seed("a")]
+    before = scale.fingerprint(seeds)
+    for field, value in (("model", "claude-opus-5"), ("effort", "low"),
+                         ("max_tokens", 4000)):
+        swapped = [
+            dataclasses.replace(config.VALIDITY_PANEL[0], **{field: value}),
+            *config.VALIDITY_PANEL[1:],
+        ]
+        monkeypatch.setattr(config, "VALIDITY_PANEL", swapped)
+        assert scale.fingerprint_diff(before, scale.fingerprint(seeds)).keys() == {
+            "VALIDITY_PANEL"
+        }, field
+
+
+def test_a_fingerprint_field_config_no_longer_defines_does_not_crash(monkeypatch):
+    """Renaming a config knob must leave a stamped run directory diffable.
+
+    A KeyError here would make every existing run directory unopenable, which
+    is worse than the change it is trying to report.
+    """
+    monkeypatch.setattr(
+        config, "FINGERPRINT_FIELDS", (*config.FINGERPRINT_FIELDS, "GONE_AWAY")
+    )
+    assert scale.fingerprint([_seed("a")])["GONE_AWAY"] is None
 
 
 def test_prompt_content_edit_changes_the_fingerprint(tmp_path, monkeypatch):

@@ -371,11 +371,16 @@ def _(LABEL_NAMES, ab_pick, mo):
 
 @app.cell
 def _():
-    # df = pl.read_ndjson(
-    #     "./output/frozen_20_gen-opus-4-8_gate-opus-4-8_seeds-e2e20_2026-08-05_123007Z_run_log.jsonl"
-    # )
+    import polars as pl
+    from pathlib import Path
+    path = Path("./output/scale50L1/transcripts_L1.json")
+    df = pl.read_ndjson(path)
+    df
+    return (pl,)
 
-    # df
+
+@app.cell
+def _():
     return
 
 

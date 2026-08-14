@@ -173,8 +173,10 @@ def test_seed_keepers_restricts_the_draw(tmp_path, monkeypatch):
 
 
 def test_fill_reruns_only_missing_and_empty_cells(tmp_path, transport):
-    """DoD: deleted (uncached) cells and empty-text cells re-run under --fill;
-    filled cells stay free cache hits."""
+    """DoD: deleted (uncached) cells and empty-text cells re-run; filled cells
+    stay free cache hits. Since the errored-final rule the CACHE treats an
+    empty-text row as a miss, so both holes re-run in the first pass and
+    --fill has nothing left to refresh."""
     from types import SimpleNamespace
 
     from .evaluate import _fill_holes
@@ -203,10 +205,11 @@ def test_fill_reruns_only_missing_and_empty_cells(tmp_path, transport):
     submitted = transport.calls
     with batchcache.policy(run_dir=tmp_path):
         out = llm.run_batch_retry(reqs, "Samples", None)
-        assert submitted == [["deleted"]], "only the uncached cell is a miss"
+        assert submitted == [["empty", "deleted"]], \
+            "the empty-text row is a cache miss, not a hit"
         _fill_holes(reqs, out, "Samples", None)
-    assert submitted == [["deleted"], ["empty"]], \
-        "fill must refresh exactly the empty-text cell"
+    assert submitted == [["empty", "deleted"]], \
+        "the cache already repaired the empty cell; fill submits nothing"
     assert llm.text_of(out["empty"]) == "refilled"
     assert llm.text_of(out["full"]) == "a real answer"
 

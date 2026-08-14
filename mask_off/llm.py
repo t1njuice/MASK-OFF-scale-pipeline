@@ -390,9 +390,20 @@ def _connection_retry(call, progress: Progress):
 
 def bad_final(msg) -> bool:
     """True when a result must be resubmitted (and never cached): no message,
-    or output truncated at max_tokens so it cannot parse. The single source of
-    the predicate — the retry contract and the cache contract share it."""
-    return msg is None or getattr(msg, "stop_reason", None) == "max_tokens"
+    output truncated at max_tokens, a provider error, or a message with no
+    text at all. The single source of the predicate — the retry contract and
+    the cache contract share it.
+
+    A stream that dies mid-generation still returns a MESSAGE: OpenRouter
+    passes finish_reason "error" through the shim with partial thinking and
+    empty text. The seedcorpus2 refill (2026-08-14) cached 14 of these as
+    good finals under the old None-or-max_tokens rule, and every rerun
+    replayed them as "no '=== seed: name ===' markers"."""
+    return (
+        msg is None
+        or getattr(msg, "stop_reason", None) in ("max_tokens", "error")
+        or not text_of(msg)
+    )
 
 
 def run_batch_retry(
@@ -405,8 +416,8 @@ def run_batch_retry(
     """run_batch, then one resubmission of errored/truncated requests.
 
     Amendment 4 (2026-08-03): a paid wave is not forfeited to a single
-    transient failure. A request is retried when it returned no message or
-    stopped on max_tokens (truncated output can't parse).
+    transient failure. A request is retried when `bad_final` says so: no
+    message, stop_reason "max_tokens" or "error", or no text at all.
 
     Policy seam (ADR-0002 §4): the ambient Policy is read ONCE here, on the
     calling thread — pool workers never read the contextvar. With a run_dir

@@ -83,6 +83,50 @@ def test_none_and_max_tokens_finals_are_never_stored(tmp_path, transport):
     assert calls[0] == ["gone", "cut"]
 
 
+def test_errored_and_textless_finals_are_retried_and_never_stored(tmp_path, transport):
+    """A kimi-k3 stream that dies mid-generation still returns a MESSAGE:
+    OpenRouter finish_reason "error", partial thinking, empty text. The
+    seedcorpus2 refill (2026-08-14) cached 14 of these as good finals and
+    every rerun replayed them. Both shapes seen in that cache must retry:
+    stop_reason "error", and a "stop" whose text is empty."""
+
+    def flaky(request):
+        if len(transport.calls) > 1:  # retry pass
+            return _msg(text="recovered")
+        if request["custom_id"] == "died":
+            return _msg(text="", stop_reason="error")
+        return _msg(text="", stop_reason="stop")
+
+    transport.respond = flaky
+    out = batchcache.cached_batch([_req("died"), _req("empty")], "t", None, tmp_path)
+    assert len(transport.calls) == 2, "both bad finals must reach the retry pass"
+    assert llm.text_of(out["died"]) == "recovered"
+    assert llm.text_of(out["empty"]) == "recovered"
+    batchcache._CACHES.clear()
+    stored = batchcache._cache(tmp_path)
+    assert all(s["content"][0]["text"] == "recovered" for s in stored.values())
+
+
+def test_a_poisoned_cache_row_is_a_miss_not_a_hit(tmp_path, transport):
+    """A cache written before the errored-final rule holds errored rows. A
+    rerun must resubmit them, not replay them forever."""
+    req = _req("a")
+    key = batchcache.request_key(req)
+    with open(tmp_path / "_results.jsonl", "w", encoding="utf-8") as f:
+        f.write(json.dumps({
+            "key": key, "custom_id": "a", "kind": "message",
+            "payload": batchcache.normalize(_msg(text="", stop_reason="error")),
+        }) + "\n")
+    out = batchcache.cached_batch([req], "t", None, tmp_path)
+    assert transport.calls == [["a"]], "the poisoned row must resubmit"
+    assert llm.text_of(out["a"]) == "answer:a"
+    # and the good final supersedes it for the next process
+    batchcache._CACHES.clear()
+    out = batchcache.cached_batch([req], "t", None, tmp_path)
+    assert transport.calls == [["a"]]
+    assert llm.text_of(out["a"]) == "answer:a"
+
+
 def test_refresh_set_bypasses_and_supersedes(tmp_path, transport):
     serial = iter(range(100))
     transport.respond = lambda r: _msg(text=f"v{next(serial)}")

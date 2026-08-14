@@ -12,8 +12,9 @@ One layer of durability for everything that funnels through `run_batch_retry`:
   default `Policy()` reproduces the uncached legacy behavior exactly.
 
 Cache contract (ADR-0002 §9/F1):
-1. The cache never stores `None` and never stores a final whose
-   `stop_reason == "max_tokens"`.
+1. The cache never stores a bad final (`llm.bad_final`): `None`, stop_reason
+   "max_tokens" or "error", or a message with no text. `cached_batch` also
+   revalidates hits at read time, so a row cached before this rule is a miss.
 2. `cached_batch` accepts a per-call `refresh` set of custom_ids that bypass
    the cache and supersede the stored row.
 3. Duplicate keys are latest-wins, both at load and in the in-process dict.
@@ -116,7 +117,8 @@ def rehydrate(stored: dict) -> SimpleNamespace:
 
 def _bad(msg) -> bool:
     """A final (the post-retry result a request settles on) that must not be
-    cached: no message at all, or output truncated at max_tokens."""
+    cached: no message at all, truncated at max_tokens, a provider error, or
+    a message with no text (a stream that died mid-thinking)."""
     from .llm import bad_final
 
     return bad_final(msg)
@@ -205,7 +207,9 @@ def cached_batch(
     """Drop-in for run_batch_retry: {custom_id: message | None}, cache-backed.
 
     Retry-once lives BELOW this cache: only post-retry finals are stored, and
-    never None, never a max_tokens final.
+    never a bad final (None, max_tokens, error, or textless). Hits are
+    revalidated at read time, so a bad row cached under an older rule is a
+    miss, not a hit.
     """
     if not requests:
         return {}
@@ -218,8 +222,11 @@ def cached_batch(
     for r in requests:
         cid = r["custom_id"]
         stored = None if cid in refresh else cache.get(keys[cid])
-        if stored is not None:
-            out[cid] = rehydrate(stored)
+        hit = None if stored is None else rehydrate(stored)
+        # a row cached before the errored-final rule is a miss, not a hit —
+        # replaying it would fail the same way on every rerun
+        if hit is not None and not _bad(hit):
+            out[cid] = hit
         else:
             misses.append(r)
     # A refreshed request resubmits under an IDENTICAL key, so its stale cached
@@ -313,7 +320,7 @@ def _run_misses(
     retry = [r for r in misses if _bad(out.get(r["custom_id"]))]
     if retry:
         _log(progress, f"[batchcache] {label}: {len(retry)} bad finals "
-                       "(empty or max_tokens), resubmitting")
+                       "(empty, errored, or max_tokens), resubmitting")
         out.update(_one_pass(retry, f"{label} (retry)"))
     # the refresh batches completed in-process; mark them drained so restarts
     # do not re-poll them (their keys can never prove completion — see above)

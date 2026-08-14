@@ -44,8 +44,8 @@ def _stage_a_dir(tmp_path: Path) -> Path:
     _write_jsonl(run_dir / "cohorts.jsonl", [
         {"cohort": 1, "drawn": 3, "in_flight": 1, "finished": 2, "accepted": 1,
          "run_yield": 0.5, "ts": "2026-08-12T00:00:00+00:00"},
-        {"cohort": 2, "drawn": 3, "in_flight": 0, "finished": 3, "accepted": 2,
-         "run_yield": 0.75, "ts": "2026-08-12T01:00:00+00:00"},
+        {"cohort": 2, "total_drawn": 3, "in_flight": 0, "finished": 3,
+         "accepted": 2, "run_yield": 0.75, "ts": "2026-08-12T01:00:00+00:00"},
     ])
     # wave 1: s1 rejected (severity_floor fails); wave 2: s1 accepted.
     # usage numbers give cache-write ratios 2000/3000 and 0/2000.

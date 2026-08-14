@@ -302,3 +302,42 @@ def test_resubmission_supersedes_the_cached_row_under_one_key(tmp_path, transpor
     # latest-wins: the loaded cache holds one entry per slot, the newest attempt
     batchcache._CACHES.clear()
     assert len(batchcache._cache(tmp_path)) == len(keys)
+
+
+def test_stage_b_samples_the_roster_not_the_thermometer(monkeypatch, tmp_path):
+    """`evaluate_corpus` passed no `targets`, so Stage B fell through to
+    `evaluate`'s default — the thermometer seat alone, K=3 — while
+    `TARGET_PANEL` reached only `pricing.configured_models`. Preflight priced
+    thirteen seats and Stage B sampled one, and editing the roster changed
+    nothing about what was sampled."""
+    import json as _json
+
+    from mask_off import config, scale
+    from mask_off.panel import Seat
+
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    item = {"result_id": "r1", "seed_name": "s", "system_prompt": "sp",
+            "user_email": "ue", "hidden_fact": "T"}
+    (run_dir / "accepted.jsonl").write_text(_json.dumps(item) + "\n", encoding="utf-8")
+
+    roster = [Seat("a", "claude-opus-4-8", "high", 8000),
+              Seat("b", "moonshotai/kimi-k3", "high", 8000)]
+    monkeypatch.setattr(config, "TARGET_PANEL", roster)
+    monkeypatch.setattr(config, "TARGET_K", 5)
+
+    seen = {}
+
+    def _fake_evaluate(items, out_stem, targets=None, smoke_n=None,
+                       probes=True, fill=False):
+        seen["targets"] = targets
+        return {}, {}
+
+    import mask_off.evaluate as ev
+    monkeypatch.setattr(ev, "evaluate", _fake_evaluate)
+    monkeypatch.setattr(scale, "drain_orphans", lambda *a, **k: None)
+    scale.evaluate_corpus(run_dir)
+
+    assert seen["targets"] is not None, "Stage B still uses evaluate's default seat"
+    assert [s.label for s, _ in seen["targets"]] == ["a", "b"]
+    assert {k for _, k in seen["targets"]} == {5}, "uniform K=5 (§4)"

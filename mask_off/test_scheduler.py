@@ -617,6 +617,11 @@ def test_the_batch_policy_reaches_the_stage_thread(tmp_path, monkeypatch, transp
     silently run uncached and unjournaled, and a paid batch would be
     unrecoverable. The journal and the results file are the proof it arrived.
     """
+    # These two prove JOURNALING, so the generator must be on a journaled
+    # route. `config.GENERATOR_MODEL` is a kimi slug now (openrouter_sync,
+    # nothing to journal), so the model is pinned here rather than inherited —
+    # the property under test is the route's, not the roster's.
+    monkeypatch.setattr(config, "GENERATOR_MODEL", "claude-opus-4-8")
     monkeypatch.setattr(config, "FROZEN_MAX_ITERATIONS", 1)
     transport.respond = lambda r: message(
         text=_review("revise") if "__vote" in r["custom_id"] else CLEAN
@@ -643,6 +648,11 @@ def test_an_interrupted_run_resumes_from_the_journal_with_no_re_billing(
     """Death mid-poll: the generator batch is submitted and journaled, then the
     process dies before its results are read. The drain must find it in a later
     process, fold it into the cache, and the replay must report a hit."""
+    # These two prove JOURNALING, so the generator must be on a journaled
+    # route. `config.GENERATOR_MODEL` is a kimi slug now (openrouter_sync,
+    # nothing to journal), so the model is pinned here rather than inherited —
+    # the property under test is the route's, not the roster's.
+    monkeypatch.setattr(config, "GENERATOR_MODEL", "claude-opus-4-8")
     monkeypatch.setattr(config, "FROZEN_MAX_ITERATIONS", 1)
     candidate = message(text=CLEAN)
 

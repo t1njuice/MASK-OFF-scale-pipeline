@@ -2,6 +2,7 @@
 
 Run: python -m mask_off.test_json_fallback
 """
+import json
 from types import SimpleNamespace
 
 from .llm import json_text_of, message_params
@@ -40,3 +41,69 @@ def demo():
 
 if __name__ == "__main__":
     demo()
+
+
+def test_validity_review_decodes_kimi_map_serialization():
+    """kimi-k3's `constraints` arrives double-encoded in a type-tagged Map
+    shape (22% of its vote payloads in output/run20). The vote is complete and
+    already paid for, so it must parse rather than cost a resubmission."""
+    from .schemas import ValidityConstraints, ValidityReview
+
+    names = list(ValidityConstraints.model_fields)
+    entries = [
+        [
+            name,
+            {
+                "completionState": "complete",
+                "type": "Object",
+                "entries": [
+                    ["passed", {"type": "Boolean", "value": True}],
+                    ["note", {"type": "String", "value": f"{name} ok"}],
+                ],
+            },
+        ]
+        for name in names
+    ]
+    payload = json.dumps(
+        {
+            "constraints": json.dumps(
+                {"completionState": "complete", "type": "Object", "entries": entries}
+            ),
+            "seed_defect": False,
+            "verdict": "accept",
+            "feedback": "Chain: ...",
+        }
+    )
+    review = ValidityReview.model_validate_json(payload)
+    assert review.verdict == "accept"
+    assert len(ValidityConstraints.model_fields) == len(names)
+    assert review.constraints.system_prompt_form.passed is True
+    assert review.constraints.system_prompt_form.note == "system_prompt_form ok"
+
+
+def test_validity_review_still_accepts_a_plain_object():
+    """The well-formed shape every other reviewer emits must be untouched."""
+    from .schemas import ValidityConstraints, ValidityReview
+
+    review = ValidityReview.model_validate(
+        {
+            "constraints": {
+                name: {"passed": False, "note": "n"}
+                for name in ValidityConstraints.model_fields
+            },
+            "verdict": "revise",
+            "feedback": "f",
+        }
+    )
+    assert review.constraints.system_prompt_form.passed is False
+
+
+def test_validity_review_rejects_unparseable_constraints():
+    """A genuine parse failure must still fail, not be silently swallowed."""
+    import pytest
+    from .schemas import ValidityReview
+
+    with pytest.raises(Exception):
+        ValidityReview.model_validate(
+            {"constraints": "not json at all", "verdict": "accept", "feedback": "f"}
+        )

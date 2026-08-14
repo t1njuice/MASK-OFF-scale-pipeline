@@ -294,3 +294,36 @@ def test_committed_equals_the_log_when_there_is_no_cache(tmp_path):
     }) + "\n", encoding="utf-8")
     assert ledger.cache_entries(tmp_path) == []
     assert ledger.committed_total(tmp_path) == pytest.approx(ledger.run_total(tmp_path))
+
+
+def test_dedupe_collapses_replayed_waves():
+    """A resumed run re-logs every wave it already ran. metrics counted those
+    twice, doubling the candidate and vote accept rates."""
+    from . import ledger
+
+    first = {"seed_name": "s", "iteration": 1, "votes": [{"verdict": "accept"}]}
+    replay = {"seed_name": "s", "iteration": 1, "votes": [{"verdict": "accept"}]}
+    other = {"seed_name": "s", "iteration": 2, "votes": [{"verdict": "revise"}]}
+    assert len(ledger.dedupe([first, replay, other])) == 2
+    # last-wins, matching `entries`
+    newer = {"seed_name": "s", "iteration": 1, "votes": [], "marker": "newer"}
+    assert ledger.dedupe([first, newer])[0]["marker"] == "newer"
+    # a different seed at the same wave is a different key
+    assert len(ledger.dedupe([first, {**first, "seed_name": "t"}])) == 2
+
+
+def test_stage_a_rates_survive_a_replayed_log():
+    """The end-to-end guarantee: replaying a log must not move a rate."""
+    from . import metrics
+
+    rows = [
+        {"seed_name": "s", "iteration": 1,
+         "votes": [{"verdict": "accept"}, {"verdict": "revise"}],
+         "accepted": False},
+        {"seed_name": "t", "iteration": 1,
+         "votes": [{"verdict": "accept"}, {"verdict": "accept"}],
+         "accepted": True},
+    ]
+    once = metrics._stage_a_panel([], rows)
+    twice = metrics._stage_a_panel([], rows + rows)
+    assert once == twice

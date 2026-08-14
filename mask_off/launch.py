@@ -109,17 +109,30 @@ def preflight() -> bool:
             file=sys.stderr,
         )
         return False
-    # 3) Construct the client — this is where a missing or unresolvable
-    #    credential fails.
+    # 3) Anthropic credentials are needed only if something actually routes
+    #    there. Derived the same way the OpenRouter check above is, and for
+    #    the same reason: the probe used to be hardwired to GENERATOR_MODEL on
+    #    the Anthropic client, which held only while the generator was a
+    #    claude-* id. A non-Claude generator — the ablation table's
+    #    cross-generator row — 404s a reachable model and refuses to start.
+    anthropic_models = sorted({
+        model
+        for model in pricing.configured_models()
+        if pricing.reachable_routes(model) & {"anthropic_batch", "anthropic_sync"}
+    })
+    if not anthropic_models:
+        return True
     try:
         anthropic_client = client()
     except anthropic.AnthropicError as exc:
         print(f"{_NO_CREDS_MSG}\n  ({exc})", file=sys.stderr)
         return False
-    # 4) Make one cheap call to prove the credential actually works.
+    # 4) Make one cheap call to prove the credential actually works. Probe a
+    #    model that is genuinely on the Anthropic route, not whichever model
+    #    happens to be the generator.
     try:
         anthropic_client.messages.create(
-            model=config.GENERATOR_MODEL,
+            model=anthropic_models[0],
             max_tokens=16,
             messages=[{"role": "user", "content": "ping"}],
         )

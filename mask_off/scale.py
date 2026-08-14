@@ -324,7 +324,7 @@ def generate(
             with open(run_dir / "cohorts.jsonl", "a", encoding="utf-8") as f:
                 f.write(json.dumps({
                     "cohort": state["cohort"],
-                    "drawn": len(state["consumed"]),
+                    "total_drawn": len(state["consumed"]),
                     "in_flight": len(state["in_flight"]),
                     "finished": finished,
                     "accepted": accepted,
@@ -522,7 +522,17 @@ def evaluate_corpus(run_dir: Path, cohort_size: int = 200, fill: bool = False):
             print(f"evaluating cohort {number} "
                   f"({min(cohort_size, len(items) - index)} items)")
             with policy(run_dir=run_dir):
-                evaluate(items[index : index + cohort_size], stem, fill=fill)
+                # The roster, explicitly. `evaluate` defaults to the
+                # thermometer seat alone because sampling a whole roster is a
+                # roster-fold bill and must be asked for — and nothing asked.
+                # TARGET_PANEL was reaching `pricing.configured_models`, so
+                # preflight priced thirteen seats while Stage B sampled one.
+                evaluate(
+                    items[index : index + cohort_size],
+                    stem,
+                    targets=[(seat, config.TARGET_K) for seat in config.TARGET_PANEL],
+                    fill=fill,
+                )
         print(f"\nStage B: {len(items)} items across {len(stems)} cohorts.")
         for stem in stems:
             print(f"Eval: {stem}_eval.jsonl")

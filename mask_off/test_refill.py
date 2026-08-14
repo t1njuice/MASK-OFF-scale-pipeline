@@ -258,7 +258,7 @@ def test_cumulative_run_yield_is_accepted_over_finished(tmp_path, monkeypatch):
         assert row["run_yield"] == pytest.approx(
             round(row["accepted"] / row["finished"], 3)
         ), row
-        assert row["finished"] + row["in_flight"] == row["drawn"]
+        assert row["finished"] + row["in_flight"] == row["total_drawn"]
 
 
 # --- the stratified draw, and the domain a naive refill starves -------------
@@ -704,6 +704,11 @@ def test_a_kill_mid_poll_replays_as_cache_hits_under_refill(
     real scheduler, the real journal, the real cache, the real drain — with
     only the provider faked. The live drill over paid batches was NOT run.
     """
+    # The resume contract is about a JOURNALED batch: submit, die, drain,
+    # replay. `config.GENERATOR_MODEL` is a kimi slug now (openrouter_sync,
+    # which journals nothing and so has no orphan to drain), so the batch
+    # model is pinned here — the contract belongs to the route, not the roster.
+    monkeypatch.setattr(config, "GENERATOR_MODEL", "claude-opus-4-8")
     from .test_scheduler import CLEAN, _review
 
     batchcache._CACHES.clear()

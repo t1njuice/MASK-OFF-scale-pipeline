@@ -487,6 +487,7 @@ def run_anthropic_batch(
     ]
     try:
         for batch, task in zip(submitted, tasks):
+            waited = 0
             while True:
                 status = _connection_retry(
                     lambda: batches.retrieve(batch.id), progress
@@ -502,6 +503,14 @@ def run_anthropic_batch(
                 )
                 if status.processing_status == "ended":
                     break
+                waited += config.BATCH_POLL_SECONDS
+                if waited % config.BATCH_WARN_SECONDS == 0:
+                    progress.console.print(
+                        f"{label}: batch {batch.id} still processing "
+                        f"after {waited // 60} min",
+                        markup=False,
+                        highlight=False,
+                    )
                 # ponytail: fixed polling; add backoff only if runs become large
                 time.sleep(config.BATCH_POLL_SECONDS)
     except KeyboardInterrupt:

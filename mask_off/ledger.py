@@ -110,6 +110,25 @@ def _key(rec: dict):
 # --- readers ---------------------------------------------------------------
 
 
+def dedupe(records: Iterable[dict]) -> list[dict]:
+    """The run log's records with replayed waves collapsed. See `_key`.
+
+    `entries` applies the same rule to money. This applies it to the records
+    themselves, for readers that count waves and votes rather than dollars —
+    `metrics._stage_a_panel` counted every replayed wave twice, so a resumed
+    run's candidate accept rate, vote accept rate, cache-write ratio and
+    constraint histogram all read roughly double while the dollar figures
+    beside them were right.
+
+    Last record for a key wins, matching `entries`. Order is first-appearance,
+    which no caller depends on: every consumer groups by `iteration` first.
+    """
+    waves: dict = {}
+    for rec in records:
+        waves[_key(rec)] = rec
+    return list(waves.values())
+
+
 def entries(records: Iterable[dict]) -> list[Entry]:
     """Priced blocks for a whole run log, deduplicated. See `_key`."""
     waves: dict = {}

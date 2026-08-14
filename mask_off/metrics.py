@@ -253,9 +253,10 @@ def _stage_a_panel(cohorts, log_rows) -> str:
            'so far — and it is what sizes the next top-up.</p>']
     if cohorts:
         out.append(_table(
-            ["cohort", "drawn", "in flight", "finished", "accepted",
+            ["cohort", "total drawn", "in flight", "finished", "accepted",
              "run yield", "at"],
-            [[c.get("cohort"), c.get("drawn"), c.get("in_flight"),
+            [[c.get("cohort"), c.get("total_drawn", c.get("drawn")),
+              c.get("in_flight"),
               c.get("finished"), c.get("accepted"), c.get("run_yield"),
               c.get("ts", "")[:19]]
              for c in cohorts],
@@ -263,7 +264,10 @@ def _stage_a_panel(cohorts, log_rows) -> str:
     else:
         out.append('<p class="notyet">No checkpoints recorded yet.</p>')
 
-    decisions = [r for r in log_rows if "votes" in r]
+    # Deduplicated on the ledger's rule: a resumed run replays from the top and
+    # re-logs every wave it already ran, and counting those twice doubles every
+    # rate below while the dollar figures beside them stay right.
+    decisions = ledger.dedupe(r for r in log_rows if "votes" in r)
     errors = [r for r in log_rows if "error" in r]
     if not decisions and not errors:
         out.append('<p class="notyet">Wave rates: not run yet '

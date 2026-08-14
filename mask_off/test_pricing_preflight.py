@@ -240,3 +240,50 @@ def test_every_panel_seat_reaches_the_price_check(monkeypatch):
 
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))
+
+
+def test_preflight_probes_an_anthropic_model_not_the_generator(monkeypatch):
+    """The credential probe was hardwired to GENERATOR_MODEL on the Anthropic
+    client, which held only while the generator was a claude-* id. A
+    non-Claude generator — the ablation table's cross-generator row — 404s a
+    model that is perfectly reachable on openrouter_sync."""
+    flash = "deepseek/deepseek-v4-flash-0731"
+    seat = Seat("f", flash, "medium", 8000)
+    monkeypatch.setattr(config, "GENERATOR_MODEL", flash)
+    monkeypatch.setattr(config, "VALIDITY_PANEL", [seat] * 3)
+    monkeypatch.setenv("OPENROUTER_API_KEY", "x")
+
+    probed = []
+
+    class _Client:
+        class messages:
+            @staticmethod
+            def create(model, **kw):
+                probed.append(model)
+
+    monkeypatch.setattr(launch, "client", lambda: _Client())
+    assert launch.preflight() is True
+    assert probed, "preflight never proved the Anthropic credential"
+    assert probed[0].startswith("claude"), f"probed a non-Anthropic model: {probed[0]}"
+
+
+def test_preflight_skips_anthropic_entirely_when_nothing_routes_there(monkeypatch):
+    """No Anthropic seat means no Anthropic credential is required."""
+    flash = "deepseek/deepseek-v4-flash-0731"
+    seat = Seat("f", flash, "medium", 8000)
+    monkeypatch.setattr(config, "GENERATOR_MODEL", flash)
+    monkeypatch.setattr(config, "VALIDITY_PANEL", [seat] * 3)
+    monkeypatch.setattr(config, "TARGET_PANEL", [seat])
+    monkeypatch.setattr(config, "JUDGE_PANEL", [seat])
+    monkeypatch.setattr(config, "THERMOMETER_SEAT", seat)
+    monkeypatch.setattr(config, "VARIANT_MODEL", flash)
+    monkeypatch.setattr(config, "SEEDGEN_MODEL", flash)
+    monkeypatch.setattr(config, "CHEAP_AUDIT_MODEL", flash)
+    monkeypatch.setattr(config, "OPUS5_SMOKE_N", 0)  # else its seat pulls opus-5 in
+    monkeypatch.setenv("OPENROUTER_API_KEY", "x")
+
+    def _no_client():
+        raise AssertionError("preflight demanded Anthropic creds with no Anthropic seat")
+
+    monkeypatch.setattr(launch, "client", _no_client)
+    assert launch.preflight() is True

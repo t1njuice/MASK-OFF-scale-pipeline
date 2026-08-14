@@ -312,6 +312,8 @@ def _run_misses(
     out = _one_pass(misses, label)
     retry = [r for r in misses if _bad(out.get(r["custom_id"]))]
     if retry:
+        _log(progress, f"[batchcache] {label}: {len(retry)} bad finals "
+                       "(empty or max_tokens), resubmitting")
         out.update(_one_pass(retry, f"{label} (retry)"))
     # the refresh batches completed in-process; mark them drained so restarts
     # do not re-poll them (their keys can never prove completion — see above)

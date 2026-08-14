@@ -270,11 +270,13 @@ def test_two_waves_of_one_seed_produce_disjoint_request_ids(
     assert {cid.replace("__w1", "__wN") for cid in first} == {
         "seed_a__wN",          # the generator draft
         "seed_a__wN__lint",    # its regeneration, under its own id
+        "seed_a__wN__arb",     # the arbiter turn, below the cap only
         *(f"seed_a__wN__vote{i}" for i in range(config.VALIDITY_VOTES)),
     }
-    assert {cid.replace("__w1", "__wN") for cid in first} == {
-        cid.replace("__w2", "__wN") for cid in second
-    }
+    # wave 2 is the cap wave: its feedback is write-only, so no arbiter id
+    assert {cid.replace("__w2", "__wN") for cid in second} == {
+        cid.replace("__w1", "__wN") for cid in first
+    } - {"seed_a__wN__arb"}
 
 
 def test_the_longest_legal_stage_a_id_fits_the_provider_cap():

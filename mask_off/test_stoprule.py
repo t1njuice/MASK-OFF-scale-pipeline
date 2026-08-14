@@ -301,6 +301,8 @@ def test_stage_a_writes_what_the_replay_reads(tmp_path, monkeypatch, transport):
     stem = tmp_path / "s"
     run(1, tmp_path, stem, launch=[Seed(name="seed_a", text="a seed", source="t")])
     rows = [json.loads(line) for line in (tmp_path / "s_run_log.jsonl").read_text().splitlines()]
+    # wave 1 also logs an arbiter record; the decision rows are the waves
+    rows = [r for r in rows if r.get("stage") != "arbiter"]
 
     assert [r["iteration"] for r in rows] == [1, 2]
     assert "stopped" not in rows[0], "a seed that may still run named a stop reason"

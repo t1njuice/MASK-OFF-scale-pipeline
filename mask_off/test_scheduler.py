@@ -29,6 +29,7 @@ import pytest
 from . import batchcache, config, routes
 from .conftest import message
 from .frozen_pipeline import (
+    ARBITER,
     GENERATOR,
     Work,
     LINT,
@@ -123,7 +124,11 @@ class Harness:
         self.step(GENERATOR, respond)
         if self.scheduler.waiting(LINT):
             self.step(LINT, respond)
-        return self.step(VALIDITY, respond)
+        work = self.step(VALIDITY, respond)
+        # a failed multi-revise wave below the cap parks at the arbiter
+        if self.scheduler.waiting(ARBITER):
+            self.step(ARBITER, respond)
+        return work
 
 
 def votes_say(verdict, candidate=CLEAN, id_note=None):
@@ -131,6 +136,8 @@ def votes_say(verdict, candidate=CLEAN, id_note=None):
     def respond(custom_id):
         if "__vote" in custom_id:
             return message(text=_review(verdict, id_note=id_note))
+        if custom_id.endswith("__arb"):
+            return message(text=f"ARBITRATED_{custom_id.split('__')[0]}")
         return message(text=candidate)
 
     return respond
@@ -167,6 +174,7 @@ def test_a_stage_never_submits_a_second_batch_while_its_first_is_in_flight():
     h.scheduler.deliver(first, {r["custom_id"]: message(text=CLEAN)
                                 for r in first.requests})
     h.step(VALIDITY, votes_say("revise"))
+    h.step(ARBITER, votes_say("revise"))
     second = h.scheduler.ready(GENERATOR)
     assert sorted(r["custom_id"] for r in second.requests) == ["a__w2", "b__w2"]
 
@@ -204,11 +212,16 @@ def test_each_seed_is_revised_with_its_own_diagnosis_not_a_siblings():
 
     def respond(custom_id):
         name = custom_id.split("__")[0]
+        if custom_id.endswith("__arb"):
+            # the arbiter path is now the wire the diagnosis rides; keep it
+            # seed-named so a crossed wire still shows up in wave 2
+            return message(text=f"DIAGNOSIS_FOR_{name}")
         return message(text=review_naming(name) if "__vote" in custom_id
                        else draft_naming(name))
 
     h.step(GENERATOR, respond)
     h.step(VALIDITY, respond)
+    h.step(ARBITER, respond)
 
     # Wave 2's requests are where a crossed wire would surface.
     work = h.scheduler.ready(GENERATOR)
@@ -232,10 +245,13 @@ def test_each_seed_locks_against_its_own_direction_ruling():
         name = custom_id.split("__")[0]
         if "__vote" in custom_id:
             return message(text=_review("revise", id_note=directions[name]))
+        if custom_id.endswith("__arb"):
+            return message(text=f"ARBITRATED_{name}")
         return message(text=CLEAN)
 
     h.step(GENERATOR, respond)
     h.step(VALIDITY, respond)
+    h.step(ARBITER, respond)
     assert h.states["alpha"].id_dir == "too traceable"
     assert h.states["bravo"].id_dir == "speculative"
 
@@ -354,13 +370,18 @@ def test_revise_carries_the_feedback_and_the_direction_ruling_forward():
     state = h.states["a"]
     assert not state.done and state.stage == GENERATOR
     assert state.feedback.startswith("VALIDITY REVISION")
-    assert "rebuild the ask" in state.feedback
+    # a multi-revise wave routes its diagnosis through the arbiter; the
+    # arbitrated text, scope-stamped by the code, is what the seed carries
+    assert "ARBITRATED_a" in state.feedback
+    assert "Scope: frame" in state.feedback
     assert state.previous is not None, "the rejected draft must be shown back"
     assert state.id_dir == "speculative"
-    assert h.log[-1]["stop_rule"]["id_dir_in"] is None, "wave 1 carried nothing in"
+    decisions = [r for r in h.log if r.get("stage") != "arbiter"]
+    assert decisions[-1]["stop_rule"]["id_dir_in"] is None, \
+        "wave 1 carried nothing in"
 
     gen = h.scheduler.ready(GENERATOR)
-    assert "rebuild the ask" in str(gen.requests[0]["params"]), \
+    assert "ARBITRATED_a" in str(gen.requests[0]["params"]), \
         "the feedback never reached the generator"
     h.scheduler.deliver(gen, {r["custom_id"]: message(text=CLEAN)
                               for r in gen.requests})
@@ -380,7 +401,9 @@ def test_exhaust_stops_the_seed_at_the_cap(monkeypatch):
     h.wave(votes_say("revise"))
     assert h.states["a"].done and h.items == []
     assert h.log[-1]["stopped"] == CAP_EXHAUSTED
-    assert [r["iteration"] for r in h.log] == [1, 2]
+    # wave 1 also logs its arbiter record; the cap wave (2) never buys one
+    assert [(r["iteration"], r.get("stage", "decision")) for r in h.log] == [
+        (1, "decision"), (1, "arbiter"), (2, "decision")]
     assert h.notes[-1] == "exhausted a"
 
 
@@ -489,10 +512,12 @@ def test_seeds_advance_independently_and_land_on_different_waves(monkeypatch):
         "accepts_first": 1, "accepts_second": 2
     }
     assert h.states["never_accepts"].done
-    # one decision record per (seed, wave) and no more: the ledger's dedup key
-    # is (seed_name, iteration, stage) and a stage split across records breaks it
+    # one record per (seed, wave, stage) and no more: the ledger's dedup key
+    # is (seed_name, iteration, stage) and a stage split across records breaks
+    # it. 5 decisions plus the two wave-1 arbiter records (accepts_second and
+    # never_accepts both failed with three revises below the cap).
     keys = [(r["seed_name"], r["iteration"], r.get("stage")) for r in h.log]
-    assert len(keys) == len(set(keys)) == 5
+    assert len(keys) == len(set(keys)) == 7
 
 
 # --- the executor and its durability --------------------------------------
@@ -704,3 +729,58 @@ def test_the_vote_label_names_both_counts_not_just_the_resubmits():
     resubmit = h.scheduler.ready(VALIDITY)
     assert resubmit.refresh == {"a__w1__vote1"}
     assert "1 resubmitted of 1" in resubmit.label, resubmit.label
+
+
+def test_arbiter_continues_sols_thread_and_falls_back_on_silence():
+    """The arbitration contract (2026-08-14): the request re-sends the
+    ARBITER_SLOT seat's own vote conversation with the OTHER revise blocks
+    appended, and a silent arbiter costs nothing but the plain merge."""
+    h = Harness("a")
+    h.step(GENERATOR, votes_say("revise"))
+    h.step(VALIDITY, votes_say("revise"))
+
+    work = h.scheduler.ready(ARBITER)
+    assert [r["custom_id"] for r in work.requests] == ["a__w1__arb"]
+    msgs = work.requests[0]["params"]["messages"]
+    assert [m["role"] for m in msgs] == ["user", "assistant", "user"]
+    # the assistant turn is the seat's own vote, replayed verbatim
+    assert "rebuild the ask" in msgs[1]["content"]
+    # the instruction carries the other seats' blocks, never the seat's own
+    assert "Reviewer A" in msgs[2]["content"]
+    assert "Reviewer B" in msgs[2]["content"]
+    assert "Reviewer C" not in msgs[2]["content"]
+    assert work.requests[0]["params"]["max_tokens"] == config.ARBITER_MAX_TOKENS
+
+    # silence: no message back -> plain merged feedback, error on the record
+    h.scheduler.deliver(work, {"a__w1__arb": None})
+    state = h.states["a"]
+    assert state.stage == GENERATOR and state.arb is None
+    assert "AGREED FAIL on t_composition" in state.feedback
+    assert "rebuild the ask" in state.feedback
+    arb_recs = [r for r in h.log if r.get("stage") == "arbiter"]
+    assert len(arb_recs) == 1 and "error" in arb_recs[0]
+
+
+def test_arbitration_is_skipped_when_the_arbiter_seats_vote_never_parses():
+    """sol's vote failing every resubmission must not strand the seed: the two
+    parsed revises tally as short_votes and the plain merged feedback goes
+    straight back to the generator — the exact regression an `arb_voted`
+    refactor would cause silently (review finding, 2026-08-14)."""
+    h = Harness("a")
+
+    def respond(custom_id):
+        if custom_id.endswith(f"__vote{config.ARBITER_SLOT}"):
+            return message(text="not a vote at all")
+        if "__vote" in custom_id:
+            return message(text=_review("revise"))
+        return message(text=CLEAN)
+
+    h.step(GENERATOR, respond)
+    for _ in range(VOTE_RESUBMITS + 1):
+        h.step(VALIDITY, respond)
+
+    state = h.states["a"]
+    assert state.stage == GENERATOR, "no arbiter without the arbiter's own vote"
+    assert h.scheduler.ready(ARBITER) is None
+    assert "AGREED FAIL on t_composition" in state.feedback
+    assert h.log[-1].get("short_votes") is True

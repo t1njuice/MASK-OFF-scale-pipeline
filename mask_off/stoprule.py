@@ -202,7 +202,9 @@ def waves_from_log(rows: Iterable[Mapping]) -> dict[str, list[Wave]]:
     histories: dict[str, list[Wave]] = {}
     carried: dict[str, str | None] = {}
     for row in rows:
-        if row.get("stage") == "lint" or "seed_name" not in row:
+        # lint and arbiter records are bookkeeping around a wave, not a wave:
+        # counting either as a Wave would inflate the cap arithmetic on replay
+        if row.get("stage") in ("lint", "arbiter") or "seed_name" not in row:
             continue
         seed = row["seed_name"]
         block = row.get("stop_rule") or {}
@@ -437,15 +439,23 @@ def main(argv: Sequence[str] | None = None) -> None:
         if name not in ("per_seed", "occupancy"):
             print(f"{name:26} {value}")
     def cost_of(seed_name: str, wave: Wave) -> float:
-        """Every seat of one wave: the generator, plus each panel vote."""
-        usage = seats.get((seed_name, wave.iteration)) or {}
-        blocks = [usage["generator"], *(usage.get("votes") or [])] if "generator" in usage else [usage]
+        """Every dollar one wave bought: the generator, each panel vote, and
+        any lint or arbiter record sharing the wave's (seed, iteration). The
+        cap ladder decides whether to buy waves like this one, so leaving a
+        stage's money out understates exactly the waves under decision."""
+        blocks = []
+        for usage in seats.get((seed_name, wave.iteration), []):
+            if "generator" in usage:
+                blocks += [usage["generator"], *(usage.get("votes") or [])]
+            else:
+                blocks.append(usage)
         return sum(usage_cost(b) for b in blocks if b)
 
-    seats = {
-        (r["seed_name"], r["iteration"]): r.get("usage") or {}
-        for r in rows if r.get("stage") != "lint" and "seed_name" in r
-    }
+    seats: dict[tuple, list] = {}
+    for r in rows:
+        if "seed_name" in r and "iteration" in r and r.get("usage"):
+            seats.setdefault((r["seed_name"], r["iteration"]), []).append(
+                r["usage"])
     occupancy = report["occupancy"]
     print(f"{'seed-waves bought':26} {occupancy['seed_waves']} of "
           f"{occupancy['slot_waves']} slot-waves held open "

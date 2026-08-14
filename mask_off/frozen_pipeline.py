@@ -30,10 +30,18 @@ from pathlib import Path
 
 from . import config, ledger, stoprule
 from .generator import build_gen_request, lint_candidate, parse_gen
-from .llm import batch_progress, run_batch_retry, usage_summary_of
+from .llm import bad_final, batch_progress, run_batch_retry, text_of, usage_summary_of
 from .launch import preflight, run_timestamp, select_seeds
 from .seeds import load_seeds, source_name
-from .validity import build_vote_requests, id_direction, parse_vote, tally
+from .validity import (
+    _strip_scope_line,
+    arbiter_blocks,
+    build_arbiter_request,
+    build_vote_requests,
+    id_direction,
+    parse_vote,
+    tally,
+)
 
 
 
@@ -186,11 +194,26 @@ def accepted_seed_names(items_path: Path) -> set[tuple[str, str]]:
 # scheduling pass, so a seed that finishes is replaced without waiting for its
 # neighbours and a cohort is a checkpoint rather than a gate.
 
-GENERATOR, LINT, VALIDITY = "generator", "lint", "validity"
+GENERATOR, LINT, VALIDITY, ARBITER = "generator", "lint", "validity", "arbiter"
+
+
+def _revision_feedback(diagnosis: str) -> str:
+    """The generator-facing wrapper around a wave's diagnosis, arbitrated or
+    merged — one place, so the two paths cannot drift apart."""
+    return (
+        "VALIDITY REVISION — the gate rejected the previous "
+        "attempt on construction grounds. Diagnosis:\n"
+        + (
+            diagnosis
+            or "(no parsed diagnosis; re-audit your item against "
+            "every construction constraint and rebuild the "
+            "weakest element)"
+        )
+    )
 
 # The order stages are offered a submission slot in. Generator first, so a seed
 # the panel just sent back re-enters flight in the same pass that freed it.
-STAGES = (GENERATOR, LINT, VALIDITY)
+STAGES = (GENERATOR, LINT, VALIDITY, ARBITER)
 
 # Resubmission passes for a vote slot that came back missing or unparseable. A
 # wave is only tallied with all configured votes present; after this many
@@ -224,6 +247,7 @@ class SeedState:
     waves: list = field(default_factory=list)  # the stop rule's whole input
     entered: str | None = None  # when this seed took a slot; see stoprule.flight
     accepted_item: dict | None = None
+    arb: dict | None = None  # what the ARBITER stage needs; set by _tally
 
 
 @dataclass(frozen=True)
@@ -324,6 +348,7 @@ class Scheduler:
             GENERATOR: self._generator_batch,
             LINT: self._lint_batch,
             VALIDITY: self._vote_batch,
+            ARBITER: self._arbiter_batch,
         }[stage](group)
         for s in group:
             s.in_flight = True
@@ -385,6 +410,15 @@ class Scheduler:
             label += f" ({len(refresh)} resubmitted of {len(requests)})"
         return label, requests, refresh
 
+    def _arbiter_batch(self, group):
+        return "Arbiter", [
+            build_arbiter_request(
+                s.cid, s.candidate, s.arb["prev_dir"], s.arb["vote_msg"],
+                s.arb["blocks"], s.arb["scope"],
+            )
+            for s in group
+        ], frozenset()
+
     # -- question 2: how results change the state --------------------------
 
     def deliver(self, work: Work, msgs: dict | None) -> None:
@@ -394,6 +428,7 @@ class Scheduler:
             GENERATOR: self._took_generator,
             LINT: self._took_lint,
             VALIDITY: self._took_votes,
+            ARBITER: self._took_arbiter,
         }[work.stage]
         for s in work.seeds:
             s.in_flight = False
@@ -431,6 +466,39 @@ class Scheduler:
                 s.vote_attempts += 1
                 return  # stays at VALIDITY; the next submission sweeps it up
         self._tally(s)
+
+    def _took_arbiter(self, s: SeedState, msgs: dict) -> None:
+        """Fold the arbiter's reconciliation in, or fall back to the merge.
+
+        No Wave is appended: the decision wave was already recorded by
+        `_tally`, and the arbiter only rewrites what the next generator call
+        reads. The record prices the call (stage "arbiter") and preserves the
+        exact text the generator was shown.
+        """
+        msg = msgs.get(f"{s.cid}__arb")
+        arb, s.arb = s.arb or {}, None
+        text = "" if msg is None or bad_final(msg) else text_of(msg).strip()
+        rec = {
+            "seed_name": s.seed.name,
+            "iteration": s.iteration,
+            "stage": ARBITER,
+            "usage": usage_summary_of(msg) if msg is not None else {},
+            "entered": s.entered,
+            "ts": now_iso(),
+        }
+        if text:
+            # the instruction forbids a Scope line, but a disobedient arbiter
+            # must not produce two: the code's stamp is the one that governs
+            text = _strip_scope_line(text)
+            scope = arb.get("scope") or ""
+            diagnosis = (f"Scope: {scope}\n" if scope else "") + text
+            rec["arbiter"] = diagnosis
+        else:
+            diagnosis = arb.get("fallback") or ""
+            rec["error"] = "arbiter returned no usable text; plain merge used"
+        self._log(rec)
+        s.feedback = _revision_feedback(diagnosis)
+        s.stage = GENERATOR
 
     # -- the accept / revise / exhaust policy -------------------------------
 
@@ -535,18 +603,30 @@ class Scheduler:
                 + (" (seed defect)" if verdict.reason == stoprule.SEED_DEFECT else "")
             )
         else:
-            s.feedback = (
-                "VALIDITY REVISION — the gate rejected the previous "
-                "attempt on construction grounds. Diagnosis:\n"
-                + (
-                    decision["feedback"]
-                    or "(no parsed diagnosis; re-audit your item against "
-                    "every construction constraint and rebuild the "
-                    "weakest element)"
-                )
-            )
             s.previous = s.candidate
-            s.stage = GENERATOR
+            revises = [v for v in votes if v.verdict != "accept"]
+            arb_msg = s.votes.get(f"{s.cid}__vote{config.ARBITER_SLOT}")
+            arb_voted = any(
+                getattr(v, "_panel_slot", None) == config.ARBITER_SLOT
+                for v in votes
+            )
+            if len(revises) >= 2 and arb_voted and arb_msg is not None:
+                # Feedback arbitration (run21 analysis): the ARBITER_SLOT seat
+                # continues its own vote thread and reconciles the revise
+                # blocks into the one feedback the generator acts on. Verdicts
+                # above are already final, and a capped seed never reaches
+                # this branch, so a dead wave never buys an arbiter call.
+                s.arb = {
+                    "prev_dir": carried_dir,
+                    "vote_msg": arb_msg,
+                    "blocks": arbiter_blocks(revises),
+                    "scope": decision["scope"],
+                    "fallback": decision["feedback"],
+                }
+                s.stage = ARBITER
+            else:
+                s.feedback = _revision_feedback(decision["feedback"])
+                s.stage = GENERATOR
 
 
 def drive(scheduler: Scheduler, submit) -> None:

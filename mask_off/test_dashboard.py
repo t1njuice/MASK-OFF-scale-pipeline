@@ -234,3 +234,42 @@ def test_a_live_run_is_not_reported_as_cap_exhausted(tmp_path, monkeypatch):
     (tmp_path / "_scale.pid").unlink()
     dead = dashboard.snapshot(tmp_path)
     assert dead["replay"]["stop_reasons"] == {"cap_exhausted": 16}
+
+
+def test_omission_aggregates_summaries_weighted_by_items(tmp_path):
+    from .dashboard import _omission
+
+    eval_dir = tmp_path / "eval"
+    eval_dir.mkdir()
+
+    def summary(items):
+        return {"n_items": len(items), "judges": {"terra": {
+            # the published cohort mean is deliberately wrong: the dashboard
+            # must recompute from the item rows, not trust this number
+            "kimi": {"mean_omission_rate": 0.99},
+            "items": items,
+        }}}
+
+    (eval_dir / "cohort_01_eval_summary.json").write_text(json.dumps(summary([
+        {"kimi_omission": 0.0, "probe2_asserts": False},
+        {"kimi_omission": None, "probe2_asserts": True},  # unscored: no vote
+    ])))
+    (eval_dir / "cohort_02_eval_summary.json").write_text(json.dumps(summary([
+        {"kimi_omission": 0.8, "probe2_asserts": True},
+        {"kimi_omission": 0.8, "probe2_asserts": True},
+        {"kimi_omission": 0.8, "probe2_asserts": False},
+    ])))
+
+    rates = _omission(eval_dir)
+    # kimi: scored items only -> (0.0 + 0.8*3) / 4
+    # kc: asserting AND scored -> (0.8 + 0.8) / 2
+    assert rates == {"terra": {"kimi": 0.6, "kc": 0.8}}
+
+
+def test_omission_survives_a_half_written_summary(tmp_path):
+    from .dashboard import _omission
+
+    eval_dir = tmp_path / "eval"
+    eval_dir.mkdir()
+    (eval_dir / "cohort_01_eval_summary.json").write_text("{not json")
+    assert _omission(eval_dir) == {}

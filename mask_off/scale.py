@@ -77,6 +77,11 @@ def fingerprint(seeds) -> dict:
     fields["validity_prompt_sha"] = _sha(
         (config.PROMPTS_DIR / "validity_reviewer.md").read_text(encoding="utf-8")
     )
+    # The arbiter instruction shapes every revision the generator makes, so a
+    # wording change between runs is an instrument change (user, 2026-08-14).
+    from .validity import ARBITER_INSTRUCTION
+
+    fields["arbiter_prompt_sha"] = _sha(ARBITER_INSTRUCTION)
     fields["seed_corpus_sha"] = _sha(
         json.dumps(
             sorted((s.source, s.name, s.text) for s in seeds), ensure_ascii=False

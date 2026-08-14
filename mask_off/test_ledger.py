@@ -327,3 +327,26 @@ def test_stage_a_rates_survive_a_replayed_log():
     once = metrics._stage_a_panel([], rows)
     twice = metrics._stage_a_panel([], rows + rows)
     assert once == twice
+
+
+def test_an_arbiter_call_is_committed_before_its_record_lands(tmp_path):
+    """The wave's decision record is written BEFORE the arbiter request goes
+    out, so a (seed, wave) dedupe key hid the cached arbiter money from
+    `--max-cost` for the whole flight (opus review, 2026-08-14). The key is
+    (seed, wave, STAGE): the decision's stages are logged, the arbiter's is
+    not yet."""
+    (tmp_path / "run_log.jsonl").write_text(json.dumps({
+        "seed_name": "a_seed", "iteration": 1,
+        "candidate": {}, "votes": [{}],
+        "usage": {"generator": _usage(GEN), "votes": [_usage(VOTE)]},
+    }) + "\n", encoding="utf-8")
+    _write_cache(tmp_path, [
+        _cache_row("a_seed__w1"),          # logged by the decision -> excluded
+        _cache_row("a_seed__w1__vote0"),   # logged by the decision -> excluded
+        _cache_row("a_seed__w1__arb"),     # not logged yet -> committed
+    ])
+    assert {(e.seed, e.wave, e.stage) for e in ledger.untallied(tmp_path)} == {
+        ("a_seed", 1, "arbiter")
+    }
+    assert ledger.committed_total(tmp_path) == pytest.approx(
+        GEN_COST + VOTE_COST + 0.125)  # the arb call: 10k out @ 12.5/M

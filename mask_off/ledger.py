@@ -203,6 +203,8 @@ _WAVE_ID = re.compile(r"^(?P<seed>.+)__w(?P<wave>\d+)(?:__(?P<kind>.+))?$")
 def _stage_of_id(kind: str | None) -> str:
     if kind is None:
         return "generator"
+    if kind == "arb":
+        return "arbiter"
     return "lint" if kind == "lint" else "validity"
 
 
@@ -233,14 +235,21 @@ def cache_entries(run_dir: Path) -> list[Entry]:
 
 
 def untallied(run_dir: Path) -> list[Entry]:
-    """Cache entries for waves the run log has not recorded yet.
+    """Cache entries for stages the run log has not recorded yet.
 
-    Deduplication against the log is by (seed, wave), not by request: once a
-    wave tallies, its record carries every block that wave bought, so counting
-    any cached request from that wave again would double-bill it.
+    Deduplication against the log is by (seed, wave, STAGE), not by request:
+    once a stage tallies, its record carries every block that stage bought, so
+    counting any cached request from it again would double-bill it. The stage
+    must be in the key because stages of one wave tally at different times:
+    the arbiter call lands in the cache AFTER the wave's decision record is
+    written, and a (seed, wave) key would hide its money from `--max-cost`
+    for the whole time the arbiter batch is in flight.
     """
-    logged = {(e.seed, e.wave) for e in log_entries(run_dir)}
-    return [e for e in cache_entries(run_dir) if (e.seed, e.wave) not in logged]
+    logged = {(e.seed, e.wave, e.stage) for e in log_entries(run_dir)}
+    return [
+        e for e in cache_entries(run_dir)
+        if (e.seed, e.wave, e.stage) not in logged
+    ]
 
 
 def committed_total(run_dir: Path) -> float:

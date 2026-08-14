@@ -335,7 +335,10 @@ def author(rows: list[tuple[str, str]], out_dir: Path) -> Path:
                 _brief(),
                 _author_user(domain, row, windows[i], call_names[i]),
                 config.SEEDGEN_MAX_TOKENS,
-                thinking=False,  # deepseek reasons by default; see llm.py
+                # Reasoning ON so SEEDGEN_EFFORT applies (user, 2026-08-14).
+                # Every corpus authored before this line ran reasoning-off:
+                # thinking=False never sent the effort at all.
+                thinking=config.REASONING_THINKING,
             ),
         }
         for i, (domain, row) in enumerate(rows)
@@ -780,7 +783,7 @@ def distinct(behavior_dir: Path, regen: bool = False) -> Path:
                         neighbor=by_name[neighbor].text,
                     ),
                     config.SEEDGEN_MAX_TOKENS,
-                    thinking=False,
+                    thinking=config.REASONING_THINKING,  # same mode as `author`
                 ),
             }
             for i, (name, neighbor) in enumerate(items)

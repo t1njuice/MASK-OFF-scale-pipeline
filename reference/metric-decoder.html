@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reference — The metric decoder</title>
+<link rel="stylesheet" href="../assets/course.css">
+<style>
+  .compact td, .compact th { padding: 0.32rem 0.5rem; font-size: 0.85rem; }
+  .m { border-top: 2px solid var(--ink); padding-top: 0.5rem; margin-top: 2rem; }
+  .m h3 { margin-top: 0.3rem; }
+  .m .one-line { font-weight: 600; color: var(--accent); margin: 0.2rem 0 0.5rem; }
+  .m dl { margin: 0.5rem 0; }
+  .m dt { font-family: "Avenir Next", sans-serif; font-size: 0.66rem; letter-spacing: 0.09em;
+          text-transform: uppercase; color: var(--muted); margin-top: 0.55rem; }
+  .m dd { margin: 0.1rem 0 0; font-size: 0.93rem; }
+  .shape { font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<p class="kicker">MASK-OFF · Reference card</p>
+<h1>The metric decoder</h1>
+<p class="dek">Every statistic in the diversity workstream: what it is, what moves it, what a bad value looks like.</p>
+
+<h2>The three shapes</h2>
+<table class="compact">
+<thead><tr><th>Shape</th><th>Form</th><th>Question</th><th>Members</th></tr></thead>
+<tbody>
+<tr><td><b>Effective count</b></td><td><code>exp(entropy)</code></td><td>How many, if used evenly?</td><td>Hill q=0 · Hill q=1 · Vendi</td></tr>
+<tr><td><b>Chance-corrected</b></td><td><code>(obs − exp)/(1 − exp)</code></td><td>How much agreement is real?</td><td>κ · PABAK · α</td></tr>
+<tr><td><b>Closeness</b></td><td>a 0–1 ratio</td><td>How alike are two things?</td><td>cosine · Self-BLEU · POS compression · Cramér's V · confusion share</td></tr>
+<tr><td colspan="4"><b>The wobble sits on all three:</b> the bootstrap confidence interval says how much a number would move on a different sample.</td></tr>
+</tbody>
+</table>
+
+<h2>Thresholds at a glance</h2>
+<table class="compact">
+<thead><tr><th>Number</th><th>Bar</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td>κ per axis</td><td>≥ 0.80 · 0.67–0.80 · &lt; 0.67</td><td>pass · tentative · fail</td></tr>
+<tr><td>Confusion pair share</td><td>≥ 0.30</td><td>Named menu overlap, not noise</td></tr>
+<tr><td>"Other" rate per facet</td><td>&gt; 5%</td><td>One allowed revision, then frozen</td></tr>
+<tr><td>Near-duplicate cosine</td><td>≥ 0.90</td><td>Flag, regenerate the later seed</td></tr>
+<tr><td>Bootstrap draws</td><td>2000, seeded</td><td>Percentile interval, reproducible</td></tr>
+<tr><td>Sample size</td><td>n = 300</td><td>≈ ±0.05 interval at κ = 0.8</td></tr>
+</tbody>
+</table>
+
+<!-- ============================================ EFFECTIVE COUNT -->
+<div class="m">
+<p class="shape">Shape 1 · effective count</p>
+<h3>Hill q=0 — coverage / richness / <em>variety</em></h3>
+<p class="one-line">"How many options appeared at all?"</p>
+<dl>
+<dt>Computed</dt><dd>Count the options with at least one item. Nothing more.</dd>
+<dt>Range</dt><dd>0 to the number of options on the axis.</dd>
+<dt>Blind spot</dt><dd>An option seen twice counts the same as one seen 149 times.</dd>
+<dt>Bad value</dt><dd>Below the option count — an option never appeared, which is a stated coverage gap.</dd>
+<dt>Code</dt><dd><code>len(counts)</code> in <code>hill.py:54</code>. The "other" escape is excluded, so unclassified items cannot inflate it.</dd>
+</dl>
+</div>
+
+<div class="m">
+<p class="shape">Shape 1 · effective count</p>
+<h3>Hill q=1 — effective number / <em>balance</em></h3>
+<p class="one-line">"This axis behaves like N evenly used options."</p>
+<dl>
+<dt>Computed</dt><dd>Shannon entropy of the distribution, then <code>exp()</code>. The exponential puts the answer back into units of categories; raw entropy is in nats and reads as nothing.</dd>
+<dt>Range</dt><dd>1.0 (one option takes everything) to k (k options used evenly).</dd>
+<dt>Read with</dt><dd>Always beside coverage. The <b>gap</b> between the two is the information.</dd>
+<dt>Bad value</dt><dd>Far below coverage. Measured example: <code>standing</code>, coverage 4, effective 2.01 — all four appear, two are decoration.</dd>
+<dt>Code</dt><dd><code>effective_number()</code>, <code>hill.py:25</code>. Self-check anchors: one category → 1.0, four even → 4.0.</dd>
+</dl>
+</div>
+
+<div class="m">
+<p class="shape">Shape 1 · effective count</p>
+<h3>Evenness</h3>
+<p class="one-line">"What fraction of what this axis could carry does it actually carry?"</p>
+<dl>
+<dt>Computed</dt><dd>effective ÷ coverage.</dd>
+<dt>Why it exists</dt><dd>A 4-option axis can never score above 4. Evenness lets you compare it against a 6-option axis.</dd>
+<dt>Measured today</dt><dd>beneficiary 0.70 · institution 0.68 · standing 0.50.</dd>
+</dl>
+</div>
+
+<div class="m">
+<p class="shape">Shape 1 · effective count · <span class="tag danger">no code</span></p>
+<h3>Vendi Score — semantic diversity</h3>
+<p class="one-line">"This corpus of 300 items is about as diverse as N genuinely distinct items."</p>
+<dl>
+<dt>Computed</dt><dd>Embed every item → build the pairwise similarity matrix → take its eigenvalues → <code>exp(entropy)</code> of them.</dd>
+<dt>The connection</dt><dd><b>Identical arithmetic to Hill q=1</b>, run on a similarity matrix instead of on category counts. Hill needs labels; Vendi does not. Hill asks "are my labels spread", Vendi asks "is my text spread".</dd>
+<dt>Range</dt><dd>1 (all items near-identical) to n (all mutually unrelated).</dd>
+<dt>Requirement</dt><dd>Compare against a baseline corpus at <b>matched N</b> — the score is not comparable across sample sizes.</dd>
+<dt>Source</dt><dd>Friedman &amp; Dieng, <a href="https://arxiv.org/abs/2210.02410">arXiv:2210.02410</a>.</dd>
+</dl>
+</div>
+
+<!-- ============================================ CHANCE CORRECTED -->
+<div class="m">
+<p class="shape">Shape 2 · chance-corrected agreement</p>
+<h3>Cohen's κ — the gate</h3>
+<p class="one-line">"Of the agreement chance did not already hand you, how much did the raters earn?"</p>
+<dl>
+<dt>Computed</dt><dd><code>κ = (po − pe) / (1 − pe)</code>. <code>po</code> = how often they matched. <code>pe</code> = how often they would match if each kept their own label frequencies but ignored the email.</dd>
+<dt>Run per</dt><dd><b>Axis</b>, author vs author. Three numbers: beneficiary, institution, standing. Never pooled — a menu defect lives in one axis, and the gate is per facet.</dd>
+<dt>Also computed, never gating</dt><dd>The sentence κ (all three axes as one label, 120 cells) tracks the weakest axis and reads low <em>by construction</em>. Declared in advance so a reviewer does not read it as the headline. Judge-vs-author κ is reported too; author-vs-author is its ceiling.</dd>
+<dt>Bad value</dt><dd>&lt; 0.67. First suspect is the <b>menu</b>, not the raters — check the confusion pairs before anything else.</dd>
+<dt>Code</dt><dd><code>cohen_kappa()</code>, <code>kappa.py:30</code>. Axis loop at line 76.</dd>
+</dl>
+</div>
+
+<div class="m">
+<p class="shape">Shape 2 · chance-corrected agreement</p>
+<h3>PABAK — prevalence-adjusted, bias-adjusted κ</h3>
+<p class="one-line">"What κ would be if the options were evenly spread."</p>
+<dl>
+<dt>Computed</dt><dd><code>2·po − 1</code>. That is the whole formula — raw agreement rescaled onto −1…1.</dd>
+<dt>Why it is reported</dt><dd>The <b>prevalence paradox</b>: when one option dominates, <code>pe</code> rises, <code>1 − pe</code> shrinks, and κ collapses at unchanged raw agreement. A gap between PABAK and κ tells the reader how much of a low κ is skew rather than sloppiness.</dd>
+<dt>Never</dt><dd>The gate. It is a diagnostic. Gating on PABAK would reward a skewed axis.</dd>
+<dt>Source</dt><dd>Byrt, Bishop &amp; Carlin, <a href="https://pubmed.ncbi.nlm.nih.gov/8501467/">PubMed 8501467</a>.</dd>
+</dl>
+</div>
+
+<div class="m">
+<p class="shape">Shape 2 · chance-corrected agreement</p>
+<h3>Krippendorff's α</h3>
+<p class="one-line">"Same job as κ, with a different model of chance."</p>
+<dl>
+<dt>Computed</dt><dd><code>1 − Do/De</code>: observed disagreement over expected disagreement. It <b>pools</b> both raters' labels to estimate chance; κ models each rater separately.</dd>
+<dt>Why both</dt><dd>α is the convention NLP annotation reviewers expect, and it extends to more than two raters. κ and α agreeing is quiet evidence the number is not an artefact of one chance model.</dd>
+<dt>Cutoffs</dt><dd>≥ 0.800 reliable · 0.667–0.800 tentative only. Same bars as the κ gate, by design.</dd>
+<dt>Code</dt><dd><code>krippendorff_alpha()</code>, <code>kappa.py:43</code> — nominal, two raters, no missing data.</dd>
+</dl>
+</div>
+
+<!-- ============================================ CLOSENESS -->
+<div class="m">
+<p class="shape">Shape 3 · closeness</p>
+<h3>Cosine similarity — the near-duplicate check</h3>
+<p class="one-line">"Do these two seeds point in the same direction in meaning-space?"</p>
+<dl>
+<dt>Computed</dt><dd>Dot product of two embeddings, divided by both lengths. That division discards length, so it measures <b>what the text is about</b>, never how much text there is. A 400-word and a 90-word seed on the same situation still score near 1.0.</dd>
+<dt>Run over</dt><dd><b>WORLD + FACT lines only</b>, not the whole seed. Two seeds may share a writing style; they must not share a situation and a hidden fact.</dd>
+<dt>Threshold</dt><dd>0.90. Strict-sounding but not strict — same-domain English prose already scores high. Calibrated to this corpus and <code>text-embedding-3-small</code>, not a universal duplicate line.</dd>
+<dt>Action on a hit</dt><dd>The <b>later</b> seed regenerates, with its neighbour handed to the model as an explicit negative example. Rewrite, never delete.</dd>
+<dt>Code</dt><dd><code>_cosine()</code> <code>seedgen.py:679</code> · <code>_world_fact()</code> <code>:670</code> · <code>distinct()</code> <code>:719</code>. O(n²) pure Python, minutes at 1200 seeds.</dd>
+</dl>
+</div>
+
+<div class="m">
+<p class="shape">Shape 3 · closeness</p>
+<h3>Confusion pair share — the shape of disagreement</h3>
+<p class="one-line">"Is this disagreement scattered noise, or the same two options over and over?"</p>
+<dl>
+<dt>Computed</dt><dd>For each disagreed item, record the <b>ordered</b> pair (what A said, what B said) — <code>(practice, provider)</code> ≠ <code>(provider, practice)</code>. Count each pair, divide by total disagreements on that axis.</dd>
+<dt>Reading</dt><dd>Scattered thinly over many pairs → noise, which is exactly what κ absorbs. One pair at <b>≥ 30%</b> → structure: two specific options can both be true, so the menu is still broken.</dd>
+<dt>Why it matters</dt><dd>κ tells you <i>how much</i> they disagreed and nothing about <i>where</i>. This is the automated form of the hand-analysis that killed the flat-13 role list.</dd>
+<dt>Discipline</dt><dd>The 30% line is declared before the run, which is what stops it being a number picked after seeing the data.</dd>
+<dt>Code</dt><dd><code>confusion()</code> <code>kappa.py:99</code>; share at line 138; <code>OVERLAP_SHARE</code> at line 27.</dd>
+</dl>
+</div>
+
+<div class="m">
+<p class="shape">Shape 3 · closeness · <span class="tag danger">no code</span></p>
+<h3>Self-BLEU — lexical diversity</h3>
+<p class="one-line">"Do my scenarios recycle each other's phrases?"</p>
+<dl>
+<dt>Computed</dt><dd>Score each item with BLEU against all the others as references; average. BLEU counts shared word runs (n-grams).</dd>
+<dt>Direction</dt><dd><b>Lower is more diverse.</b> High Self-BLEU means the corpus repeats itself.</dd>
+<dt>Blind spot</dt><dd>Meaning. Two items about entirely different disasters, written from one template, both score high.</dd>
+<dt>Confound</dt><dd>Length. Compare only at matched N and matched length (<a href="https://arxiv.org/html/2507.15092v1">arXiv:2507.15092</a>).</dd>
+<dt>Source</dt><dd>Zhu et al., Texygen, <a href="https://arxiv.org/abs/1802.01886">arXiv:1802.01886</a>.</dd>
+</dl>
+</div>
+
+<div class="m">
+<p class="shape">Shape 3 · closeness · <span class="tag danger">no code</span></p>
+<h3>POS compression ratio — syntactic diversity</h3>
+<p class="one-line">"Do my scenarios share one sentence architecture?"</p>
+<dl>
+<dt>Computed</dt><dd>Replace every word with its part-of-speech tag (<code>DET NOUN VERB ADP DET ADJ NOUN</code>), compress that stream with gzip, take original size ÷ compressed size.</dd>
+<dt>Why compression</dt><dd>Compression is a repetition detector. A corpus built on one grammatical skeleton produces a highly repetitive tag stream, so it compresses well.</dd>
+<dt>Direction</dt><dd><b>Higher ratio = less diverse.</b></dd>
+<dt>What it catches that Self-BLEU cannot</dt><dd>Template reuse with every noun swapped. The words differ; the skeleton does not.</dd>
+<dt>Source</dt><dd>Shaib et al., <a href="https://arxiv.org/abs/2403.00553">arXiv:2403.00553</a>, <code>diversity</code> package.</dd>
+</dl>
+</div>
+
+<div class="m">
+<p class="shape">Shape 3 · closeness · <span class="tag danger">no code</span></p>
+<h3>Cramér's V — facet independence</h3>
+<p class="one-line">"Is 14 domains × 5 beneficiaries really 70 kinds of scenario, or 14 wearing two names?"</p>
+<dl>
+<dt>Computed</dt><dd>From chi-squared on the cross-tabulation of two categorical facets: <code>V = √(χ² / (n · min(r−1, c−1)))</code>.</dd>
+<dt>Range</dt><dd>0 = knowing one facet tells you nothing about the other. 1 = it tells you everything.</dd>
+<dt>Why the paper needs it</dt><dd>The diversity claim quietly multiplies facets. That multiplication is only valid if the facets vary <b>independently</b>. If every medical item has a dependent beneficiary and every finance item is <code>myself</code>, the coverage claim is double-counted.</dd>
+<dt>Bad value</dt><dd>High V between two claimed facets. Without this number, a reviewer can ask the question and the paper cannot answer.</dd>
+<dt>Reported as</dt><dd>A pairwise matrix over the facets, beside the coverage tables.</dd>
+</dl>
+</div>
+
+<!-- ============================================ THE WOBBLE -->
+<div class="m">
+<p class="shape">The wobble</p>
+<h3>95% confidence interval</h3>
+<p class="one-line">A claim about the <em>procedure</em>, not about this one interval.</p>
+<dl>
+<dt>Correct</dt><dd>If you repeated the whole study many times, 95% of the intervals produced would contain the true value.</dd>
+<dt>Wrong, and commonly written</dt><dd>"There is a 95% probability the true κ is in [0.76, 0.86]." The true κ is fixed — it is in there or it is not. The randomness is in which sample you drew.</dd>
+<dt>Consequence for prose</dt><dd>You may write "the procedure has 95% coverage". Do not write "we are 95% confident the true value exceeds 0.80".</dd>
+<dt>Safe working intuition</dt><dd>The width is your instrument's resolution. A wide interval does not mean the estimate is wrong; it means you cannot separate it from nearby values — including the gate.</dd>
+<dt>Policy here</dt><dd><b>Gate on the point estimate, report the interval.</b> Pre-declared, so the straddle case is decided before you know which side you land on.</dd>
+</dl>
+</div>
+
+<div class="m">
+<p class="shape">The wobble</p>
+<h3>Percentile bootstrap</h3>
+<p class="one-line">"Manufacture the repeated studies you cannot afford to run."</p>
+<dl>
+<dt>Procedure</dt><dd>(1) Draw n items from your own n, <b>with replacement</b> — some repeat, about a third never appear. (2) Recompute the statistic. (3) Repeat 2000 times. (4) Sort, cut the lowest and highest 2.5%. What remains is the interval.</dd>
+<dt>Reproducible</dt><dd>Seeded with <code>random.Random(0)</code>, so nobody can re-roll a number they dislike.</dd>
+<dt>The cluster twist</dt><dd>When rows are correlated — three responses graded on one screen are <b>one joint judgment</b> — resample the <b>item</b> and take all its rows. Resampling rows separately reports a falsely narrow interval, which is an overclaim that looks like rigour. The self-check at <code>kappa.py:166</code> asserts the clustered interval is <em>wider</em>.</dd>
+<dt>Caveat</dt><dd>Coverage is asymptotic. Fine at n = 300 (≈ ±0.05 at κ = 0.8). At n = 26 it is indicative only — never quote a pilot interval as a result.</dd>
+<dt>Code</dt><dd><code>kappa_ci()</code>, <code>kappa.py:53</code>. <code>BOOTSTRAP = 2000</code> at line 26.</dd>
+</dl>
+</div>
+
+<hr>
+
+<h2>Six habits that make a result hard to argue with</h2>
+<ol>
+<li><b>Declare every threshold before the run.</b> A bar chosen after the data is not a bar.</li>
+<li><b>Gate on the point estimate, report the interval.</b> Decide the straddle case in advance.</li>
+<li><b>Name the number that is not the headline.</b> The sentence κ reads low by construction — say so first.</li>
+<li><b>Match the resample unit to the judgment unit.</b> Correlated rows resampled as independent overclaim precision.</li>
+<li><b>Report the shape, not only the size.</b> κ + PABAK + α + distribution + confusion pairs lets a reader diagnose a low number.</li>
+<li><b>State what you did not measure.</b> A declared gap is a limitation; a discovered gap is a credibility problem.</li>
+</ol>
+<p class="lab-gloss">None of these makes a number look better. Every one makes it harder to attack.</p>
+
+<footer>
+<p>Reference card · taught in <a href="../lessons/0003-reading-the-numbers.html">Lesson 0003</a> · pipeline map in <a href="diversity-machine-map.html">the diversity machine map</a> · citations in <a href="../diversity/LITERATURE.md">LITERATURE.md</a> · thresholds fixed in <a href="../diversity/labeling/LABELING_DESIGN.md">LABELING_DESIGN.md</a> §6</p>
+</footer>
+
+</body>
+</html>

@@ -2,10 +2,16 @@
 
 Ticket 002. Research note for the annotation-validation plan.
 
-Setting: an LLM judge labels all ~1000 scenarios on four categorical
+Setting: an LLM judge labels all corpus scenarios on categorical
 facets (domain ~14 categories, user role, assistant role, emotional
 tone). Two authors hand-label a random sample of n scenarios. The
 paper reports Cohen's kappa (judge vs. author) per facet.
+
+> **Amendment 2026-08-14**: the corpus is **N = 500**, not 1000
+> (learning record 0006), and it holds two pools (300 + 200, record
+> 0007). The worked example below keeps N = 1000; the corrected
+> numbers and the new recommendation are in the amendment block
+> after section (b)'s recommendation.
 
 Definitions used below:
 
@@ -78,7 +84,7 @@ coefficients — which is exactly what kappa is.
 
 ---
 
-## (b) What sample size n out of 1000
+## (b) What sample size n out of the corpus (worked at N = 1000; see amendment)
 
 ### The standard-error reasoning
 
@@ -127,6 +133,37 @@ or ±0.051 after the finite-population correction. Still adequate.
   kappa = 0.8 from a null of 0.6 at 80% power needs on the order of
   100–250 items per comparison, before any per-category demands.
 
+### Amendment 2026-08-14 — N = 500, two pools
+
+The corpus is now 500 items (300 pool A + 200 pool B, disjoint
+seeds). The finite-population correction sqrt((N − n)/(N − 1)) is
+stronger at N = 500, so each n buys a narrower interval:
+
+| n | half-width, no FPC | half-width, FPC at N = 500 |
+|---|---|---|
+| 140 | ±0.076 | ±0.064 |
+| 150 | ±0.073 | ±0.061 |
+| 200 | ±0.063 | ±0.049 |
+| 300 | ±0.052 | ±0.033 |
+
+The FPC applies only under the finite-population estimand ("kappa of
+the judge on this corpus"). A reviewer who reads kappa as a property
+of the rubric (superpopulation) rejects the FPC, so the no-FPC
+column is the defensive one.
+
+- **Recommendation: n = 200** (120 pool A / 80 pool B, the corpus
+  ratio). It is the old defensible minimum even without the FPC
+  (±0.063), and with the FPC it matches the originally planned
+  n = 300 precision (±0.049 vs ±0.043).
+- **Floor: n = 150.** Justifiable only with the finite-population
+  estimand stated (±0.061). It barely clears the 10-per-domain
+  stratification floor (10 × 14 = 140).
+- **Below 150 is not justifiable**: the domain floor breaks and the
+  no-FPC interval passes ±0.075, which cannot place a facet within
+  the 0.67–0.80 tentative band.
+- One binding pooled kappa per axis. Per-pool kappa is descriptive
+  only: pool B alone at n = 80 carries about ±0.10.
+
 ### Stratification
 
 Yes — stratify, on one facet. Draw the sample stratified by the
@@ -172,7 +209,8 @@ Robustness checks to run alongside kappa:
 
 1. Pass bar: kappa >= 0.80 per facet. Floor 0.67 with caveat.
    Report the Landis & Koch scale row for each result.
-2. Hand-label n = 300 of the 1000, stratified by domain with
+2. Hand-label n = 200 of the 500 (amendment 2026-08-14; was 300 of
+   1000), stratified by pool (120/80) and by domain with
    proportional allocation and a 10-item floor per domain category.
 3. Report 95% CIs on every kappa (SE formula above, or bootstrap).
 4. Report Krippendorff's alpha and PABAK as robustness checks on

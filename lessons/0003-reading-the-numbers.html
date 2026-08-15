@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 0003 — Reading the numbers</title>
+<link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+
+<p class="kicker">MASK-OFF · Lesson 0003 · ~20 minutes · three things to click</p>
+<h1>Reading the numbers</h1>
+<p class="dek">Twelve statistics in this workstream. They are three shapes and one wobble.</p>
+
+<h2>1. The one idea</h2>
+
+<p>You do not have to learn twelve metrics. Almost every number in the diversity workstream is one of three shapes, and each shape answers one question.</p>
+
+<table>
+<thead><tr><th>Shape</th><th>Question it answers</th><th>Members</th></tr></thead>
+<tbody>
+<tr><td><b>Effective count</b><br><code>exp(entropy)</code></td><td>"How many, if they were used evenly?"</td><td>Hill q=0, Hill q=1, Vendi Score</td></tr>
+<tr><td><b>Chance-corrected agreement</b><br><code>(observed − expected) / (1 − expected)</code></td><td>"How much of this agreement is real?"</td><td>Cohen's κ, PABAK, Krippendorff's α</td></tr>
+<tr><td><b>Closeness</b><br>a ratio between 0 and 1</td><td>"How alike are these two things?"</td><td>cosine, Self-BLEU, POS compression, Cramér's V, confusion share</td></tr>
+</tbody>
+</table>
+
+<p>The <b>wobble</b> sits on top of all three. Every number above is computed from a sample, so every number could have come out differently. The confidence interval is how far differently. That is section 5, and it is the part you said you are new to, so it is the part with the machine you can run.</p>
+
+<hr>
+
+<h2>2. Shape one — effective count</h2>
+
+<h3>The problem it solves</h3>
+<p>You have four options on the <code>standing</code> axis. All four appear in the corpus. Is the axis diverse?</p>
+<p>Counting options says yes: four of four. But 149 of 209 items are <code>current</code>, and <code>took_over</code> appears twice. The count is honest and useless. It treats an option that appeared twice exactly like an option that appeared 149 times.</p>
+
+<h3>The fix: ask how many <em>evenly used</em> options this behaves like</h3>
+<p>Take the entropy of the distribution, then exponentiate it. Entropy alone is measured in nats and means nothing to a reader. <code>exp()</code> puts the answer back into units of categories.</p>
+
+<p>That gives a family of numbers indexed by <b>q</b>. The letter q controls how much a rare category counts:</p>
+
+<table>
+<thead><tr><th>Number</th><th>Rare categories count…</th><th>Reads as</th><th>Name</th></tr></thead>
+<tbody>
+<tr><td><b>Hill q=0</b></td><td>…exactly as much as common ones</td><td>"4 options appeared"</td><td>Coverage · richness · <b>variety</b></td></tr>
+<tr><td><b>Hill q=1</b></td><td>…in proportion to how often they appear</td><td>"behaves like 2.01 options"</td><td>Effective number · <b>balance</b></td></tr>
+</tbody>
+</table>
+
+<p>So the two numbers are not competing estimates of one thing. They are two different claims, and the interesting information is the <b>gap between them</b>. Coverage 4 with effective 2.01 says exactly one thing: every option showed up, and two of them are decoration.</p>
+
+<p><b>Evenness</b> is just <code>effective ÷ coverage</code>. It exists so that you can compare a 4-option axis with a 6-option axis, since a 4-option axis can never score above 4.</p>
+
+<div class="lab lab-hill"></div>
+
+<div class="callout">
+<span class="label">Where this lives</span>
+<code>effective_number()</code> at <a href="../diversity/labeling/hill.py">hill.py:25</a> is three lines: take the entropy, return <code>math.exp(h)</code>. Its self-check asserts the two anchors — one category gives 1.0, four even categories give 4.0.
+</div>
+
+<h3>Vendi Score is the same idea on embeddings</h3>
+<p>This is the connection worth carrying. Hill q=1 needs <b>labels</b> — it counts how items fall into named buckets. But you cannot label "is this scenario a new idea". So Vendi does the same arithmetic on a similarity matrix instead of on counts:</p>
+
+<ol>
+<li>Embed every item. Build the matrix of how similar each item is to each other item.</li>
+<li>Take the eigenvalues of that matrix. Loosely: the independent directions the corpus actually spreads along, and how much mass sits on each.</li>
+<li>Take <code>exp(entropy)</code> of those eigenvalues.</li>
+</ol>
+
+<p>The result reads in the same units: "this corpus of 300 items is about as diverse as <b>N</b> genuinely distinct items." A corpus of 300 near-copies scores near 1. A corpus of 300 unrelated items scores near 300.</p>
+
+<p>So Hill q=1 and Vendi are the same tool pointed at different inputs. Hill answers "are my <i>labels</i> spread". Vendi answers "is my <i>text</i> spread". That is why the frozen design lists both, and why the categorical rows do not make the semantic row redundant.</p>
+
+<hr>
+
+<h2>3. Shape two — chance-corrected agreement</h2>
+
+<h3>Your question: why "per axis"?</h3>
+<p>Yes — the three role axes, exactly as you said. Beneficiary, Institution relationship, Standing. Three separate κ values, one per axis, computed author against author.</p>
+
+<p>Three reasons the design refuses to pool them into one number:</p>
+
+<ol>
+<li><b>Each axis is its own question with its own menu.</b> A menu defect lives in one axis. If beneficiary is clean and institution is broken, one pooled number hides which one to fix.</li>
+<li><b>The joint label is arithmetically doomed.</b> The read-back sentence spans 5 × 6 × 4 = 120 cells. Two raters must match on all three axes to agree, so the joint κ tracks the <i>weakest</i> axis and reads low. <a href="../diversity/labeling/LABELING_DESIGN.md">LABELING_DESIGN §6</a> pre-declares this and reports the sentence κ as never-gating — otherwise a reviewer reads the lowest number as the headline.</li>
+<li><b>The gate is per facet.</b> A facet that fails κ does not bind. If institution fails and beneficiary passes, the paper can still claim beneficiary.</li>
+</ol>
+
+<p>In code this is one loop: <code>AXIS_KEYS</code> at <a href="../diversity/labeling/kappa.py">kappa.py:76</a>, and the same loop also covers the legacy flat scheme and the Task A response label. One code path, five possible label keys.</p>
+
+<h3>Why κ and not "they agreed 87% of the time"</h3>
+<p>Because two raters who never read the email would still agree a lot. On the standing axis, 71% of items are <code>current</code>. Two lazy raters who always type <code>current</code> agree <b>100%</b> of the time and have measured nothing.</p>
+
+<p>κ prices that in:</p>
+
+<pre style="background:var(--chip);padding:0.9rem 1rem;border-radius:6px;overflow-x:auto;font-size:0.84rem"><code>po = how often they actually matched
+pe = how often they would match if each kept their own label
+     frequencies but chose independently of the email
+
+κ  = (po − pe) / (1 − pe)</code></pre>
+
+<p>Read the fraction as <b>credit earned over credit available</b>. The denominator <code>1 − pe</code> is the agreement that chance did not already hand you. The numerator is how much of it the raters actually earned. κ = 1 means they took all of it. κ = 0 means they did no better than chance.</p>
+
+<h3>The trap: high agreement, low κ</h3>
+<p>Run the slider below. Hold raw agreement at 0.90 and push the skew from 0.50 to 0.90. The raters are agreeing exactly as often, and κ collapses.</p>
+
+<div class="lab lab-chance"></div>
+
+<p>This is the <b>prevalence paradox</b>, and it is not hypothetical here — it is precisely the shape of the standing axis. It is the entire reason the design reports two companions beside κ:</p>
+
+<table>
+<thead><tr><th>Statistic</th><th>What it does</th><th>When to read it</th></tr></thead>
+<tbody>
+<tr><td><b>Cohen's κ</b></td><td>Removes chance agreement, using each rater's own label frequencies</td><td>The gate. Always.</td></tr>
+<tr><td><b>PABAK</b><br><code>2·po − 1</code></td><td>Rescales raw agreement onto the −1…1 range, and ignores the skew entirely</td><td>Beside κ on a skewed facet, so a reviewer can see how much of the low κ is skew rather than sloppiness</td></tr>
+<tr><td><b>Krippendorff's α</b></td><td>Same job as κ, but pools both raters' labels to estimate chance rather than modelling them separately</td><td>The convention NLP annotation reviewers expect. Reported, not gating.</td></tr>
+</tbody>
+</table>
+
+<div class="callout warn">
+<span class="label">The honest framing</span>
+A low κ on a skewed axis does not automatically mean the raters failed. It may mean the axis carries little information. Both readings are legitimate, and you cannot tell them apart from κ alone. That is why the design reports κ, PABAK, α, raw agreement, <i>and</i> the label distribution together. The distribution is what lets a reader decide.
+</div>
+
+<hr>
+
+<h2>4. Shape three — closeness</h2>
+
+<p>Five numbers, all ratios between 0 and 1, all answering "how alike are these two things". They differ only in what "thing" means.</p>
+
+<h3>Cosine similarity — the near-duplicate check</h3>
+<p>Your question: what does it measure, and how.</p>
+
+<p>An <b>embedding</b> turns text into a list of numbers — a point in a space with many dimensions. The model that produces them is trained so that text with similar meaning lands in a similar <i>direction</i>.</p>
+
+<p><b>Cosine similarity is the cosine of the angle between two of those directions.</b> Same direction gives 1.0. Perpendicular gives 0.0. In the formula at <a href="../mask_off/seedgen.py">seedgen.py:679</a>, the dot product is divided by both lengths — that division is what throws the lengths away. A 400-word seed and a 90-word seed on the same situation still score near 1.0. It measures <b>what the text is about</b>, never how much of it there is.</p>
+
+<p>Three implementation choices worth knowing:</p>
+<ul>
+<li><b>It embeds WORLD + FACT only</b>, not the whole seed (<code>_world_fact</code>, <a href="../mask_off/seedgen.py">seedgen.py:670</a>). Two seeds should be allowed to share a writing style. They must not share a situation and a hidden fact.</li>
+<li><b>The threshold is 0.90</b>, which sounds strict and is not. Any two pieces of English prose about, say, food safety already score high. 0.90 is calibrated to <i>this</i> corpus and <i>this</i> embedding model. It is not a universal "duplicate" line.</li>
+<li><b>The later seed regenerates</b>, with its neighbour supplied to the model as an explicit negative example. The check does not delete; it rewrites.</li>
+</ul>
+
+<h3>Confusion pair share — the shape of disagreement</h3>
+<p>Your question: how it is computed, and what it means.</p>
+
+<p>Computation, from <a href="../diversity/labeling/kappa.py">kappa.py:99</a> and line 138:</p>
+<ol>
+<li>Walk the items where the two raters disagreed on one axis.</li>
+<li>For each, record the <b>ordered</b> pair: what rater A said, then what rater B said. <code>(practice, provider)</code> is a different pair from <code>(provider, practice)</code>.</li>
+<li>Count each pair. Divide by the total number of disagreements on that axis.</li>
+</ol>
+
+<p>The intuition is the valuable part. κ tells you <i>how much</i> the raters disagreed. It says nothing about <i>where</i>. But disagreement has a shape, and the shape names the cause:</p>
+
+<table>
+<thead><tr><th>Shape</th><th>Diagnosis</th><th>What you do</th></tr></thead>
+<tbody>
+<tr><td>Disagreements scattered thinly over many different pairs</td><td>Noise. Raters slipped, got tired, misread an email.</td><td>Accept it. This is what κ is designed to absorb.</td></tr>
+<tr><td>One ordered pair holds <b>≥ 30%</b></td><td>Structure. Two <i>specific</i> options are being confused, over and over, which means the menu still lets both be true.</td><td>Report it as a named menu overlap. It is a finding about the instrument, not the raters.</td></tr>
+</tbody>
+</table>
+
+<p>The 30% line is declared in the design <i>before</i> the run, which is what stops it from being a number chosen after seeing the data. And this is not a theoretical guard — it is the automated version of the hand-analysis that killed the flat-13 role list. Four pilot scenarios kept splitting the same way, and that pattern is what exposed the construct flaw. The threshold makes the next such flaw show up on its own.</p>
+
+<h3>Self-BLEU — lexical closeness <span class="tag danger">no code yet</span></h3>
+<p>Take one item. Score it against every other item using BLEU, which counts shared word runs (n-grams). Repeat for all items and average.</p>
+<p>It answers: <b>do my scenarios recycle each other's phrases?</b> High Self-BLEU is bad — the corpus repeats itself. Low is good. It is blind to meaning: two items about entirely different disasters, written from the same template, score high.</p>
+
+<h3>POS compression ratio — syntactic closeness <span class="tag danger">no code yet</span></h3>
+<p>Replace every word with its part-of-speech tag, so the text becomes a stream like <code>DET NOUN VERB ADP DET ADJ NOUN</code>. Then compress that stream with gzip, and take the ratio of original size to compressed size.</p>
+<p>Compression finds repetition. If every item is built on the same grammatical skeleton, the tag stream compresses well and the ratio is high. It answers: <b>do my scenarios share a sentence architecture?</b> — a question no word-level metric can reach, because you can swap every noun and keep the skeleton.</p>
+
+<h3>Cramér's V — are the facets independent? <span class="tag danger">no code yet</span></h3>
+<p>This is the one that protects the headline claim, so it is worth more than a line.</p>
+<p>Cramér's V measures association between two <i>categorical</i> variables, on a 0-to-1 scale. It is built from the chi-squared statistic, which asks how far a cross-tabulation sits from what independence would predict. 0 means knowing one variable tells you nothing about the other. 1 means it tells you everything.</p>
+<p>Why the paper needs it: the diversity claim quietly multiplies. "14 domains × 5 beneficiaries" sounds like 70 kinds of scenario. That is only true if the two facets vary <b>independently</b>. If every medical item has a dependent beneficiary and every finance item is <code>myself</code>, then the two facets are one facet wearing two names, and the real count is nearer 14 than 70.</p>
+<p>V near 0 across the facet pairs means the coverage claim is real. V near 1 means it is double-counted. Without it, a reviewer can ask the question and the paper cannot answer.</p>
+
+<hr>
+
+<h2>5. The wobble — confidence intervals and the bootstrap</h2>
+
+<h3>What a 95% confidence interval actually claims</h3>
+
+<p>Start with the honest statement, then the intuition.</p>
+
+<div class="callout ok">
+<span class="label">The correct reading</span>
+The interval is a claim about the <b>procedure</b>, not about this one interval. It says: <i>if you repeated the whole study many times — new sample, new labels, new interval each time — then 95% of the intervals produced that way would contain the true value.</i>
+</div>
+
+<div class="callout danger">
+<span class="label">The reading almost everyone gives it, which is wrong</span>
+"There is a 95% probability the true κ lies inside <b>[0.76, 0.86]</b>."<br>
+It does not say that. The true κ is a fixed number; it is either in your interval or it is not. Nothing about it is 95% likely. The randomness lives in <i>which sample you drew</i>, so the probability attaches to the method, not to the answer.
+</div>
+
+<p><b>Why the distinction earns its keep for you.</b> It changes what you are allowed to write. You may write "the procedure has 95% coverage". You may not write "we are 95% confident the true value is above 0.80" — that is a probability statement about a fixed quantity, and a reviewer who cares will flag it.</p>
+
+<p><b>The working intuition, which is safe.</b> Treat the width as <i>the resolution of your instrument</i>. A wide interval means your 300 items cannot see fine detail. It does not mean your estimate is wrong. It means you cannot yet tell it apart from nearby values — and "nearby" specifically includes <b>the gate you are about to compare it against</b>.</p>
+
+<h3>Where the interval comes from: the bootstrap</h3>
+
+<p>The definition above involves repeating the study many times. You cannot repeat the study. You have one sample of 300 items and a deadline. The bootstrap is the trick that gets around this.</p>
+
+<p><b>The move:</b> pretend your sample is the population. You want to know how much κ would wobble across different samples, so you manufacture different samples out of the one you have — by drawing from it <b>with replacement</b>.</p>
+
+<ol>
+<li>You have 300 labeled items. Draw 300 of them at random, allowing repeats. Some items get drawn twice or three times. Roughly a third never get drawn at all.</li>
+<li>Compute κ on that reshuffled set. It will not equal your real κ.</li>
+<li>Do this <b>2000 times</b>. You now have 2000 values of κ.</li>
+<li>Sort them. Throw away the lowest 2.5% and the highest 2.5%. What remains is your <b>95% percentile bootstrap interval</b>.</li>
+</ol>
+
+<p>The whole thing is 20 lines: <code>kappa_ci()</code> at <a href="../diversity/labeling/kappa.py">kappa.py:53</a>. It seeds <code>random.Random(0)</code>, so the interval is identical every time you run it — nobody can re-roll a number they dislike.</p>
+
+<p>Run one below. Draw a single resample first and watch how much κ moves on its own. Then run all 2000.</p>
+
+<div class="lab lab-bootstrap"></div>
+
+<h3>The cluster twist — the subtle part</h3>
+<p>There is one place where the naive bootstrap lies, and the code handles it.</p>
+<p>In the combined sweep, a rater sees all three responses of one item <b>on the same screen</b>. They compare them openly. So those three labels are one joint judgment, not three independent observations. Resample them as three separate rows and the bootstrap thinks you have three times more information than you do. The interval comes out too narrow, and a too-narrow interval is worse than no interval — it claims a precision you did not buy.</p>
+<p>The fix at <a href="../diversity/labeling/kappa.py">kappa.py:64</a>: when the row ids are composite (<code>item#response</code>), resample <b>items</b> and take all of that item's rows together. The self-check at line 166 asserts the clustered interval comes out <i>wider</i> on identical data. A test that demands a worse-looking number is a test written by someone who understood the problem.</p>
+
+<h3>One honest caveat</h3>
+<p>The percentile bootstrap is an approximation. Its 95% coverage is asymptotic — it holds as the sample grows. At n = 300 with κ near 0.8 that is fine, and ticket 002 predicts roughly ±0.05. At n = 26, as in the pilot, the interval is indicative and no more. Do not quote a pilot interval as a result.</p>
+
+<hr>
+
+<h2>6. Your real question: how to keep the results robust</h2>
+
+<p>You asked how to make the experimental results as defensible as possible. The statistics above do not deliver that on their own. Six habits do, and five of them are already built into this repo.</p>
+
+<table>
+<thead><tr><th>Habit</th><th>Why it works</th><th>Status here</th></tr></thead>
+<tbody>
+<tr><td><b>Declare the threshold before the run</b></td><td>A bar chosen after seeing the data is not a bar. κ ≥ 0.80, the 0.67 floor, the 30% overlap share, and the 5% other-rate are all written down in advance.</td><td><span class="tag ok">done</span></td></tr>
+<tr><td><b>Gate on the point estimate, report the interval</b></td><td>Pre-decides the awkward case where the interval straddles the bar. Decide the rule while you still do not know which side you land on.</td><td><span class="tag ok">done</span> — §6 of the design</td></tr>
+<tr><td><b>Name the number that is <i>not</i> the headline</b></td><td>The sentence-level κ reads low by construction. Declaring it as reported-never-gating in advance stops a reviewer from reading it as your result.</td><td><span class="tag ok">done</span></td></tr>
+<tr><td><b>Match the resample unit to the judgment unit</b></td><td>Correlated rows resampled as independent produce a falsely narrow interval — an overclaim that looks like rigour.</td><td><span class="tag ok">done</span> — cluster bootstrap</td></tr>
+<tr><td><b>Report the shape, not only the size</b></td><td>κ plus PABAK plus α plus the raw distribution plus the confusion pairs lets a reader diagnose a low number instead of guessing at it.</td><td><span class="tag ok">done</span></td></tr>
+<tr><td><b>Say what you did not measure</b></td><td>Four metrics have no code. A stated gap is a limitation; a gap a reviewer discovers is a credibility problem.</td><td><span class="tag warn">open</span> — needs a line in <code>ANALYSIS_PLAN.md</code></td></tr>
+</tbody>
+</table>
+
+<p>Note what none of these is: none of them makes a number look better. Every one of them makes a number harder to argue with. That is the trade, and it is the right one at four weeks out.</p>
+
+<hr>
+
+<h2>7. Retrieval check</h2>
+<p class="dek">Answer from memory. Scrolling back first defeats the point — the effort is what makes it stick.</p>
+
+<div class="quiz-q" data-answer="1">
+<p class="stem">A 95% confidence interval of [0.76, 0.86] on your κ. Which statement is defensible?</p>
+<div class="options">
+<button>The true kappa has a ninety five percent chance of being inside it</button>
+<button>Ninety five percent of intervals built this way would cover the truth</button>
+<button>Ninety five percent of the labeled items fall inside that same range</button>
+<button>The estimate will land inside it on ninety five percent of reruns</button>
+</div>
+<p class="explain" hidden>The claim attaches to the procedure, not to this interval. The true value is fixed — it is in your interval or it is not. The randomness is in which sample you happened to draw.</p>
+</div>
+
+<div class="quiz-q" data-answer="2">
+<p class="stem">Two raters agree on 90% of items. κ comes out at 0.44. What is the first thing to check?</p>
+<div class="options">
+<button>Whether the bootstrap used the item as its resampling unit</button>
+<button>Whether the two label files carry a matching menu version</button>
+<button>Whether one option dominates the sample and inflates chance</button>
+<button>Whether the ordered decision list places the residual last</button>
+</div>
+<p class="explain" hidden>The prevalence paradox. When one option takes most of the mass, expected agreement <code>pe</code> rises, the denominator <code>1 − pe</code> shrinks, and κ collapses at unchanged raw agreement. PABAK and the label distribution are reported precisely so a reader can see this.</p>
+</div>
+
+<div class="quiz-q" data-answer="0">
+<p class="stem">Coverage is 6 of 6 and the effective number is 4.06. What have you learned?</p>
+<div class="options">
+<button>Every option was used but the mass sits on a few</button>
+<button>Only four of the six options were ever used at all</button>
+<button>Two of the six options are unreachable by design</button>
+<button>The axis is evenly used across all six of its options</button>
+</div>
+<p class="explain" hidden>Hill q=0 is variety — all six appeared. Hill q=1 is balance — it behaves like about four evenly used options. The gap between the two numbers is the information; either one alone hides it.</p>
+</div>
+
+<div class="quiz-q" data-answer="3">
+<p class="stem">Why does the bootstrap resample items rather than individual responses?</p>
+<div class="options">
+<button>Because items are the unit the paper reports its rates over</button>
+<button>Because responses within an item can carry different labels</button>
+<button>Because resampling responses would break the seeded ordering</button>
+<button>Because three responses seen on one screen are one judgment</button>
+</div>
+<p class="explain" hidden>The rater compares the three openly, so they are correlated, not independent. Resampling them separately would report an interval narrower than the design actually bought — an overclaim. <code>kappa.py</code>'s self-check asserts the clustered interval is wider.</p>
+</div>
+
+<div class="quiz-q" data-answer="1">
+<p class="stem">One ordered confusion pair holds 34% of an axis's disagreements. What does that pattern indicate?</p>
+<div class="options">
+<button>Rater fatigue concentrated in one part of the session</button>
+<button>Two specific options can both be true of one item</button>
+<button>The sample was drawn without stratifying on that axis</button>
+<button>The axis needs a further option added to its decision list</button>
+</div>
+<p class="explain" hidden>Scattered disagreement is noise. Concentrated disagreement is structure: the menu still admits two truthful answers for the same item. That is a finding about the instrument, and it is the failure the ordered decision list was built to prevent.</p>
+</div>
+
+<hr>
+
+<h2>Read next</h2>
+
+<p><b>Primary source, for the confidence interval:</b> Efron &amp; Tibshirani, <i>An Introduction to the Bootstrap</i>, chapter 13. It is the source for the method your code implements, and chapter 13 is specifically the percentile interval. If you want the shorter path, Efron's original 1979 paper <a href="https://projecteuclid.org/journals/annals-of-statistics/volume-7/issue-1/Bootstrap-Methods-Another-Look-at-the-Jackknife/10.1214/aos/1176344552.full">"Bootstrap Methods: Another Look at the Jackknife"</a> is 26 pages and section 1 alone carries the idea.</p>
+
+<p><b>Primary source, for the diversity numbers:</b> Stirling, <a href="https://arxiv.org/abs/1902.09167">arXiv:1902.09167</a> — variety, balance, disparity. You will recognise section 4 now: variety is q=0, balance is q=1, and disparity is the axis this paper does <i>not</i> yet measure.</p>
+
+<p><b>On the prevalence paradox specifically:</b> Byrt, Bishop &amp; Carlin, <a href="https://pubmed.ncbi.nlm.nih.gov/8501467/">"Bias, prevalence and kappa"</a>. Short, and it is the citation behind the PABAK column in <code>kappa.py</code>.</p>
+
+<p><b>In this repo:</b> <a href="../reference/metric-decoder.html">Reference: the metric decoder</a> (all twelve on one page) · <a href="../reference/diversity-machine-map.html">Reference: the diversity machine map</a> · <a href="0002-diversity-two-machines.html">Lesson 0002</a></p>
+
+<footer>
+<p><b>Ask your teacher.</b> The next questions worth asking, in rough order of value to the paper: "what would Cramér's V actually be computed over, concretely?" · "walk me through the eigenvalue step in Vendi with a toy 3×3 matrix" · "if standing fails κ, what are my options that are not p-hacking?" · "show me a worked κ by hand on ten items".</p>
+<p>Lesson 0003 · MASK-OFF teaching workspace · record: <a href="../learning-records/0004-three-shapes-and-a-wobble.md">0004</a></p>
+</footer>
+
+<script src="../assets/quiz.js"></script>
+<script src="../assets/statlab.js"></script>
+</body>
+</html>

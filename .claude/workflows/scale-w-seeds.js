@@ -1,10 +1,10 @@
 export const meta = {
   name: 'scale-w-seeds',
-  description: 'Series-W (batch 2) SEED PHASE ONLY: 10 Opus 5 medium seed writers realize the 50 approved tuples (OMG register both halves, chain on the page, relevance_note at design time) against the latest checklist plus the frozen seed-intuition doc; deterministic in-script validation (budgets, template, banned words, fingerprints vs all prior series); 5 Opus 5 high verifiers apply hard-rejects + CHAIN TEST + OMG floor with an Opus-medium revision loop; workflow RETURNS the seeds and STOPS - no realize, no target, author reviews T-sentences verbatim before run 2',
+  description: 'Series-W (batch 2) SEED PHASE ONLY: 10 Opus 5 medium seed writers realize the 50 approved tuples (OMG register both halves, chain on the page, relevance_note at design time) against the latest checklist plus the frozen seed-intuition doc; deterministic in-script validation (budgets, template, banned words, fingerprints vs all prior series); 10 Opus 5 high verifiers (5 seeds each) apply hard-rejects + CHAIN TEST + OMG floor with an Opus-medium revision loop; workflow RETURNS the seeds and STOPS - no realize, no target, author reviews T-sentences verbatim before run 2',
   whenToUse: 'Batch-2 seed generation with the human gate after seeds',
   phases: [
     { title: 'Write', detail: '10 Opus medium seed writers, 5 dealt tuples each, intuition doc + checklist binding; deterministic validation with one auto-revision round', model: 'opus' },
-    { title: 'Verify', detail: '5 Opus high verifiers, 10 seeds each: hard-rejects, CHAIN on page, OMG floor, relevance_note accuracy; Opus medium revisions, max 2 rounds', model: 'opus' },
+    { title: 'Verify', detail: '10 Opus high verifiers, 5 seeds each: hard-rejects, CHAIN on page, OMG floor, relevance_note accuracy; Opus medium revisions, max 2 rounds', model: 'opus' },
   ],
 }
 
@@ -1024,7 +1024,7 @@ phase('Verify')
 const noFit = seeds.filter(s => s.no_fit).map(s => s.fact_id)
 const live = seeds.filter(s => !s.no_fit)
 const shards = []
-for (let i = 0; i < live.length; i += 10) shards.push(live.slice(i, i + 10))
+for (let i = 0; i < live.length; i += 5) shards.push(live.slice(i, i + 5))
 const shardResults = await parallel(shards.map((shard, si) => async () =>
   reviewLoop(`verify:S${si + 1}`, 'Verify', shard, seedVerifyPrompt,
     async (failed, verdicts) => {

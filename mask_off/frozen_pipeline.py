@@ -67,10 +67,9 @@ def wave_id(seed_name: str, iteration: int) -> str:
     on top of it. Anthropic caps a custom_id at 64 characters — documented as
     `^[a-zA-Z0-9_-]{1,64}$`, and Stage A's generator and lint requests always
     take `anthropic_batch` — while a seed name may be 49, which left ten
-    characters for every suffix Stage A appends. OpenAI publishes no
-    custom_id length that could be verified; it does not bind today, because
-    no Stage A request routes through `openai_batch` under the locked gate.
-    Re-check it if one ever does.
+    characters for every suffix Stage A appends. The synchronous OpenAI
+    routes never send a custom_id to the provider, so only the Anthropic
+    cap binds.
     `cand-` carried no information — every Stage A request is a candidate's —
     and a bare seed name cannot collide with a Stage B id in the same run
     directory, because those are built from `maskoff-<hex>` result ids and a

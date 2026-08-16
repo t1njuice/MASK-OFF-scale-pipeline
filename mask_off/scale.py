@@ -569,7 +569,7 @@ def main():
                    help="replay and re-run empty or missing cells only")
     args = p.parse_args()
 
-    from .launch import preflight
+    from .launch import preflight, print_stage_b_totals
 
     if not preflight():
         sys.exit(1)
@@ -577,6 +577,19 @@ def main():
         generate(args.run_dir, args.seeds, args.target, args.seed_keepers,
                  args.force, args.max_cost, args.in_flight)
     else:
+        # The cost total the amendment (§8) demands BEFORE anything submits.
+        # The smoke test runs per COHORT (evaluate() defaults smoke_n inside
+        # each cohort call), so the bound scales the per-cohort count by the
+        # number of cohorts — min() against n_items keeps a short last cohort
+        # from pushing it below what actually runs, never above.
+        items = _accepted_items(args.run_dir)
+        cohorts = -(-len(items) // args.cohort_size) if items else 0
+        if items and not print_stage_b_totals(
+            len(items),
+            [(seat, config.TARGET_K) for seat in config.TARGET_PANEL],
+            smoke_n=cohorts * config.OPUS5_SMOKE_N,
+        ):
+            sys.exit(1)
         evaluate_corpus(args.run_dir, args.cohort_size, args.fill)
 
 

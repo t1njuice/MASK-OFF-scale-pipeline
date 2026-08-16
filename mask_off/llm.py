@@ -411,7 +411,6 @@ def run_batch_retry(
     label: str,
     progress: Progress | None = None,
     refresh: set | None = None,
-    latency: str = "wave",
 ) -> dict:
     """run_batch, then one resubmission of errored/truncated requests.
 
@@ -436,13 +435,12 @@ def run_batch_retry(
             pol.run_dir,
             refresh=refresh or frozenset(),
             strict=pol.strict,
-            latency=latency,
         )
 
-    out = routes.dispatch(requests, label, progress, latency)
+    out = routes.dispatch(requests, label, progress)
     retry = [r for r in requests if bad_final(out.get(r["custom_id"]))]
     if retry:
-        out.update(routes.dispatch(retry, f"{label} (retry)", progress, latency))
+        out.update(routes.dispatch(retry, f"{label} (retry)", progress))
     return out
 
 

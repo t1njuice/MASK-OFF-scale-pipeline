@@ -2,29 +2,22 @@
 
 A caller hands `dispatch` a list of requests and gets back results keyed by
 custom id, without knowing that model families, providers or batch endpoints
-exist. Four adapters exist in fact, so the seam is real, not hypothetical:
+exist. Three adapters exist in fact, so the seam is real, not hypothetical:
 
 | Route             | Transport                        | Journals a handle |
 | ----------------- | -------------------------------- | ----------------- |
 | `anthropic_batch` | Anthropic Message Batches        | yes               |
-| `openai_batch`    | OpenAI Batch API, 24h window     | yes               |
 | `openai_flex`     | OpenAI sync at Batch API rates   | no                |
 | `openrouter_sync` | OpenRouter chat completions      | no                |
 
 `route()` is the only place the decision is made. It reads the pinned prices
-in `config.PRICES` and the latency class — never which lab owns the model. So
-adding a model to a roster is a table edit, not a branch edit.
+in `config.PRICES` — never which lab owns the model. So adding a model to a
+roster is a table edit, not a branch edit.
 
-Latency class (ADR-0002 §3):
-
-- `"wave"` is a sequential iteration turn, the Stage A generator and validity
-  loop. A 24-hour-window route is never eligible: five waves through a 24h
-  window is five days. That rule lives in `Adapter.day_only`.
-- `"day"` is Stage B cells and seed authoring. Every route is eligible and
-  the cheapest wins.
-
-Flex is eligible at both classes because it carries Batch API rates on a
-synchronous call.
+The OpenAI Batch route was removed 2026-08-16: flex carries the same Batch
+API rates on a synchronous call, so the 24-hour window bought nothing, and
+with it went the latency classes of ADR-0002 §3 — their only job was keeping
+that window out of the wave loop.
 
 Concurrency is a property of a route too (`Adapter.concurrency`), because two
 providers do not share a rate limit and one shared literal throttled the
@@ -54,10 +47,7 @@ class Hooks:
     `on_handle(route, handle, custom_ids)` fires on a batch route after the
     provider accepts a submission and BEFORE polling begins, so a process
     death leaves an orphan that `drain_orphans` can re-poll. A synchronous
-    adapter has no server-side handle to journal and never calls it. The
-    OpenAI batch adapter calls it twice: once with `batch_id` None right after
-    the input file uploads, then again with the real id, so a lost create
-    response still leaves the billed batch findable (ADR-0002 §9/F6).
+    adapter has no server-side handle to journal and never calls it.
 
     `on_result(custom_id, msg)` fires as each result lands, before it appears
     in the return value.
@@ -72,9 +62,6 @@ class Hooks:
 class Adapter:
     name: str
     run: Callable
-    # True -> the provider processes on a 24-hour window, so the route is
-    # ineligible inside a wave (ADR-0002 §3).
-    day_only: bool = False
     # How many requests this route may have in flight from this process. The
     # limit belongs to the route because providers do not share a rate limit:
     # throttling a generous one to match a strict one is what a single shared
@@ -132,27 +119,6 @@ def _run_anthropic(requests, label, progress, hooks: Hooks) -> dict:
     )
 
 
-def _run_openai_batch(requests, label, progress, hooks: Hooks) -> dict:
-    from . import batch_providers
-
-    def on_submit(handle: dict, custom_ids: list[str]) -> None:
-        if hooks.on_handle is not None:
-            hooks.on_handle("openai_batch", handle, custom_ids)
-
-    def on_upload(slug: str, file_id: str, custom_ids: list[str]) -> None:
-        if hooks.on_handle is not None:
-            hooks.on_handle(
-                "openai_batch",
-                {"batch_id": None, "input_file_id": file_id, "slug": slug},
-                custom_ids,
-            )
-
-    return batch_providers.run_openai_batch(
-        requests, label, progress, on_submit,
-        _stamped(hooks, "openai_batch"), on_upload,
-    )
-
-
 def _run_openai_flex(requests, label, progress, hooks: Hooks) -> dict:
     from . import batch_providers
 
@@ -171,7 +137,6 @@ def _run_openrouter(requests, label, progress, hooks: Hooks) -> dict:
 
 ADAPTERS: dict[str, Adapter] = {
     "anthropic_batch": Adapter("anthropic_batch", _run_anthropic),
-    "openai_batch": Adapter("openai_batch", _run_openai_batch, day_only=True),
     # UNMEASURED. Both numbers are the single literal 8 that used to sit in two
     # files, moved here and not yet replaced by evidence. The flex tier is
     # reported at 1M tokens and 5,000 requests per minute, far above 8
@@ -188,46 +153,34 @@ ADAPTERS: dict[str, Adapter] = {
 
 # Routes that write a handle to the journal before polling, so an orphan
 # survives process death. Derived from the adapters that take on_handle.
-JOURNALED = frozenset({"anthropic_batch", "openai_batch"})
-
-# Preference order among the discounted OpenAI routes. Flex first at both
-# latency classes: it carries Batch API rates on a synchronous call, and
-# prompt caching stacks on top. Measured on a real gate vote 2026-08-13, flex
-# 187s against standard 286s, 11,473 of 11,476 prompt tokens cached on a
-# repeat call.
-_OPENAI_PREFERENCE = ("openai_flex", "openai_batch")
+JOURNALED = frozenset({"anthropic_batch"})
 
 
-def route(model: str, latency: str) -> str:
-    """The route for one model at one latency class, from the pinned prices.
+def route(model: str) -> str:
+    """The route for one model, from the pinned prices.
 
-    `config.ROUTE_OVERRIDES[model]` forces a route and skips the comparison.
-    The case it exists for: a Stage B fan-out large enough that flex would hit
-    the synchronous tokens-per-minute ceiling belongs on `openai_batch`.
+    Flex wins over OpenRouter when its pinned price is a real discount:
+    Batch API rates on a synchronous call, and prompt caching stacks on top.
+    Measured on a real gate vote 2026-08-13, flex 187s against standard 286s,
+    11,473 of 11,476 prompt tokens cached on a repeat call.
     """
     if model.startswith("claude"):
         return "anthropic_batch"
-    override = config.ROUTE_OVERRIDES.get(model)
-    if override:
-        return override
     if not (model.startswith("openai/") and os.environ.get("OPENAI_API_KEY")):
         return "openrouter_sync"
     baseline = config.PRICES.get((model, "openrouter_sync"))
-    for name in _OPENAI_PREFERENCE:
-        if ADAPTERS[name].day_only and latency != "day":
-            continue
-        rates = config.PRICES.get((model, name))
-        # price-driven, not provider-driven: the discount must be real
-        if rates is not None and (baseline is None or rates["out"] < baseline["out"]):
-            return name
+    rates = config.PRICES.get((model, "openai_flex"))
+    # price-driven, not provider-driven: the discount must be real
+    if rates is not None and (baseline is None or rates["out"] < baseline["out"]):
+        return "openai_flex"
     return "openrouter_sync"
 
 
-def partition(requests: list[dict], latency: str) -> dict[str, list[dict]]:
+def partition(requests: list[dict]) -> dict[str, list[dict]]:
     """{route name: requests}, in a stable order."""
     groups: dict[str, list[dict]] = {}
     for request in requests:
-        groups.setdefault(route(request["params"]["model"], latency), []).append(request)
+        groups.setdefault(route(request["params"]["model"]), []).append(request)
     return groups
 
 
@@ -235,7 +188,6 @@ def dispatch(
     requests: list[dict],
     label: str,
     progress: "Progress | None" = None,
-    latency: str = "wave",
     hooks: Hooks | None = None,
 ) -> dict:
     """The only way a request reaches a provider. {custom_id: message | None}.
@@ -249,34 +201,15 @@ def dispatch(
         from .llm import batch_progress
 
         with batch_progress() as owned:
-            return dispatch(requests, label, owned, latency, hooks)
+            return dispatch(requests, label, owned, hooks)
 
-    groups = partition(requests, latency)
-    # A 24-hour-window route hands back a handle and nothing else: the results
-    # arrive hours later, in some later process. Submitting one with no
-    # `on_handle` would pay for a batch that no journal records, and a process
-    # death would then strand it with no way to harvest — the standing rule is
-    # never to discard batch work. The pre-seam code enforced this by never
-    # selecting a batch route outside the cache; say so out loud instead.
-    if hooks.on_handle is None:
-        orphanable = sorted(n for n in groups if ADAPTERS[n].day_only)
-        if orphanable:
-            raise RuntimeError(
-                f"{orphanable} needs a journal and this dispatch has no "
-                f"on_handle hook, so a paid batch would be unrecoverable if "
-                f"this process died. Run under a run directory "
-                f"(batchcache.policy(run_dir=...)), or drop the "
-                f"config.ROUTE_OVERRIDES entry that forced the batch route."
-            )
-
+    groups = partition(requests)
     out = {}
-    # ponytail: route groups run one after another. Every batch route
-    # processes server-side in parallel anyway, so this costs only the tail.
-    # The tail that mattered was inside one group — a Stage B fan-out puts
-    # every openai/* model on `openai_batch` at once — and that is now
-    # interleaved by `batch_providers.poll_all_until_done`. Crossing route
-    # groups too would need a shared progress display and thread-safe hooks;
-    # measure that it costs something before paying for it.
+    # ponytail: route groups run one after another. The Anthropic batch
+    # processes server-side and each synchronous group runs its own pool, so
+    # this costs only the tail. Crossing route groups would need a shared
+    # progress display and thread-safe hooks; measure that it costs something
+    # before paying for it.
     for name, group in sorted(groups.items()):
         results = ADAPTERS[name].run(group, label, progress, hooks)
         for msg in results.values():

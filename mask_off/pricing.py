@@ -5,7 +5,7 @@ every route, `cached_in` is the rate cache-read tokens bill at, and
 `cache_write` applies only where the provider bills cache writes. `model` is
 mandatory in every usage dict; `route` is optional and inferred from the model
 when absent (claude-* runs the native batch route, everything else runs
-OpenRouter sync — the two routes that exist before the openai_batch adapter).
+OpenRouter sync).
 """
 
 from . import config
@@ -31,20 +31,26 @@ def configured_models() -> list[str]:
         config.SEEDGEN_MODEL,
         config.CHEAP_AUDIT_MODEL,
         *([config.OPUS5_SMOKE_SEAT.model] if config.OPUS5_SMOKE_N else []),
+        # the fixed-role judge seats (amendment 2026-08-16): invisible here
+        # would mean preflight's API-key checks skip them, and a seat routed
+        # somewhere the roster doesn't reach dies mid-run after roleplay
+        # spend (ticket 08 review, finding 3)
+        *([config.HARM_JUDGE_SEAT.model] if config.RECOGNITION else []),
+        *([config.SALIENCE_JUDGE_SEAT.model] if config.SALIENCE else []),
+        *([config.GATE_JUDGE_SEAT.model] if config.PROBE2 else []),
     ]
 
 
 def reachable_routes(model: str) -> set[str]:
     """Every route one model can actually be served on.
 
-    Both latency classes, because Stage A runs at "wave" and Stage B at "day"
-    and a model can route differently at each. `openai_flex` drags
-    `openai_sync` in with it: the flex adapter falls back to standard after a
-    capacity 429, and a fallback is billed at standard rates.
+    `openai_flex` drags `openai_sync` in with it: the flex adapter falls back
+    to standard after a capacity 429, and a fallback is billed at standard
+    rates.
     """
     from . import routes as route_registry
 
-    routes = {route_registry.route(model, latency) for latency in ("wave", "day")}
+    routes = {route_registry.route(model)}
     if "openai_flex" in routes:
         routes.add("openai_sync")
     return routes

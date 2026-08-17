@@ -204,7 +204,7 @@ def test_topup_continues_the_name_and_family_streams(tmp_path, monkeypatch):
 
     captured = {}
 
-    def _fake_batch(requests, label, progress, latency="day"):
+    def _fake_batch(requests, label, progress):
         captured[len(captured)] = requests
         return {}  # every row "fails"; author still logs one record per row
 

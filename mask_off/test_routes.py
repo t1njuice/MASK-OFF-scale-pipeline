@@ -22,14 +22,14 @@ def openai_key(monkeypatch):
 
 
 def test_one_call_fans_out_to_every_route(transport):
-    """A mixed list reaches four different adapters without the caller
+    """A mixed list reaches three different adapters without the caller
     knowing that model families or batch endpoints exist."""
     monkey = [
         _req("anth", "claude-opus-4-8"),
         _req("flex", "openai/gpt-5.6-sol"),
         _req("router", "moonshotai/kimi-k3"),
     ]
-    out = routes.dispatch(monkey, "t", progress=None, latency="wave")
+    out = routes.dispatch(monkey, "t", progress=None)
     assert set(out) == {"anth", "flex", "router"}
     assert transport.routed == {
         "anth": "anthropic_batch",
@@ -38,29 +38,22 @@ def test_one_call_fans_out_to_every_route(transport):
     }
 
 
-def test_a_day_only_route_is_ineligible_inside_a_wave(monkeypatch):
-    """ADR-0002 §3: five waves through a 24h window is five days.
-
-    Price the model so only the 24h batch is a real discount: flex dearer than
-    the synchronous baseline, batch cheaper. The batch then wins at "day" and
-    is skipped at "wave", which falls back to the baseline.
-    """
+def test_a_flex_price_dearer_than_the_baseline_loses(monkeypatch):
+    """Price-driven, not provider-driven: a pinned flex rate that is not a
+    real discount must lose to the synchronous baseline."""
     model = "openai/gpt-5.6-sol"
     monkeypatch.setitem(config.PRICES, (model, "openrouter_sync"),
                         {"in": 4.0, "out": 20.0, "cached_in": 0.4})
     monkeypatch.setitem(config.PRICES, (model, "openai_flex"),
                         {"in": 9.9, "out": 99.0, "cached_in": 0.9})
-    assert routes.route(model, "day") == "openai_batch"
-    assert routes.route(model, "wave") == "openrouter_sync"
-    assert routes.ADAPTERS["openai_batch"].day_only
-    assert not routes.ADAPTERS["openai_flex"].day_only
+    assert routes.route(model) == "openrouter_sync"
 
 
 def test_every_result_carries_the_route_that_served_it(transport):
     """pricing must read the route, not guess it from the model prefix."""
     out = routes.dispatch(
         [_req("a", "claude-opus-4-8"), _req("b", "moonshotai/kimi-k3")],
-        "t", progress=None, latency="day",
+        "t", progress=None,
     )
     assert out["a"].route == "anthropic_batch"
     assert out["b"].route == "openrouter_sync"
@@ -112,7 +105,7 @@ def test_adding_a_model_to_the_roster_touches_only_the_tables(monkeypatch, trans
         *config.TARGET_PANEL, Seat("terra", added, "high", 8000)])
     assert added in pricing.configured_models()
     assert pricing.unpinned() == [], "the new model is priced on every route"
-    routes.dispatch([_req("new", added)], "t", progress=None, latency="day")
+    routes.dispatch([_req("new", added)], "t", progress=None)
     assert transport.routed["new"] == "openai_flex"
 
     monkeypatch.setattr(config, "TARGET_PANEL", [
@@ -142,10 +135,15 @@ def test_the_roster_goes_from_two_to_thirteen_and_back_as_one_list_edit(
     ]
     monkeypatch.setattr(config, "TARGET_PANEL", thirteen)
     assert len(config.TARGET_PANEL) == 13
-    assert set(priced) <= set(pricing.configured_models())
+    # the SEATS are enumerated, not the whole price table: thirteen seats drawn
+    # `i % len(priced)` cover the first thirteen priced models only, so once the
+    # table passes thirteen entries the old form asserted a property of the
+    # table's length instead of the roster's (broke on the 2026-08-16 target
+    # seat, and only passed before because other panels named the leftovers)
+    assert {seat.model for seat in thirteen} <= set(pricing.configured_models())
     assert pricing.unpinned() == [], "every roster seat is priced on every route"
     reqs = [_req(seat.label, seat.model) for seat in thirteen]
-    routes.dispatch(reqs, "roster", progress=None, latency="day")
+    routes.dispatch(reqs, "roster", progress=None)
     assert len(transport.routed) == 13, "every seat reached a transport"
 
     two = thirteen[:2]
@@ -160,48 +158,9 @@ def test_an_unpriced_model_still_reaches_a_provider_via_openrouter(transport):
     """Routing must not silently drop a model it has no price for. Preflight
     is what refuses the run; dispatch still has to be total."""
     out = routes.dispatch([_req("x", "openai/gpt-5.6-luna")], "t",
-                          progress=None, latency="day")
+                          progress=None)
     assert transport.routed["x"] == "openrouter_sync"
     assert out["x"] is not None
-
-
-def test_a_batch_route_refuses_to_run_without_a_journal(monkeypatch, transport):
-    """Regression: the uncached path could reach openai_batch, submit a paid
-    24h batch with no journal row, and strand it if the process died.
-
-    Reproduce it by forcing the override the escape hatch exists for and
-    calling the uncached path — no Policy, so no run directory and no hooks.
-    """
-    monkeypatch.setattr(
-        config, "ROUTE_OVERRIDES", {"openai/gpt-5.6-sol": "openai_batch"}
-    )
-    request = _req("a", "openai/gpt-5.6-sol")
-    with pytest.raises(RuntimeError, match="needs a journal"):
-        llm.run_batch_retry([request], "Stage B", None, latency="day")
-    assert transport.calls == [], "nothing may be submitted before the refusal"
-
-
-def test_a_journaled_dispatch_accepts_the_same_override(monkeypatch, transport):
-    """The escape hatch still works where the handle can be journaled."""
-    monkeypatch.setattr(
-        config, "ROUTE_OVERRIDES", {"openai/gpt-5.6-sol": "openai_batch"}
-    )
-    handled = []
-    hooks = routes.Hooks(on_handle=lambda route, handle, cids: handled.append(route))
-    routes.dispatch([_req("a", "openai/gpt-5.6-sol")], "t", None, "day", hooks)
-    assert handled == ["openai_batch"]
-
-
-def test_a_synchronous_route_needs_no_journal(transport):
-    """Only the 24h-window route is refused. Flex and OpenRouter leave no
-    server-side handle to orphan, and the Anthropic batch keeps the uncached
-    behaviour it had before the seam existed."""
-    out = routes.dispatch(
-        [_req("a", "claude-opus-4-8"), _req("b", "moonshotai/kimi-k3"),
-         _req("c", "openai/gpt-5.6-sol")],
-        "t", progress=None, latency="day",
-    )
-    assert set(out) == {"a", "b", "c"}
 
 
 def test_only_batch_routes_journal_a_handle(transport):
@@ -209,19 +168,17 @@ def test_only_batch_routes_journal_a_handle(transport):
     hooks = routes.Hooks(on_handle=lambda route, handle, cids: handled.append(route))
     routes.dispatch(
         [_req("a", "claude-opus-4-8"), _req("b", "moonshotai/kimi-k3")],
-        "t", progress=None, latency="wave", hooks=hooks,
+        "t", progress=None, hooks=hooks,
     )
     assert handled == ["anthropic_batch"], "a sync call has no handle to orphan"
-    assert routes.JOURNALED == {"anthropic_batch", "openai_batch"}
+    assert routes.JOURNALED == {"anthropic_batch"}
 
 
-def test_registry_covers_every_route_the_decision_can_return(monkeypatch):
+def test_registry_covers_every_route_the_decision_can_return():
     """route() must never name an adapter that does not exist."""
-    monkeypatch.setattr(config, "ROUTE_OVERRIDES", {})
     reachable = {
-        routes.route(model, latency)
+        routes.route(model)
         for model in [*pricing.configured_models(), "openai/gpt-5.6-terra"]
-        for latency in ("wave", "day")
     }
     assert reachable <= set(routes.ADAPTERS)
 

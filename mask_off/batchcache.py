@@ -202,7 +202,6 @@ def cached_batch(
     run_dir: Path,
     refresh: frozenset | set = frozenset(),
     strict: bool = False,
-    latency: str = "wave",
 ) -> dict:
     """Drop-in for run_batch_retry: {custom_id: message | None}, cache-backed.
 
@@ -239,9 +238,7 @@ def cached_batch(
     if misses:
         try:
             out.update(
-                _run_misses(
-                    misses, label, progress, run_dir, keys, stale_refresh, latency
-                )
+                _run_misses(misses, label, progress, run_dir, keys, stale_refresh)
             )
         except KeyboardInterrupt:
             _log(
@@ -264,14 +261,13 @@ def _run_misses(
     run_dir: Path,
     keys: dict,
     stale_refresh: set = frozenset(),
-    latency: str = "wave",
 ) -> dict:
     from . import routes
 
     # The route decision is made once, by the registry (ADR-0002). The cache
     # used to re-derive it here and llm.run_batch re-derived it again; both
     # had to agree and could silently drift.
-    for route_name, group in routes.partition(misses, latency).items():
+    for route_name, group in routes.partition(misses).items():
         if route_name not in routes.JOURNALED:
             continue  # a synchronous route has no handle to orphan
         _journal(
@@ -314,7 +310,7 @@ def _run_misses(
     )
 
     def _one_pass(requests, pass_label):
-        return routes.dispatch(requests, pass_label, progress, latency, hooks)
+        return routes.dispatch(requests, pass_label, progress, hooks)
 
     out = _one_pass(misses, label)
     retry = [r for r in misses if _bad(out.get(r["custom_id"]))]
@@ -391,23 +387,13 @@ def drain_orphans(run_dir: Path, progress=None, strict: bool = False) -> int:
         # until a drained marker lands (ADR-0002 §5 invariant 6)
         if not row.get("refresh_ids") and all(k in cache for k in keys.values()):
             continue
-        if row["route"] == "openai_batch":
-            from . import batch_providers
-
-            try:
-                results = batch_providers.drain_fetch(row, progress)
-            except batch_providers.RouteKeyMissing as exc:
-                # loud and run-blocking under strict; never a tombstone —
-                # the batch stays drainable once the key is present (F6)
-                _log(progress, f"[drain] WARNING: {exc}; results NOT harvested "
-                               f"and left drainable. Export the key and re-invoke.")
-                if strict:
-                    raise
-                continue
         # "anthropic" is the pre-registry journal name for this route. Journals
         # written before ticket 05 still carry it, and a harvest must never
-        # fail to recognise a route it wrote itself.
-        elif row["route"] in ("anthropic_batch", "anthropic"):
+        # fail to recognise a route it wrote itself. An `openai_batch` row
+        # (that adapter was removed 2026-08-16; no live journal carries one)
+        # falls through to the loud unsupported-route skip below and stays
+        # in the journal — never silently discarded.
+        if row["route"] in ("anthropic_batch", "anthropic"):
             results = _fetch_anthropic(row["batch_id"])
         else:
             _log(progress, f"[drain] unsupported route {row['route']!r}, skipped")

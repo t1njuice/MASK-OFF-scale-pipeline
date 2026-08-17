@@ -351,7 +351,7 @@ def author(rows: list[tuple[str, str]], out_dir: Path) -> Path:
     # (ADR-0001), so re-running with a different draw cannot serve one row's
     # seeds under another row's name — it misses and re-authors.
     with policy(run_dir=out_dir), batch_progress() as progress:
-        msgs = run_batch_retry(requests, "Seed author", progress, latency="day")
+        msgs = run_batch_retry(requests, "Seed author", progress)
 
     written = []
     with open(log_path, "a", encoding="utf-8") as log_f:
@@ -464,7 +464,7 @@ def cheap_screen(behavior_dir: Path, out_path: Path | None = None) -> dict[str, 
         for i in range(config.CHEAP_AUDIT_VOTES)
     ]
     with batch_progress() as progress:
-        msgs = run_batch_retry(requests, "Cheap gate audit", progress, latency="day")
+        msgs = run_batch_retry(requests, "Cheap gate audit", progress)
 
     audits = {}
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -535,7 +535,7 @@ def convert(seeds: list, out_stem: Path) -> dict[str, dict]:
         for s in seeds
     ]
     with batch_progress() as progress:
-        msgs = run_batch_retry(requests, "Generator (convert)", progress, latency="day")
+        msgs = run_batch_retry(requests, "Generator (convert)", progress)
 
     results, errors = {}, {}
     for s in seeds:
@@ -789,7 +789,7 @@ def distinct(behavior_dir: Path, regen: bool = False) -> Path:
             for i, (name, neighbor) in enumerate(items)
         ]
         with batch_progress() as progress:
-            msgs = run_batch_retry(requests, "Seed regen", progress, latency="day")
+            msgs = run_batch_retry(requests, "Seed regen", progress)
         for i, (name, neighbor) in enumerate(items):
             msg = msgs.get(f"regen{i}")
             if msg is None:

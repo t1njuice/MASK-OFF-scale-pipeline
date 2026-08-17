@@ -166,7 +166,7 @@ def test_both_on_asks_for_every_probe_request(tmp_path, monkeypatch, transport):
     ids, _, _, _ = _run(tmp_path, monkeypatch, transport,
                         recognition=True, probe2=True)
     for suffix in ("__muse__recognition", "__variant", "__muse__p2_0",
-                   "__p2__j0"):
+                   "__p20__j0"):
         assert f"{ITEM['result_id']}{suffix}" in ids, suffix
 
 
@@ -626,9 +626,10 @@ def test_gate_fail_twice_flags_leaky_and_skips_p2_for_all_seats(
     assert row["variant_regenerations"] == 1
     assert row["leaky_variant"] is True
     assert row["leaky_variant_reason"] == "leaky"
-    # "__p2_" covers the seat samples AND the `__p2__j{slot}` judge ids
+    # "__p2" covers the seat samples (`__{seat}__p2_{k}`) AND the chunked
+    # `__p2{c}__j{slot}` judge ids
     assert not [c for c in ids
-                if c.startswith(leaky["result_id"]) and "__p2_" in c], (
+                if c.startswith(leaky["result_id"]) and "__p2" in c], (
         "a leaky item reached a target seat")
     # the other item is unaffected: full fan-out, gate pass on record
     for seat in (MUSE, GROK):

@@ -15,6 +15,16 @@ from .panel import Seat
 from .schemas import Candidate
 from .validity import build_vote_requests
 
+
+@pytest.fixture()
+def _empty_evalaware_panel(monkeypatch):
+    # For tests that build minimal one-seat worlds by patching every panel
+    # they know about; EVALAWARE_PANEL (eval-awareness ablation) postdates
+    # them and would leak its unpatched seats into configured_models. NOT
+    # autouse (review I4): the shipped-config gap test must see the real
+    # panel, or an unpinned ablation seat ships unnoticed.
+    monkeypatch.setattr(config, "EVALAWARE_PANEL", [])
+
 HAS_OPENAI_KEY = bool(os.environ.get("OPENAI_API_KEY"))
 
 
@@ -135,6 +145,7 @@ def test_unpinned_panel_seat_is_reported(monkeypatch):
     assert ("x-ai/grok-9.9", "openrouter_sync") in pricing.unpinned()
 
 
+@pytest.mark.usefixtures("_empty_evalaware_panel")
 def test_openrouter_key_check_covers_every_role(monkeypatch, capsys):
     """Regression: the key check was hand-built from the roster, generator and
     panel, so it missed the pilot, seedgen, judge and smoke models. It
@@ -180,6 +191,7 @@ def test_unpinned_model_costs_zero_which_is_why_preflight_exists():
     assert pricing.usage_cost(usage) == 0.0
 
 
+@pytest.mark.usefixtures("_empty_evalaware_panel")
 def test_smoke_model_leaves_the_reachable_set_when_disabled(monkeypatch):
     smoke = config.OPUS5_SMOKE_SEAT.model
     monkeypatch.setattr(config, "OPUS5_SMOKE_N", 0)
@@ -302,7 +314,7 @@ def test_stage_b_totals_counts_every_request_class(monkeypatch):
     counts = {name: entry["requests"] for name, entry in got["stages"].items()}
     assert counts == {
         "roleplay": 20,          # 2 items x 2 seats x K=5
-        "roleplay_judge": 2,     # 2 items x 1 judge seat (samples batched)
+        "roleplay_judge": 4,     # 2 items x 1 judge x 2 seat-chunks (B1)
         "recognition": 4,        # 2 items x 2 seats x 1
         "recognition_judge": 4,  # upper bound: every response clean-YES
         "salience": 8,           # 2 items x 2 seats x SALIENCE_K=2
@@ -310,9 +322,9 @@ def test_stage_b_totals_counts_every_request_class(monkeypatch):
         "variant": 4,            # 2 items x (1 + 1 regeneration)
         "variant_gate": 4,       # 2 items x (1 gate + 1 re-gate)
         "probe2": 8,             # 2 items x 2 seats x PROBE2_K=2
-        "probe2_judge": 2,       # 2 items x 1 judge seat (samples batched)
+        "probe2_judge": 4,       # 2 items x 1 judge x 2 seat-chunks (B1)
     }
-    assert got["requests"] == 64
+    assert got["requests"] == 68
     assert got["dollars"] > 0
     assert got["dollars"] == sum(
         entry["dollars"] for entry in got["stages"].values())
@@ -324,7 +336,7 @@ def test_a_flag_that_is_off_removes_its_classes(monkeypatch):
     _all_flags(monkeypatch, recognition=False, salience=False, probe2=False)
     got = launch.stage_b_totals(2, [(KIMI_A, 5), (OPUS_B, 5)], smoke_n=0)
     assert set(got["stages"]) == {"roleplay", "roleplay_judge"}
-    assert got["requests"] == 22
+    assert got["requests"] == 24  # 20 roleplay + 2 items x 1 judge x 2 chunks
 
     _all_flags(monkeypatch, recognition=True, salience=False, probe2=False)
     got = launch.stage_b_totals(2, [(KIMI_A, 5), (OPUS_B, 5)], smoke_n=0)
@@ -336,6 +348,20 @@ def test_a_flag_that_is_off_removes_its_classes(monkeypatch):
     assert set(got["stages"]) == {
         "roleplay", "roleplay_judge", "variant", "variant_gate",
         "probe2", "probe2_judge"}
+
+
+def test_stage_b_totals_prices_one_pass_at_a_time(monkeypatch):
+    """Review M6: the go/no-go number is the pass's real cost — the sample
+    pass shows no judge dollars, the judge pass no roleplay dollars, and
+    the two passes sum to the census (both-pass) bound."""
+    _all_flags(monkeypatch, recognition=False, salience=False, probe2=False)
+    sample = launch.stage_b_totals(2, [(KIMI_A, 5)], smoke_n=0, judge=False)
+    assert set(sample["stages"]) == {"roleplay"}
+    judged = launch.stage_b_totals(2, [(KIMI_A, 5)], smoke_n=0, judge=True)
+    assert set(judged["stages"]) == {"roleplay_judge"}
+    both = launch.stage_b_totals(2, [(KIMI_A, 5)], smoke_n=0)
+    assert both["dollars"] == pytest.approx(
+        sample["dollars"] + judged["dollars"])
 
 
 def test_stage_b_totals_dollars_are_hand_computable(monkeypatch):
@@ -420,6 +446,7 @@ def test_clean_seat_labels_pass_the_guard():
     assert launch.seat_label_problems(["muse", "grok", "opus48"]) == []
 
 
+@pytest.mark.usefixtures("_empty_evalaware_panel")
 def test_preflight_skips_anthropic_entirely_when_nothing_routes_there(monkeypatch):
     """No Anthropic seat means no Anthropic credential is required."""
     flash = "deepseek/deepseek-v4-flash-0731"

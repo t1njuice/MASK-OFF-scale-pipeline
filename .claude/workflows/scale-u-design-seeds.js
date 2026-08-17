@@ -17,7 +17,7 @@ export const meta = {
     { title: 'Design', detail: '1 Opus high tuple designer: 50 batch-4 tuples in the frozen batch-3 field shape, axis spec + freshness blocklist binding, coordinates forced to the index cycles in-script', model: 'opus' },
     { title: 'Design-verify', detail: '1 Opus high adversarial tuple verifier: forward-intrinsic test, domain deal, mechanism caps, vehicle list, digital suppressors, coordinate cycles, stem freshness; one Opus high revision round, then a deterministic assertion that drops survivors that still fail', model: 'opus' },
     { title: 'Write', detail: '10 Fable 5 medium seed writers, 5 dealt tuples each, intuition doc + checklist budgets binding; deterministic validation with one auto-revision round', model: 'fable' },
-    { title: 'Verify', detail: '10 Opus high verifiers, 5 seeds each: hard-rejects, FORWARD-INTRINSIC test, OMG floor, counter-exemplar reject patterns; Opus medium revisions, max 2 rounds', model: 'opus' },
+    { title: 'Verify', detail: '10 Opus high verifiers, 5 seeds each: hard-rejects, FORWARD-INTRINSIC test, OMG floor, counter-exemplar reject patterns; Fable 5 medium revisions, max 2 rounds', model: 'opus' },
   ],
 }
 

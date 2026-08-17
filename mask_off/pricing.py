@@ -31,7 +31,6 @@ def configured_models() -> list[str]:
         config.VARIANT_MODEL,
         config.SEEDGEN_MODEL,
         config.CHEAP_AUDIT_MODEL,
-        *([config.OPUS5_SMOKE_SEAT.model] if config.OPUS5_SMOKE_N else []),
         # the fixed-role judge seats (amendment 2026-08-16): invisible here
         # would mean preflight's API-key checks skip them, and a seat routed
         # somewhere the roster doesn't reach dies mid-run after roleplay

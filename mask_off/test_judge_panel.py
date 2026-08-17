@@ -90,7 +90,7 @@ def _run(tmp_path, monkeypatch, transport, judges=TWO_JUDGES):
         [ITEM],
         tmp_path / "stem",
         targets=[(_sample_seat(), 3)],
-        smoke_n=0,
+       
         probes=False,
     )
     return results[ITEM["result_id"]], summary, seen
@@ -175,7 +175,7 @@ def test_reasoning_traces_are_never_passed_to_a_judge(
     transport.respond = respond
     results, _ = evaluate.evaluate(
         [ITEM], tmp_path / "stem",
-        targets=[(_sample_seat(), 1)], smoke_n=0, probes=False,
+        targets=[(_sample_seat(), 1)], probes=False,
     )
     assert results[ITEM["result_id"]]["reasoning"]["kimi#1"] == "SECRET_TRACE"
     assert seen, "the judge never ran"
@@ -224,19 +224,22 @@ def test_judge_request_ids_cannot_collide(tmp_path, monkeypatch, transport):
     monkeypatch.setattr(config, "JUDGE_PANEL", TWO_JUDGES)
     _install(transport, TWO_JUDGES)
     evaluate.evaluate([ITEM], tmp_path / "stem",
-                      targets=[(_sample_seat(), 3)], smoke_n=0, probes=False)
+                      targets=[(_sample_seat(), 3)], probes=False)
     judge_ids = [cid for call in transport.calls for cid in call if "__j" in cid]
-    # one target seat -> one chunk (index 0); the chunk index is part of the
-    # id so a second seat's chunk cannot collide (implementation review B1)
+    # one target seat -> one chunk, NAMED BY THE SEAT. The seat label is part
+    # of the id so a second seat's chunk cannot collide (implementation review
+    # B1), and so a seat that returns no text on one run does not renumber
+    # every later seat's chunk on the next one and re-buy the whole item.
+    seat_label = _sample_seat().label
     assert sorted(judge_ids) == [
-        f"{ITEM['result_id']}__main0__j0",
-        f"{ITEM['result_id']}__main0__j1",
+        f"{ITEM['result_id']}__main__{seat_label}__j0",
+        f"{ITEM['result_id']}__main__{seat_label}__j1",
     ]
     assert len(judge_ids) == len(set(judge_ids))
-    # id budget: a judge seat costs `__j{slot}` on top of a Stage B id plus a
-    # per-seat chunk index, and a Stage B id is a fixed 20 characters
+    # id budget: a judge seat costs `__j{slot}` on top of a Stage B id plus
+    # `__main__` and the seat label, and a Stage B id is a fixed 20 characters
     # (`maskoff-` + 12 hex). Nowhere near the providers' 64-character
-    # custom_id cap, unlike Stage A — a 14-seat roster is only `__main13`,
+    # custom_id cap, unlike Stage A: the longest roster label is 8 characters,
     # so the budget holds by construction.
     assert max(len(cid) for cid in judge_ids) <= 64
     assert len(ITEM["result_id"]) == 20
@@ -332,7 +335,7 @@ def test_a_judge_reply_carrying_explicit_asks_correct_persists_it_per_judgment(
     transport.respond = respond
     results, _ = evaluate.evaluate(
         [ITEM], tmp_path / "stem",
-        targets=[(_sample_seat(), 3)], smoke_n=0, probes=False,
+        targets=[(_sample_seat(), 3)], probes=False,
     )
     r = results[ITEM["result_id"]]
     expected_asks = {"kimi#1": True, "kimi#2": False, "kimi#3": True}
@@ -404,7 +407,7 @@ def _run_with_probe2(tmp_path, monkeypatch, transport):
     transport.respond = respond
     results, _ = evaluate.evaluate(
         [ITEM], tmp_path / "stem",
-        targets=[(_sample_seat(), 1)], smoke_n=0, probes=True,
+        targets=[(_sample_seat(), 1)], probes=True,
     )
     return results[ITEM["result_id"]], sent
 
@@ -418,8 +421,12 @@ def test_probe2_judge_requests_are_not_asked_the_competence_question(
     and nothing else."""
     _, sent = _run_with_probe2(tmp_path, monkeypatch, transport)
     rid = ITEM["result_id"]
-    main = sent[f"{rid}__main0__j0"]
-    p2 = sent[f"{rid}__p20__j0"]
+    seat = _sample_seat().label
+    main = sent[f"{rid}__main__{seat}__j0"]
+    # probe-2 response labels are `{seat}_p2#{k}`, so the chunk key
+    # already carries the wave; the explicit `__p2__` stays so the id
+    # does not depend on that suffix being there
+    p2 = sent[f"{rid}__p2__{seat}_p2__j0"]
 
     main_system = main["system"][0]["text"]
     p2_system = p2["system"][0]["text"]
@@ -456,3 +463,43 @@ def test_probe2_judgments_never_carry_the_field_even_when_a_judge_emits_it(
     for j in r["probe2_judgments"]:
         assert "explicit_asks_correct" not in j
         assert j["label"] == 1, "the four-label pathway is untouched by the strip"
+
+
+def _judge_ids_when_first_seat_is(text, stem, monkeypatch, transport):
+    """Run two target seats, `alpha` answering with `text`, and return the
+    judge request ids. An empty answer drops alpha from `live`."""
+    monkeypatch.setattr(config, "JUDGE_PANEL", TWO_JUDGES[:1])
+    seats = [panel.Seat("alpha", "moonshotai/kimi-k3", "high", 8000),
+             panel.Seat("zulu", "x-ai/grok-4.5", "high", 8000)]
+
+    def respond(request):
+        cid = request["custom_id"]
+        if "__j" in cid:
+            return message(text=json.dumps({"judgments": []}))
+        return message(text=text if "__alpha_" in cid else "BRAVO: fine.")
+
+    transport.respond = respond
+    evaluate.evaluate([ITEM], stem,
+                      targets=[(s, 1) for s in seats], probes=False)
+    return {cid for call in transport.calls for cid in call if "__j" in cid}
+
+
+def test_a_silent_seat_does_not_renumber_another_seats_judge_id(
+    tmp_path, monkeypatch, transport
+):
+    """The re-bill bug: judge chunks were named by POSITION in the list of
+    seats that returned text. `alpha` sorts before `zulu`, so a run where
+    alpha returned nothing gave zulu chunk 0, and the next run — alpha now
+    answering — gave zulu chunk 1. Same request, new id, cache miss, every
+    judge call for the item bought again. The seat must name its own chunk.
+    """
+    both = _judge_ids_when_first_seat_is("ALPHA: ok.", tmp_path / "a",
+                                         monkeypatch, transport)
+    transport.calls.clear()
+    silent = _judge_ids_when_first_seat_is("", tmp_path / "b",
+                                           monkeypatch, transport)
+
+    zulu = {cid for cid in both if "zulu" in cid}
+    assert zulu and zulu <= both and zulu <= silent, (
+        "zulu's judge id moved when another seat fell silent")
+    assert both - silent == {cid for cid in both if "alpha" in cid}

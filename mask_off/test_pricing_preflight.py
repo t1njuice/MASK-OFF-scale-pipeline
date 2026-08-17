@@ -5,7 +5,9 @@ apparently free price and --max-cost never sees it. A warning printed after
 the money is spent is not a check (ticket 04).
 """
 
+import json
 import os
+import sys
 from unittest import mock
 
 import pytest
@@ -148,7 +150,7 @@ def test_unpinned_panel_seat_is_reported(monkeypatch):
 @pytest.mark.usefixtures("_empty_evalaware_panel")
 def test_openrouter_key_check_covers_every_role(monkeypatch, capsys):
     """Regression: the key check was hand-built from the roster, generator and
-    panel, so it missed the pilot, seedgen, judge and smoke models. It
+    panel, so it missed the pilot, seedgen and judge models. It
     only caught seedgen while a roster model happened to share its provider.
 
     Make the roster, generator and panel Claude-only — which ticket 07 is
@@ -189,15 +191,6 @@ def test_unpinned_model_costs_zero_which_is_why_preflight_exists():
     usage = {"model": "claude-not-a-real-model", "route": "anthropic_batch",
              "output_tokens": 1_000_000}
     assert pricing.usage_cost(usage) == 0.0
-
-
-@pytest.mark.usefixtures("_empty_evalaware_panel")
-def test_smoke_model_leaves_the_reachable_set_when_disabled(monkeypatch):
-    smoke = config.OPUS5_SMOKE_SEAT.model
-    monkeypatch.setattr(config, "OPUS5_SMOKE_N", 0)
-    assert smoke not in pricing.configured_models()
-    monkeypatch.setattr(config, "OPUS5_SMOKE_N", 10)
-    assert smoke in pricing.configured_models()
 
 
 def test_preflight_refuses_a_panel_that_reuses_a_seat_label(monkeypatch, capsys):
@@ -310,7 +303,7 @@ def test_stage_b_totals_counts_every_request_class(monkeypatch):
     """
     _all_flags(monkeypatch)
     got = launch.stage_b_totals(
-        2, [(KIMI_A, 5), (OPUS_B, 5)], smoke_n=0)
+        2, [(KIMI_A, 5), (OPUS_B, 5)])
     counts = {name: entry["requests"] for name, entry in got["stages"].items()}
     assert counts == {
         "roleplay": 20,          # 2 items x 2 seats x K=5
@@ -334,17 +327,17 @@ def test_a_flag_that_is_off_removes_its_classes(monkeypatch):
     """A disabled instrument contributes ZERO requests: its classes are
     absent from the table, not present at zero."""
     _all_flags(monkeypatch, recognition=False, salience=False, probe2=False)
-    got = launch.stage_b_totals(2, [(KIMI_A, 5), (OPUS_B, 5)], smoke_n=0)
+    got = launch.stage_b_totals(2, [(KIMI_A, 5), (OPUS_B, 5)])
     assert set(got["stages"]) == {"roleplay", "roleplay_judge"}
     assert got["requests"] == 24  # 20 roleplay + 2 items x 1 judge x 2 chunks
 
     _all_flags(monkeypatch, recognition=True, salience=False, probe2=False)
-    got = launch.stage_b_totals(2, [(KIMI_A, 5), (OPUS_B, 5)], smoke_n=0)
+    got = launch.stage_b_totals(2, [(KIMI_A, 5), (OPUS_B, 5)])
     assert set(got["stages"]) == {
         "roleplay", "roleplay_judge", "recognition", "recognition_judge"}
 
     _all_flags(monkeypatch, recognition=False, salience=False, probe2=True)
-    got = launch.stage_b_totals(2, [(KIMI_A, 5), (OPUS_B, 5)], smoke_n=0)
+    got = launch.stage_b_totals(2, [(KIMI_A, 5), (OPUS_B, 5)])
     assert set(got["stages"]) == {
         "roleplay", "roleplay_judge", "variant", "variant_gate",
         "probe2", "probe2_judge"}
@@ -355,11 +348,11 @@ def test_stage_b_totals_prices_one_pass_at_a_time(monkeypatch):
     pass shows no judge dollars, the judge pass no roleplay dollars, and
     the two passes sum to the census (both-pass) bound."""
     _all_flags(monkeypatch, recognition=False, salience=False, probe2=False)
-    sample = launch.stage_b_totals(2, [(KIMI_A, 5)], smoke_n=0, judge=False)
+    sample = launch.stage_b_totals(2, [(KIMI_A, 5)], judge=False)
     assert set(sample["stages"]) == {"roleplay"}
-    judged = launch.stage_b_totals(2, [(KIMI_A, 5)], smoke_n=0, judge=True)
+    judged = launch.stage_b_totals(2, [(KIMI_A, 5)], judge=True)
     assert set(judged["stages"]) == {"roleplay_judge"}
-    both = launch.stage_b_totals(2, [(KIMI_A, 5)], smoke_n=0)
+    both = launch.stage_b_totals(2, [(KIMI_A, 5)])
     assert both["dollars"] == pytest.approx(
         sample["dollars"] + judged["dollars"])
 
@@ -379,7 +372,7 @@ def test_stage_b_totals_dollars_are_hand_computable(monkeypatch):
             {"in": 2.0, "out": 4.0, "cache_write": 6.0, "cached_in": 0.2},
     })
     monkeypatch.setattr(launch, "PREFLIGHT_INPUT_TOKENS", 0)
-    got = launch.stage_b_totals(3, [(KIMI_A, 2)], smoke_n=0)
+    got = launch.stage_b_totals(3, [(KIMI_A, 2)])
     # roleplay: 6 requests x 1000 out-cap x $2/MTok = $0.012
     assert got["stages"]["roleplay"]["requests"] == 6
     assert got["stages"]["roleplay"]["dollars"] == pytest.approx(0.012)
@@ -394,7 +387,7 @@ def test_stage_b_totals_fails_hard_on_a_missing_price(monkeypatch):
     _all_flags(monkeypatch)
     ghost = Seat("g", "x-ai/grok-9.9", "high", 1000)
     with pytest.raises(ValueError, match=r"x-ai/grok-9\.9 on openrouter_sync"):
-        launch.stage_b_totals(2, [(ghost, 5)], smoke_n=0)
+        launch.stage_b_totals(2, [(ghost, 5)])
 
 
 def test_stage_b_totals_fails_hard_on_an_unusable_target_label(monkeypatch):
@@ -403,7 +396,7 @@ def test_stage_b_totals_fails_hard_on_an_unusable_target_label(monkeypatch):
     _all_flags(monkeypatch, recognition=False, salience=False, probe2=False)
     bad = Seat("a__p2", "claude-opus-4-8", "high", 1000)
     with pytest.raises(ValueError, match="a__p2"):
-        launch.stage_b_totals(2, [(bad, 5)], smoke_n=0)
+        launch.stage_b_totals(2, [(bad, 5)])
 
 
 def test_preflight_refuses_a_seat_label_containing_the_id_delimiter(
@@ -441,7 +434,7 @@ def test_clean_seat_labels_pass_the_guard():
     segment — produce no findings."""
     shipped = [seat.label for seat in (
         *config.TARGET_PANEL, *config.JUDGE_PANEL,
-        config.PILOT_SEAT, config.OPUS5_SMOKE_SEAT)]
+        config.PILOT_SEAT)]
     assert launch.seat_label_problems(shipped) == []
     assert launch.seat_label_problems(["muse", "grok", "opus48"]) == []
 
@@ -459,7 +452,6 @@ def test_preflight_skips_anthropic_entirely_when_nothing_routes_there(monkeypatc
     monkeypatch.setattr(config, "VARIANT_MODEL", flash)
     monkeypatch.setattr(config, "SEEDGEN_MODEL", flash)
     monkeypatch.setattr(config, "CHEAP_AUDIT_MODEL", flash)
-    monkeypatch.setattr(config, "OPUS5_SMOKE_N", 0)  # else its seat pulls opus-5 in
     monkeypatch.setenv("OPENROUTER_API_KEY", "x")
 
     def _no_client():
@@ -469,22 +461,87 @@ def test_preflight_skips_anthropic_entirely_when_nothing_routes_there(monkeypatc
     assert launch.preflight() is True
 
 
-def test_preflight_refuses_a_target_labeled_like_the_smoke_seat(
-    monkeypatch, capsys
-):
-    """A roster seat labeled `opus5` and the smoke seat mint the same wave-1
-    ids (`{rid}__opus5_0`) on two DIFFERENT models: the cache clobbers one,
-    both are billed, and the response column silently merges two seats. The
-    target panel and the smoke seat share one id space, so preflight refuses
-    the duplicate before a client exists (ticket 08 review, finding 2)."""
-    smoke = config.OPUS5_SMOKE_SEAT
-    monkeypatch.setattr(config, "OPUS5_SMOKE_N", 10)
-    monkeypatch.setattr(config, "TARGET_PANEL", [
-        Seat(smoke.label, "meta/muse-spark-1.2", "high", 8000)])
+@pytest.mark.parametrize("go, submits", [(False, False), (True, True)])
+def test_stage_b_submits_only_behind_go(monkeypatch, tmp_path, capsys,
+                                        go, submits):
+    """Stage B has no dollar ceiling, so --go IS the spend authorization.
 
-    def _no_client():
-        raise AssertionError("preflight built a client before checking labels")
+    Without it the pass must price itself, touch no provider, and exit. The
+    live credential probe is part of "touch no provider" (evalaware M12).
+    """
+    from . import scale
 
-    monkeypatch.setattr(launch, "client", _no_client)
-    assert launch.preflight() is False
-    assert smoke.label in capsys.readouterr().err
+    probed, evaluated = [], []
+    corpus = tmp_path / "corpus.jsonl"
+    corpus.write_text('{"result_id": "r1"}\n', encoding="utf-8")
+    monkeypatch.setattr(sys, "argv",
+                        ["scale", "evaluate", "--run-dir", str(tmp_path),
+                         "--corpus", str(corpus)]
+                        + (["--go"] if go else []))
+    monkeypatch.setattr(scale, "evaluate_corpus",
+                        lambda *a, **k: evaluated.append(True))
+    monkeypatch.setattr(launch, "preflight",
+                        lambda probe=True: probed.append(probe) or True)
+    monkeypatch.setattr(launch, "print_stage_b_totals", lambda *a, **k: True)
+
+    scale.main()
+
+    assert evaluated == ([True] if submits else [])
+    assert probed == [go]
+    assert ("dry run" in capsys.readouterr().out) is not submits
+
+
+def test_stage_b_manifest_refuses_a_config_edit_mid_run(monkeypatch, tmp_path):
+    """A seat/K/probe edit between two invocations of one run dir would
+    re-buy every cell and overwrite the eval rows as if one config produced
+    them. The second invocation must stop instead."""
+    from . import scale
+
+    corpus = tmp_path / "corpus.jsonl"
+    corpus.write_text('{"result_id": "r1"}\n', encoding="utf-8")
+    mpath, manifest = scale.stage_b_manifest(tmp_path, corpus)
+    mpath.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+
+    # same config replays clean
+    scale.stage_b_manifest(tmp_path, corpus)
+
+    monkeypatch.setattr(config, "TARGET_K", config.TARGET_K + 1)
+    with pytest.raises(SystemExit, match="manifest mismatch"):
+        scale.stage_b_manifest(tmp_path, corpus)
+
+
+def test_stage_b_manifest_pins_the_corpus_it_evaluated(tmp_path):
+    """Stage B evaluates whatever accepted.jsonl holds, so the digest is what
+    ties a result set to a corpus."""
+    from . import scale
+
+    corpus = tmp_path / "corpus.jsonl"
+    corpus.write_text('{"result_id": "r1"}\n', encoding="utf-8")
+    mpath, manifest = scale.stage_b_manifest(tmp_path, corpus)
+    mpath.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    assert len(manifest["corpus_sha256"]) == 64
+
+    corpus.write_text('{"result_id": "r2"}\n', encoding="utf-8")
+    with pytest.raises(SystemExit, match="corpus_sha256"):
+        scale.stage_b_manifest(tmp_path, corpus)
+
+
+
+
+def test_the_default_corpus_is_the_frozen_dataset():
+    """The census evaluates the frozen artifact, not a staged copy of it.
+    Typing no --corpus must reach `output/dataset_v1.jsonl`."""
+    from . import scale
+
+    assert config.DATASET_V1.name == "dataset_v1.jsonl"
+    assert scale.evaluate_corpus.__defaults__[-1] is None  # -> DATASET_V1
+    assert len(scale._read_items(config.DATASET_V1)) == 300
+
+
+def test_the_census_runs_every_probe():
+    """Probe 1, probe 2 and salience are reported results, and the headline
+    knowledge-conditioned rate conditions on probe 2 (ANALYSIS_PLAN §2). These
+    flags were flipped to False twice by commit and back to True twice by
+    merge; this pins the decided value so the next merge cannot decide it."""
+    assert (config.RECOGNITION, config.SALIENCE, config.PROBE2) == (
+        True, True, True)

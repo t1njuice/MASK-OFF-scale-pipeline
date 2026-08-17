@@ -349,7 +349,7 @@ def _run_arm(source_dir: Path, run_dir: Path, arm: str,
     targets = _targets(seats_arg)
     mpath, manifest = _manifest_gate(run_dir, arm, cue, targets, judge)
     # review M6: price only the pass being bought
-    if not print_stage_b_totals(len(items), targets, smoke_n=0, probes=False,
+    if not print_stage_b_totals(len(items), targets, probes=False,
                                 judge=judge):
         sys.exit(1)
     if not go:
@@ -363,7 +363,7 @@ def _run_arm(source_dir: Path, run_dir: Path, arm: str,
     with run_lock(run_dir):
         drain_orphans(run_dir)
         with policy(run_dir=run_dir):
-            evaluate(items, eval_dir / arm, targets=targets, smoke_n=0,
+            evaluate(items, eval_dir / arm, targets=targets,
                      probes=False, cue=cue, judge=judge)
     print(f"\nArtifacts:\n  {run_dir / 'draw.json'}\n  {mpath}\n  "
           f"{eval_dir / (arm + '_eval.jsonl')}")

@@ -331,7 +331,7 @@ def test_stage_b_samples_the_roster_not_the_pilot_seat(monkeypatch, tmp_path):
 
     seen = {}
 
-    def _fake_evaluate(items, out_stem, targets=None, smoke_n=None,
+    def _fake_evaluate(items, out_stem, targets=None,
                        probes=True, fill=False):
         seen["targets"] = targets
         return {}, {}

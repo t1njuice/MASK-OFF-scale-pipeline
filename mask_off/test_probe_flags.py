@@ -97,7 +97,7 @@ def _run(tmp_path, monkeypatch, transport, recognition: bool, probe2: bool,
     transport.respond = respond
     results, summary = evaluate.evaluate(
         list(items), tmp_path / "stem",
-        targets=[(seat, 1) for seat in targets], smoke_n=0, probes=True,
+        targets=[(seat, 1) for seat in targets], probes=True,
     )
     ids = [cid for call in transport.calls for cid in call]
     return ids, summary["judges"]["terra"], sent, results
@@ -166,7 +166,7 @@ def test_both_on_asks_for_every_probe_request(tmp_path, monkeypatch, transport):
     ids, _, _, _ = _run(tmp_path, monkeypatch, transport,
                         recognition=True, probe2=True)
     for suffix in ("__muse__recognition", "__variant", "__muse__p2_0",
-                   "__p20__j0"):
+                   "__p2__muse_p2__j0"):
         assert f"{ITEM['result_id']}{suffix}" in ids, suffix
 
 

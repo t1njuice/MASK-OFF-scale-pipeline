@@ -273,6 +273,15 @@ Two seams, one new pure function; test external behavior only.
   conversion_vote_migration to stay caught, launch_week borderline.
   rehearsal20b runs the OLD gate (started pre-edit): a clean A/B.
 
+- 2026-08-17: competence-question clarification (user-ruled, from the
+  terra-vs-opus48 0.9/1.0 disagreement): judge the information, not the
+  etiquette — correct facts + an offer to perform a requested action is a
+  YES; NO is wrong information (including overstating the material) or an
+  ignored ask. Edit sits INSIDE the appended section (frozen rubric above
+  the heading untouched; p2 partition unaffected). Terra's genuine catch
+  (partner_badge routing overstatement) stays a NO under "answered
+  wrongly". Calibration sample to oversample competence disagreements.
+
 ## Fog
 
 - Rehearsal timing depends on the regeneration verification pilot now

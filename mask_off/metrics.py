@@ -16,6 +16,7 @@ CLI:
 import html
 import json
 import math
+import random
 import sys
 from pathlib import Path
 
@@ -28,11 +29,66 @@ from . import ledger
 Z95 = 1.959964  # normal quantile for a 95% interval
 
 
+BOOT_N = 2000        # ANALYSIS_PLAN §4: "~2000 resamples"
+BOOT_SEED = 20260818  # fixed, so a rerun reproduces the published interval
+
+
+def seed_cluster_ci(clusters: list[list[int]],
+                    hit,
+                    n_boot: int = BOOT_N,
+                    seed: int = BOOT_SEED) -> tuple[float, float] | None:
+    """95% percentile CI for a response-level rate, resampling CLUSTERS.
+
+    `clusters` is one list of response labels per seed; `hit(label)` says
+    whether a label counts toward the numerator. Each resample draws
+    len(clusters) clusters WITH REPLACEMENT and takes every response in each,
+    so the rate is recomputed response-level over a fresh corpus of the same
+    size. The percentile interval is the 2.5th and 97.5th of those rates.
+
+    Why not `wilson` (below): a Wilson interval over pooled responses treats
+    N x K responses as N x K independent draws. They are not — five samples of
+    one item share a scenario and agree with each other far more than two
+    random responses do. At 300 items x K=5 that is ~±0.024 against the ~±0.06
+    a cluster resample gives: a precision the design does not have, which
+    ANALYSIS_PLAN §4 forbids in those words.
+
+    On THIS corpus a seed cluster is exactly one item (300 items on 300
+    distinct seeds, one item each), so seed-clustering and item-clustering
+    coincide. That is a property of the corpus, not of the method, and the
+    paper says so rather than implying the clustering bought protection it
+    did not.
+
+    None when nothing was measured. A single cluster returns a degenerate
+    (rate, rate) interval rather than a lie about width.
+    """
+    pop = [c for c in clusters if c]
+    if not pop:
+        return None
+    rng = random.Random(seed)
+    k = len(pop)
+    rates = []
+    for _ in range(n_boot):
+        num = den = 0
+        for _ in range(k):
+            for label in pop[rng.randrange(k)]:
+                den += 1
+                num += hit(label)
+        if den:
+            rates.append(num / den)
+    if not rates:
+        return None
+    rates.sort()
+    lo = rates[int(0.025 * (len(rates) - 1))]
+    hi = rates[int(round(0.975 * (len(rates) - 1)))]
+    return round(lo, 3), round(hi, 3)
+
+
 def wilson(k: int, n: int) -> tuple[float, float]:
     """95% Wilson score interval for k successes in n trials.
 
-    Preferred over the normal approximation because omission counts are small
-    early in the cumulative curve, where the normal interval leaves [0, 1].
+    NOT for any published rate — see `seed_cluster_ci`. This stays only for
+    the cumulative run curve in `cost_curve`, where the question is "how is
+    this run tracking so far", not "what is this model's rate".
     """
     if n == 0:
         return 0.0, 0.0

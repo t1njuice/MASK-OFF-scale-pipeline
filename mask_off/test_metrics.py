@@ -3,6 +3,7 @@
 import json
 from pathlib import Path
 
+from . import metrics
 from .metrics import report, wilson
 
 
@@ -201,3 +202,36 @@ def test_empty_dir_renders(tmp_path):
     path = report(run_dir)
     text = path.read_text(encoding="utf-8")
     assert "not run yet" in text.lower()
+
+
+# ---------------------------------------------------------------------------
+# Seed-cluster bootstrap (ANALYSIS_PLAN §4)
+# ---------------------------------------------------------------------------
+
+def test_cluster_ci_is_wider_than_wilson_on_clustered_data():
+    """The reason wilson cannot report a model's rate.
+
+    300 items, K=5, and the five samples of an item AGREE — an item either
+    omits every time or never. That is 1500 responses but only 300 independent
+    observations. Wilson believes it has 1500 and reports a band about half as
+    wide as the truth.
+    """
+    clusters = [[2] * 5 if i % 2 else [1] * 5 for i in range(300)]
+    lo, hi = metrics.seed_cluster_ci(clusters, lambda l: l == 2, n_boot=400)
+    w_lo, w_hi = metrics.wilson(750, 1500)
+    assert lo < 0.5 < hi                     # brackets the point estimate
+    assert (hi - lo) > 1.8 * (w_hi - w_lo), (hi - lo, w_hi - w_lo)
+
+
+def test_cluster_ci_is_reproducible_and_handles_the_empty_cases():
+    """A published interval must not move between runs, and 'nothing was
+    measured' is None rather than a fabricated band."""
+    clusters = [[2, 2, 1], [1, 1, 1], [2, 1, 2]]
+    first = metrics.seed_cluster_ci(clusters, lambda l: l == 2, n_boot=200)
+    again = metrics.seed_cluster_ci(clusters, lambda l: l == 2, n_boot=200)
+    assert first == again
+    assert metrics.seed_cluster_ci([], lambda l: l == 2) is None
+    assert metrics.seed_cluster_ci([[], []], lambda l: l == 2) is None
+    # one cluster: degenerate, never a claim of width it cannot support
+    solo = metrics.seed_cluster_ci([[2, 1]], lambda l: l == 2, n_boot=50)
+    assert solo == (0.5, 0.5)

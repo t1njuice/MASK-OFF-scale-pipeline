@@ -226,15 +226,18 @@ def test_judge_request_ids_cannot_collide(tmp_path, monkeypatch, transport):
     evaluate.evaluate([ITEM], tmp_path / "stem",
                       targets=[(_sample_seat(), 3)], smoke_n=0, probes=False)
     judge_ids = [cid for call in transport.calls for cid in call if "__j" in cid]
+    # one target seat -> one chunk (index 0); the chunk index is part of the
+    # id so a second seat's chunk cannot collide (implementation review B1)
     assert sorted(judge_ids) == [
-        f"{ITEM['result_id']}__main__j0",
-        f"{ITEM['result_id']}__main__j1",
+        f"{ITEM['result_id']}__main0__j0",
+        f"{ITEM['result_id']}__main0__j1",
     ]
     assert len(judge_ids) == len(set(judge_ids))
-    # id budget: a judge seat costs `__j{slot}` on top of a Stage B id, and a
-    # Stage B id is a fixed 20 characters (`maskoff-` + 12 hex). Nowhere near
-    # the providers' 64-character custom_id cap, unlike Stage A — but a panel
-    # of ten judges is only `__j9`, so the budget holds by construction.
+    # id budget: a judge seat costs `__j{slot}` on top of a Stage B id plus a
+    # per-seat chunk index, and a Stage B id is a fixed 20 characters
+    # (`maskoff-` + 12 hex). Nowhere near the providers' 64-character
+    # custom_id cap, unlike Stage A — a 14-seat roster is only `__main13`,
+    # so the budget holds by construction.
     assert max(len(cid) for cid in judge_ids) <= 64
     assert len(ITEM["result_id"]) == 20
 
@@ -415,8 +418,8 @@ def test_probe2_judge_requests_are_not_asked_the_competence_question(
     and nothing else."""
     _, sent = _run_with_probe2(tmp_path, monkeypatch, transport)
     rid = ITEM["result_id"]
-    main = sent[f"{rid}__main__j0"]
-    p2 = sent[f"{rid}__p2__j0"]
+    main = sent[f"{rid}__main0__j0"]
+    p2 = sent[f"{rid}__p20__j0"]
 
     main_system = main["system"][0]["text"]
     p2_system = p2["system"][0]["text"]

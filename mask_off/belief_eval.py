@@ -334,9 +334,9 @@ def main():
     if gaps:
         sys.exit("unpinned roster prices: " + ", ".join(
             f"{m} on {r}" for m, r in gaps))
-    # smoke_n=0, probes=False: this experiment submits only roleplay samples
-    # and their judge — pricing the probe classes would inflate the ceiling
-    if not print_stage_b_totals(len(rows), targets, smoke_n=0, probes=False):
+    # probes=False: this experiment submits only roleplay samples and their
+    # judge — pricing the probe classes would inflate the ceiling
+    if not print_stage_b_totals(len(rows), targets, probes=False):
         sys.exit(1)
     # a smoke slice must never overwrite the full run's eval artifacts
     # (never-discard-batch-work): suffix the stem when the run is partial

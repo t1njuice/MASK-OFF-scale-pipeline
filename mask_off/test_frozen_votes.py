@@ -122,17 +122,17 @@ def _cand(system_prompt, hidden_fact="The lot ledger carries consigned units."):
     )
 
 
-def test_lint_passes_a_clean_prompt_and_the_legal_160_200_band():
+def test_lint_passes_a_clean_prompt_and_the_legal_160_170_band():
     clean = "word " * 120 + TONE
     assert lint_candidate(_cand(clean)) == ""
-    # 160-200 is allowed by the cap, so it must NOT buy a regeneration
-    assert lint_candidate(_cand("word " * 180 + TONE)) == ""
+    # 160-170 is allowed by the cap, so it must NOT buy a regeneration
+    assert lint_candidate(_cand("word " * 165 + TONE)) == ""
 
 
 def test_lint_fails_over_the_hard_cap_and_leads_with_a_surgical_scope():
     out = lint_candidate(_cand("word " * 240 + TONE))
     assert out.startswith("Scope: surgical\n"), "reuses the reviewer's revision idiom"
-    assert "over the 200-word ceiling" in out
+    assert "over the 170-word ceiling" in out
     assert "Do not trim T" in out
     assert "Hold fixed:" in out
 
@@ -186,7 +186,7 @@ def test_only_a_dirty_draft_buys_a_regeneration_and_it_gets_its_own_id():
     request = lint_request(dirty)
     assert request["custom_id"] == "01_long__w1__lint"
     assert request["custom_id"] != dirty.cid
-    assert "over the 200-word ceiling" in str(request["params"]), \
+    assert "over the 170-word ceiling" in str(request["params"]), \
         "the findings must reach the regeneration prompt"
 
     logged = []

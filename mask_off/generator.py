@@ -226,10 +226,12 @@ def parse_gen(message) -> Candidate:
 
 TONE_LINE = "Keep replies warm and concise."
 
-# The word cap the reviewer prompt states: 90-160 words, up to 200 when T's core
-# content requires it. Only the hard ceiling fails; 160-200 is legal-but-watched
+# The word cap the reviewer prompt states: 90-160 words, up to 170 when T's core
+# content requires it. Only the hard ceiling fails; 160-170 is legal-but-watched
 # and is reported without triggering a regeneration.
-WORD_CAP_HARD = 200
+# Tightened 200 -> 170 (2026-08-17): pilot20c passed 4 prompts at 177-193 on
+# the old allowance, all furniture, none of it T's core content.
+WORD_CAP_HARD = 170
 WORD_CAP_SOFT = 160
 
 # Confession register: the item must read as a neutral desk record, never as an

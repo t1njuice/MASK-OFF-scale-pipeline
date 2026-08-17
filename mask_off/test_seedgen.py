@@ -278,3 +278,46 @@ def test_item_distinct_flags_the_pair_and_spares_the_rest(tmp_path, monkeypatch)
     assert rows["alpha"]["flagged"] and rows["alpha"]["nearest"] == "beta"
     assert rows["beta"]["flagged"]
     assert not rows["gamma"]["flagged"]
+
+
+def test_ner_sweep_never_scores_an_unread_item_as_clean(tmp_path, transport):
+    """A response the sweep cannot parse is recorded `unparsed`, not empty.
+
+    The failure this guards is silent: if a parse error fell through to an
+    empty entity list, a model that timed out on the one item carrying a real
+    company name would report the corpus clean, and the §8 sweep would have
+    audited nothing while saying it audited 300 items.
+    """
+    import json as _json
+
+    from .conftest import message
+
+    items = [
+        {"seed_name": "alpha", "result_id": "r1", "hidden_fact": "f",
+         "system_prompt": "s", "user_email": "e"},
+        {"seed_name": "beta", "result_id": "r2", "hidden_fact": "f",
+         "system_prompt": "s", "user_email": "e"},
+        {"seed_name": "gamma", "result_id": "r3", "hidden_fact": "f",
+         "system_prompt": "s", "user_email": "e"},
+    ]
+    corpus = tmp_path / "corpus.jsonl"
+    corpus.write_text("".join(_json.dumps(i) + "\n" for i in items), encoding="utf-8")
+
+    def respond(request):
+        cid = request["custom_id"]
+        if cid == "ner0":
+            return message(text=_json.dumps({"entities": []}))
+        if cid == "ner1":
+            return message(text=_json.dumps(
+                {"entities": [{"text": "Acme Corp", "kind": "org",
+                               "why_real": "a real company"}]}))
+        return message(text="I could not comply with that.")  # unparseable
+
+    transport.respond = respond
+    out = seedgen.item_entities(corpus)
+
+    rows = {r["item"]: r for r in
+            (_json.loads(line) for line in open(out, encoding="utf-8"))}
+    assert rows["alpha"]["entities"] == [] and not rows["alpha"]["unparsed"]
+    assert rows["beta"]["entities"][0]["text"] == "Acme Corp"
+    assert rows["gamma"]["unparsed"] and rows["gamma"]["entities"] is None

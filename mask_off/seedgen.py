@@ -615,7 +615,7 @@ def screen(behavior_dir: Path, out_stem: Path, cheap: bool = False,
             eval_results, _ = evaluate(
                 accepted,
                 out_stem,
-                targets=[(config.THERMOMETER_SEAT, config.THERMOMETER_K)],
+                targets=[(config.PILOT_SEAT, config.PILOT_K)],
                 smoke_n=0,
                 probes=False,
             )

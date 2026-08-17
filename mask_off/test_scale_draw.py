@@ -307,9 +307,9 @@ def test_resubmission_supersedes_the_cached_row_under_one_key(tmp_path, transpor
     assert len(batchcache._cache(tmp_path)) == len(keys)
 
 
-def test_stage_b_samples_the_roster_not_the_thermometer(monkeypatch, tmp_path):
+def test_stage_b_samples_the_roster_not_the_pilot_seat(monkeypatch, tmp_path):
     """`evaluate_corpus` passed no `targets`, so Stage B fell through to
-    `evaluate`'s default — the thermometer seat alone, K=3 — while
+    `evaluate`'s default — the pilot seat alone, K=3 — while
     `TARGET_PANEL` reached only `pricing.configured_models`. Preflight priced
     thirteen seats and Stage B sampled one, and editing the roster changed
     nothing about what was sampled."""

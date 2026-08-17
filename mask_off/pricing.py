@@ -26,7 +26,7 @@ def configured_models() -> list[str]:
     return [
         config.GENERATOR_MODEL,
         *(seat.model for panel in panels for seat in panel),
-        config.THERMOMETER_SEAT.model,
+        config.PILOT_SEAT.model,
         config.VARIANT_MODEL,
         config.SEEDGEN_MODEL,
         config.CHEAP_AUDIT_MODEL,

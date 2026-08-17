@@ -41,7 +41,7 @@ def _user_text(request) -> str:
 
 
 def _sample_seat() -> panel.Seat:
-    """A three-sample thermometer seat, so blinding has something to permute."""
+    """A three-sample pilot seat, so blinding has something to permute."""
     return panel.Seat("kimi", "moonshotai/kimi-k3", "high", 8000)
 
 

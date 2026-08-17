@@ -528,7 +528,7 @@ def evaluate_corpus(run_dir: Path, cohort_size: int = 200, fill: bool = False):
                   f"({min(cohort_size, len(items) - index)} items)")
             with policy(run_dir=run_dir):
                 # The roster, explicitly. `evaluate` defaults to the
-                # thermometer seat alone because sampling a whole roster is a
+                # pilot seat alone because sampling a whole roster is a
                 # roster-fold bill and must be asked for — and nothing asked.
                 # TARGET_PANEL was reaching `pricing.configured_models`, so
                 # preflight priced thirteen seats while Stage B sampled one.

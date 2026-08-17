@@ -137,7 +137,7 @@ def test_unpinned_panel_seat_is_reported(monkeypatch):
 
 def test_openrouter_key_check_covers_every_role(monkeypatch, capsys):
     """Regression: the key check was hand-built from the roster, generator and
-    panel, so it missed the thermometer, seedgen, judge and smoke models. It
+    panel, so it missed the pilot, seedgen, judge and smoke models. It
     only caught seedgen while a roster model happened to share its provider.
 
     Make the roster, generator and panel Claude-only — which ticket 07 is
@@ -149,7 +149,7 @@ def test_openrouter_key_check_covers_every_role(monkeypatch, capsys):
     monkeypatch.setattr(config, "TARGET_PANEL", [claude])
     monkeypatch.setattr(config, "VALIDITY_PANEL", [claude] * 3)
     monkeypatch.setattr(config, "JUDGE_PANEL", [claude])
-    monkeypatch.setattr(config, "THERMOMETER_SEAT", claude)
+    monkeypatch.setattr(config, "PILOT_SEAT", claude)
 
     def _no_client():
         raise AssertionError("preflight built a client before checking the key")
@@ -415,7 +415,7 @@ def test_clean_seat_labels_pass_the_guard():
     segment — produce no findings."""
     shipped = [seat.label for seat in (
         *config.TARGET_PANEL, *config.JUDGE_PANEL,
-        config.THERMOMETER_SEAT, config.OPUS5_SMOKE_SEAT)]
+        config.PILOT_SEAT, config.OPUS5_SMOKE_SEAT)]
     assert launch.seat_label_problems(shipped) == []
     assert launch.seat_label_problems(["muse", "grok", "opus48"]) == []
 
@@ -428,7 +428,7 @@ def test_preflight_skips_anthropic_entirely_when_nothing_routes_there(monkeypatc
     monkeypatch.setattr(config, "VALIDITY_PANEL", [seat] * 3)
     monkeypatch.setattr(config, "TARGET_PANEL", [seat])
     monkeypatch.setattr(config, "JUDGE_PANEL", [seat])
-    monkeypatch.setattr(config, "THERMOMETER_SEAT", seat)
+    monkeypatch.setattr(config, "PILOT_SEAT", seat)
     monkeypatch.setattr(config, "VARIANT_MODEL", flash)
     monkeypatch.setattr(config, "SEEDGEN_MODEL", flash)
     monkeypatch.setattr(config, "CHEAP_AUDIT_MODEL", flash)

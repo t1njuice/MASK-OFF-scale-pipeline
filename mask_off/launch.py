@@ -303,7 +303,7 @@ def preflight() -> bool:
     #     reading (ticket 08, routed from ticket 02's review).
     guarded = (
         list(config.TARGET_PANEL) + list(config.JUDGE_PANEL)
-        + [config.THERMOMETER_SEAT]
+        + [config.PILOT_SEAT]
         + ([config.OPUS5_SMOKE_SEAT] if config.OPUS5_SMOKE_N else [])
     )
     problems = seat_label_problems(seat.label for seat in guarded)
@@ -339,7 +339,7 @@ def preflight() -> bool:
         return False
     # 2) OpenRouter-routed models, in ANY role, need their own key. Derived
     #    from the same reachable set the price check uses: a hand-built list
-    #    silently omitted the thermometer, seedgen, judge and smoke models,
+    #    silently omitted the pilot, seedgen, judge and smoke models,
     #    and only caught them while a roster model happened to share a slug.
     openrouter_models = sorted({
         model

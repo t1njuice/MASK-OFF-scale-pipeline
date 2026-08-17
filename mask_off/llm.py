@@ -398,7 +398,15 @@ def bad_final(msg) -> bool:
     passes finish_reason "error" through the shim with partial thinking and
     empty text. The seedcorpus2 refill (2026-08-14) cached 14 of these as
     good finals under the old None-or-max_tokens rule, and every rerun
-    replayed them as "no '=== seed: name ===' markers"."""
+    replayed them as "no '=== seed: name ===' markers".
+
+    A `refusal` stop_reason is NOT a bad final even with empty text: it is
+    the model declining at the API level — a real, recordable outcome
+    (R5, 2026-08-17). Retrying it burns money to hide data, and counting it
+    as a transport hole made opus-5 safety refusals indistinguishable from
+    dead streams."""
+    if getattr(msg, "stop_reason", None) == "refusal":
+        return False
     return (
         msg is None
         or getattr(msg, "stop_reason", None) in ("max_tokens", "error")

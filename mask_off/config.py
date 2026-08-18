@@ -73,6 +73,11 @@ TARGET_PANEL = [
     Seat("opus48", "claude-opus-4-8", TARGET_EFFORT, TARGET_MAX_TOKENS),
     Seat("opus5", "claude-opus-5", TARGET_EFFORT, TARGET_MAX_TOKENS),
     Seat("sonnet5", "claude-sonnet-5", TARGET_EFFORT, TARGET_MAX_TOKENS),
+    # Added 2026-08-18 (user), taking the roster from 15 seats to 16. Grouped
+    # with the other Anthropic seats because `routes.route` sends it to the
+    # same batch. It is the most expensive seat on the panel by a factor of
+    # two — see PRICES.
+    Seat("fable5", "claude-fable-5", TARGET_EFFORT, TARGET_MAX_TOKENS),
     Seat("sol", "openai/gpt-5.6-sol", TARGET_EFFORT, TARGET_MAX_TOKENS),
     Seat("terra", "openai/gpt-5.6-terra", TARGET_EFFORT, TARGET_MAX_TOKENS),
     Seat("gpt55", "openai/gpt-5.5", TARGET_EFFORT, TARGET_MAX_TOKENS),
@@ -287,6 +292,16 @@ PRICES = {
         {"in": 2.5, "out": 12.5, "cache_write": 5.0, "cached_in": 0.25},
     ("claude-opus-5", "anthropic_sync"):
         {"in": 5.0, "out": 25.0, "cache_write": 10.0, "cached_in": 0.5},
+    # Fetched 2026-08-18 from platform.claude.com/docs/en/about-claude/pricing:
+    # base input $10, output $50, 1h cache write $20 (2x base), cache hit $1
+    # (0.1x base); Batch API halves input and output to $5/$25, and the cache
+    # multipliers stack on the discounted input — the same construction the
+    # opus-4-8 rows use. Twice opus on every cell, so a fable seat is two
+    # opus seats' worth of bill.
+    ("claude-fable-5", "anthropic_batch"):
+        {"in": 5.0, "out": 25.0, "cache_write": 10.0, "cached_in": 0.5},
+    ("claude-fable-5", "anthropic_sync"):
+        {"in": 10.0, "out": 50.0, "cache_write": 20.0, "cached_in": 1.0},
     ("moonshotai/kimi-k3", "openrouter_sync"):
         {"in": 3.0, "out": 15.0, "cached_in": 0.3},
     # The target seat (user, 2026-08-16). OpenRouter API pricing object,

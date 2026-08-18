@@ -98,6 +98,7 @@ def test_the_flex_pool_reads_its_limit_from_the_route_not_a_literal(monkeypatch)
     """Concurrency belongs to the route. Flex and OpenRouter have unrelated
     rate limits, so one number for both throttled the generous provider to the
     strict one's ceiling."""
+    other = routes.ADAPTERS["openrouter_sync"].concurrency
     monkeypatch.setitem(
         routes.ADAPTERS, "openai_flex",
         dataclasses.replace(routes.ADAPTERS["openai_flex"], concurrency=2),
@@ -124,7 +125,10 @@ def test_the_flex_pool_reads_its_limit_from_the_route_not_a_literal(monkeypatch)
     )
     assert len(out) == 8
     assert 1 < peak <= 2, "the pool runs concurrently, capped by its own route"
-    assert routes.ADAPTERS["openrouter_sync"].concurrency == 8, (
+    # Read before the patch, not written as a literal: the invariant is that
+    # narrowing one route leaves the other alone, and pinning the number here
+    # made a routine retune of `openrouter_sync` look like a regression.
+    assert routes.ADAPTERS["openrouter_sync"].concurrency == other != 2, (
         "the other synchronous route keeps its own limit"
     )
     # A batch route hands the whole group to the provider, which fans it out

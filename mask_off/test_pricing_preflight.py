@@ -491,6 +491,52 @@ def test_stage_b_submits_only_behind_go(monkeypatch, tmp_path, capsys,
     assert ("dry run" in capsys.readouterr().out) is not submits
 
 
+def _stage_b_argv(monkeypatch, run_dir, tmp_path, *extra):
+    """Drive `scale.main()` into the Stage B branch with the money stubbed out."""
+    from . import scale
+
+    corpus = tmp_path / "corpus.jsonl"
+    corpus.write_text('{"result_id": "r1"}\n', encoding="utf-8")
+    monkeypatch.setattr(sys, "argv",
+                        ["scale", "evaluate", "--run-dir", str(run_dir),
+                         "--corpus", str(corpus), *extra])
+    monkeypatch.setattr(scale, "evaluate_corpus", lambda *a, **k: None)
+    monkeypatch.setattr(launch, "preflight", lambda probe=True: True)
+    monkeypatch.setattr(launch, "print_stage_b_totals", lambda *a, **k: True)
+    return scale
+
+
+def test_stage_b_creates_the_run_dir_on_first_go(monkeypatch, tmp_path):
+    """`--corpus` lets Stage B evaluate a frozen corpus with no Stage A before
+    it, so the first --go can be the first thing to touch the run directory.
+    `generate` mkdirs at its top and `run_lock` mkdirs on entry, but the
+    manifest is written before either runs, so nothing had created the parent
+    and the write raised FileNotFoundError.
+
+    The sibling CLI does this already (`evalaware.main` mkdirs before it
+    writes draw.json); scale did not. Every earlier test passed `tmp_path`
+    itself, which pytest has already created, so none of them could see it."""
+    run_dir = tmp_path / "fresh"  # deliberately absent
+    scale = _stage_b_argv(monkeypatch, run_dir, tmp_path, "--go")
+
+    scale.main()
+
+    assert (run_dir / "stage_b.json").exists()
+
+
+def test_a_stage_b_dry_run_still_creates_nothing(monkeypatch, tmp_path):
+    """The constraint on the fix above: a dry run prices the pass and touches
+    nothing, so the mkdir belongs behind --go, not before the manifest gate.
+    Creating the directory to hold a manifest a dry run never writes would
+    leave an empty run dir behind every time an operator checked a price."""
+    run_dir = tmp_path / "fresh"
+    scale = _stage_b_argv(monkeypatch, run_dir, tmp_path)
+
+    scale.main()
+
+    assert not run_dir.exists()
+
+
 def test_stage_b_manifest_refuses_a_config_edit_mid_run(monkeypatch, tmp_path):
     """A seat/K/probe edit between two invocations of one run dir would
     re-buy every cell and overwrite the eval rows as if one config produced

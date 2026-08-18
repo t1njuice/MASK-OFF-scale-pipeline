@@ -44,6 +44,40 @@ lookup yields today:
 `openrouter_batch` is built as an adapter (~150 lines behind a protocol that
 must exist anyway) but is never first choice while native keys exist.
 
+**Amended 2026-08-18.** The table above is the decision as taken; it is not
+what ships. Three of its five routes were never built or were removed:
+`openai_batch` went on 2026-08-16 (flex carries the same Batch API rates on a
+synchronous call, so the 24-hour window bought nothing), and `google_batch`
+and `openrouter_batch` do not exist in `routes.ADAPTERS`. What ships is three
+adapters — `anthropic_batch`, `openai_flex`, `openrouter_sync` — and
+`google/*` lands on `openrouter_sync` with the rest. `route()` also lost its
+`latency` parameter with the OpenAI batch route; its signature is
+`route(model: str) -> str`. `config.ROUTE_OVERRIDES`, named in the README
+until today, was never implemented.
+
+**Only one of the three is a batch endpoint.** `anthropic_batch` hands the
+whole group to the provider and it fans out server-side; the other two are
+synchronous calls fanned out from a local `ThreadPoolExecutor`. On the
+sixteen-seat roster a 300-item Stage B pass sends 22,200 requests (26.8%) to
+`anthropic_batch`, 33,600 (40.6%) to `openai_flex` and 27,000 (32.6%) to
+`openrouter_sync`.
+
+**Concurrency is per route** (`Adapter.concurrency`), because two providers do
+not share a rate limit and one shared literal throttled the generous one to
+the strict one's ceiling. It is `None` on `anthropic_batch` — a batch adapter
+has no per-request fan-out to size. Raised 2026-08-18 from a shared literal 8
+to `openai_flex` 16 and `openrouter_sync` 32, on the request split rather than
+on timings; both remain unmeasured and the note beside them in `routes.py`
+records the measurement that should replace them. The asymmetry is deliberate:
+an OpenRouter 429 on a paid variant is transient and `_openrouter_call`
+absorbs it in three tries, whereas a flex 429 falls back to
+`service_tier: "auto"` and bills at twice the flex rate.
+
+**`dispatch` runs the route groups serially**, sorted by name, so
+`anthropic_batch` goes first and neither pool starts until the Claude batch
+returns. That is the wall-clock floor of any pass with Anthropic seats, and no
+concurrency setting reaches it. Crossing the groups is still open (§10).
+
 ## 3. Latency classes (the iteration-turn decision)
 
 Two classes, passed per call:

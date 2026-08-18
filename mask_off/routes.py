@@ -137,18 +137,28 @@ def _run_openrouter(requests, label, progress, hooks: Hooks) -> dict:
 
 ADAPTERS: dict[str, Adapter] = {
     "anthropic_batch": Adapter("anthropic_batch", _run_anthropic),
-    # UNMEASURED. Both numbers are the single literal 8 that used to sit in two
-    # files, moved here and not yet replaced by evidence. The flex tier is
-    # reported at 1M tokens and 5,000 requests per minute, far above 8
-    # concurrent calls, so the ceiling that actually binds this pipeline is
-    # unknown and 8 is a guess in either direction. Raising it on a guess is
-    # the mistake this field exists to fix: a flex 429 falls back to standard,
-    # which bills at twice the flex rate, so a stampede of fallbacks doubles
-    # the price of the stage. Measure a route's throughput first — one
-    # timed Stage B cohort at two limits, wall time and per-route error count
-    # both recorded — then edit its number here and nowhere else.
-    "openai_flex": Adapter("openai_flex", _run_openai_flex, concurrency=8),
-    "openrouter_sync": Adapter("openrouter_sync", _run_openrouter, concurrency=8),
+    # STILL UNMEASURED, but no longer equal. Both were the single literal 8
+    # that used to sit in two files. Raised 2026-08-18 from the request split,
+    # not from timings: across a Stage B pass roughly a quarter of requests
+    # reach the Anthropic batch, which fans out server-side and has no pool to
+    # size, and three quarters go through these two pools — and `dispatch`
+    # runs the route groups one after another, so both sit on the critical
+    # path in sequence. The next pilot is the measurement that replaces these:
+    # one timed Stage B cohort, wall time and per-route error count recorded,
+    # then edit the number here and nowhere else.
+    #
+    # They differ because a miss costs differently on each. OpenRouter caps
+    # only its free variants (20 RPM); on a paid variant a 429 is transient,
+    # `_openrouter_call` already absorbs it in three tries, and the worst case
+    # is a resubmitted sample — so this is the cheap pool to widen. A flex
+    # 429 instead falls back to `service_tier: "auto"` in
+    # `batch_providers.flex_call`, which bills at twice the flex rate: a
+    # stampede of fallbacks doubles the price of the stage and lands on the
+    # invoice rather than in the logs. So flex moves by half as much, and the
+    # count of `openai_sync` rows in the pilot's `_results.jsonl` is what says
+    # whether even 16 was too far.
+    "openai_flex": Adapter("openai_flex", _run_openai_flex, concurrency=16),
+    "openrouter_sync": Adapter("openrouter_sync", _run_openrouter, concurrency=32),
 }
 
 # Routes that write a handle to the journal before polling, so an orphan

@@ -677,6 +677,11 @@ def main():
         if not args.go:
             print("dry run — pass --go to submit")
             return
+        # --corpus lets Stage B run with no Stage A before it, so this can be
+        # the first thing to touch the run dir. `run_lock` mkdirs too, but it
+        # is entered inside evaluate_corpus, below this write. Behind --go: a
+        # dry run must leave no directory behind.
+        args.run_dir.mkdir(parents=True, exist_ok=True)
         if not mpath.exists():
             mpath.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
         evaluate_corpus(args.run_dir, args.cohort_size, args.fill,

@@ -5,3 +5,6 @@
 # Python bytecode
 __pycache__/
 *.py[cod]
+
+# git worktrees created for isolated feature work
+.claude/worktrees/

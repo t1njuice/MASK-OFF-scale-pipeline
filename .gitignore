@@ -8,3 +8,7 @@ __pycache__/
 
 # git worktrees created for isolated feature work
 .claude/worktrees/
+
+# the pre-canary pool corpora: real build artifacts, deliberately untracked
+# (their digests are recorded in the build reports instead)
+output/*_precanary.jsonl

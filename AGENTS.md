@@ -111,6 +111,10 @@ package; it records what each closed ticket settled, so you do not re-derive it.
   longer written; the ones that existed were deleted on 2026-08-13.
 - **Define jargon before you use it.** Readability beats compression.
 - **Prize minimal diffs.**
+- **Write every doc, comment, commit message and PR description under the
+  `technical-writing` and `unslop` skills.** They live in `.claude/skills/`.
+  Invoke both before you write or review prose. This rule binds subagents too:
+  name it in every agent prompt that produces text.
 
 ## Style
 

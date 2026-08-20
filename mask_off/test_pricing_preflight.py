@@ -247,9 +247,9 @@ if __name__ == "__main__":
 
 def test_preflight_probes_an_anthropic_model_not_the_generator(monkeypatch):
     """The credential probe was hardwired to GENERATOR_MODEL on the Anthropic
-    client, which held only while the generator was a claude-* id. A
-    non-Claude generator — the ablation table's cross-generator row — 404s a
-    model that is perfectly reachable on openrouter_sync."""
+    client, which held only while the generator was a claude-* id.
+    `GENERATOR_MODEL` is `moonshotai/kimi-k3`, so that probe 404s a model that
+    is perfectly reachable on openrouter_sync."""
     flash = "deepseek/deepseek-v4-flash-0731"
     seat = Seat("f", flash, "medium", 8000)
     monkeypatch.setattr(config, "GENERATOR_MODEL", flash)

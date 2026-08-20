@@ -353,8 +353,9 @@ def preflight(probe: bool = True) -> bool:
     #    there. Derived the same way the OpenRouter check above is, and for
     #    the same reason: the probe used to be hardwired to GENERATOR_MODEL on
     #    the Anthropic client, which held only while the generator was a
-    #    claude-* id. A non-Claude generator — the ablation table's
-    #    cross-generator row — 404s a reachable model and refuses to start.
+    #    claude-* id. `GENERATOR_MODEL` is `moonshotai/kimi-k3` and has been
+    #    since before the 300 were frozen, so that probe 404s a model that is
+    #    perfectly reachable on openrouter_sync, and refuses to start.
     anthropic_models = sorted({
         model
         for model in pricing.configured_models()

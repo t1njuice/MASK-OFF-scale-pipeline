@@ -2,6 +2,8 @@
 
 import json
 
+import pytest
+
 from . import docimport
 
 
@@ -256,3 +258,92 @@ def test_register_is_set_for_bare_items_and_null_for_diverse20():
     rows = {r["source_item_id"]: r for r in _rows()}
     assert rows["S22"]["register"] == "SRL"
     assert rows["DV01"]["register"] is None
+
+
+GOOD_FACET = {
+    "source_item_id": "S22",
+    "authored_by": "claude-opus-5",
+    "authored_on": "2026-08-20",
+    "taxonomy": "Consumer / product safety",
+    "primary_lever": "harm to the user or public / social cost",
+    "pressure_factor": "class of twelve on Tuesday, stations already set",
+    "disclosure_rationale": " ".join(["word"] * 60),
+}
+
+
+def _one_row():
+    # 60 words, so a rationale echoing it clears the word-count bound and
+    # can only fail on the echo branch. A short note here made this test
+    # pass for the wrong reason.
+    return [{"source_item_id": "S22", "obligation_note": " ".join(["note"] * 60)}]
+
+
+def test_validate_facets_accepts_a_clean_row():
+    docimport.validate_facets(_one_row(), [dict(GOOD_FACET)])
+
+
+def test_validate_facets_rejects_a_missing_item():
+    """Counts match, ids do not. The count check cannot catch this one."""
+    wrong = dict(GOOD_FACET, source_item_id="S99")
+    with pytest.raises(ValueError, match="no facet row for S22"):
+        docimport.validate_facets(_one_row(), [wrong])
+
+
+def test_validate_facets_rejects_a_duplicate_item():
+    with pytest.raises(ValueError, match="duplicate"):
+        docimport.validate_facets(_one_row(), [dict(GOOD_FACET), dict(GOOD_FACET)])
+
+
+def test_validate_facets_rejects_an_off_vocabulary_taxonomy():
+    bad = dict(GOOD_FACET, taxonomy="Consumer / financial and contractual harm")
+    with pytest.raises(ValueError, match="taxonomy"):
+        docimport.validate_facets(_one_row(), [bad])
+
+
+def test_validate_facets_rejects_an_off_vocabulary_lever():
+    bad = dict(GOOD_FACET, primary_lever="urgency")
+    with pytest.raises(ValueError, match="primary_lever"):
+        docimport.validate_facets(_one_row(), [bad])
+
+
+def test_validate_facets_rejects_a_short_pressure_factor():
+    bad = dict(GOOD_FACET, pressure_factor="Tuesday")
+    with pytest.raises(ValueError, match="pressure_factor"):
+        docimport.validate_facets(_one_row(), [bad])
+
+
+def test_validate_facets_rejects_a_short_rationale():
+    bad = dict(GOOD_FACET, disclosure_rationale=" ".join(["word"] * 20))
+    with pytest.raises(ValueError, match="disclosure_rationale"):
+        docimport.validate_facets(_one_row(), [bad])
+
+
+def test_validate_facets_rejects_a_rationale_that_is_the_obligation_note():
+    """Move two is the point. A batch that echoed move one did not do the job."""
+    note = _one_row()[0]["obligation_note"]
+    bad = dict(GOOD_FACET, disclosure_rationale=note)
+    # Match the echo branch specifically. "disclosure_rationale" alone also
+    # matches the word-count error, which is how this test passed vacuously.
+    with pytest.raises(ValueError, match="move two missing"):
+        docimport.validate_facets(_one_row(), [bad])
+
+
+def test_validate_facets_rejects_a_truncated_sidecar():
+    rows = _one_row() + [{"source_item_id": "S23", "obligation_note": "n"}]
+    with pytest.raises(ValueError, match="facet rows for"):
+        docimport.validate_facets(rows, [dict(GOOD_FACET)])
+
+
+def test_validate_facets_requires_the_authoring_provenance():
+    """A subagent pass cannot be reproduced by rerunning it, so the sidecar
+    is the only record of who wrote these values and when."""
+    bad = dict(GOOD_FACET)
+    del bad["authored_by"]
+    with pytest.raises(ValueError, match="authored_by"):
+        docimport.validate_facets(_one_row(), [bad])
+
+
+def test_facet_report_shows_both_pools_side_by_side():
+    report = docimport.facet_report(_one_row(), [dict(GOOD_FACET)])
+    assert "Consumer / product safety" in report
+    assert "pool A" in report

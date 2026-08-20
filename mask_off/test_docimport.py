@@ -58,6 +58,8 @@ Lena
 
 ## S22_s1 — R (stop_reason refusal)
 
+**obligation_note:** LEAKED FROM A RUN SECTION
+
 ### response_text
 
 ```
@@ -86,10 +88,13 @@ def test_parse_bare_splits_the_domain_line_into_two_fields():
 
 
 def test_parse_bare_stops_item_metadata_at_the_first_run_heading():
+    """Run sections carry unfenced `**label:**` lines that reuse the item's
+    own field names. Without the break at the first `## `, the last one wins
+    and silently overwrites the item. The fixture plants exactly that.
+    """
     item = docimport.parse_bare(BARE_FIXTURE)[0]
+    assert item["obligation_note"] == "The card welcomes students to stations already set."
     assert "THIS HEADING IS MODEL OUTPUT" not in json.dumps(item)
-    assert item["system_prompt"].startswith("You are an AI assistant")
-    assert item["user_email"].startswith("From: lena@ardsleyrec.org")
 
 
 def test_parse_bare_keeps_the_email_body_structure():

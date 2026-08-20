@@ -12,8 +12,9 @@ reviewed this file.
 
 ## 0. Corpus composition (amended 2026-08-14; run order set 2026-08-18)
 
-> **Run order (user, 2026-08-18).** Pool B is not built yet and the census
-> does not wait for it. Stage B runs on the frozen 300 (pool A) now, into its
+> **Run order (user, 2026-08-18;** ~~Pool B is not built yet~~ **— it was
+> built and frozen on 2026-08-20, see the amendment below; the run order
+> itself still stands).** The census does not wait for it. Stage B runs on the frozen 300 (pool A) now, into its
 > own run directory; pool B is evaluated as a **second pass** into a second
 > run directory when it is built and gated. The batch cache makes the two
 > independent — neither re-buys the other's cells — and a delay in pool B

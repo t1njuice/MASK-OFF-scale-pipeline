@@ -7,11 +7,15 @@ facets (domain ~14 categories, user role, assistant role, emotional
 tone). Two authors hand-label a random sample of n scenarios. The
 paper reports Cohen's kappa (judge vs. author) per facet.
 
-> **Amendment 2026-08-14**: the corpus is **N = 500**, not 1000
-> (learning record 0006), and it holds two pools (300 + 200, record
-> 0007). The worked example below keeps N = 1000; the corrected
-> numbers and the new recommendation are in the amendment block
-> after section (b)'s recommendation.
+> **Amendment 2026-08-14**: the corpus is **N = 500**, not 1000, and
+> it holds two pools. The worked example below keeps N = 1000; the
+> corrected numbers and the new recommendation are in the amendment
+> block after section (b)'s recommendation.
+>
+> **Amendment 2026-08-20**: the two pools are **400 pool A + 100 pool
+> B**, not 300 + 200, and pool B is doc-derived rather than generated.
+> N is still 500, so every half-width in this file stands unchanged —
+> but the POOL SPLIT of the sample does not. See the next amendment.
 
 Definitions used below:
 
@@ -151,10 +155,15 @@ the judge on this corpus"). A reviewer who reads kappa as a property
 of the rubric (superpopulation) rejects the FPC, so the no-FPC
 column is the defensive one.
 
-- **Recommendation: n = 200** (120 pool A / 80 pool B, the corpus
-  ratio). It is the old defensible minimum even without the FPC
-  (±0.063), and with the FPC it matches the originally planned
-  n = 300 precision (±0.049 vs ±0.043).
+- **Recommendation: n = 200** (~~120 pool A / 80 pool B~~ —
+  **amended 2026-08-20: 160 pool A / 40 pool B**, the corpus ratio at
+  400/100; see `ANALYSIS_PLAN.md` §5). It is the old defensible
+  minimum even without the FPC (±0.063), and with the FPC it matches
+  the originally planned n = 300 precision (±0.049 vs ±0.043). n is
+  unchanged, so those half-widths hold; only the pool split moves.
+  Pool B's own stratum drops to 40, so per-pool κ on pool B is
+  descriptive only and carries a wider interval than the 80 assumed
+  here.
 - **Floor: n = 150.** Justifiable only with the finite-population
   estimand stated (±0.061). It barely clears the 10-per-domain
   stratification floor (10 × 14 = 140).
@@ -210,8 +219,9 @@ Robustness checks to run alongside kappa:
 1. Pass bar: kappa >= 0.80 per facet. Floor 0.67 with caveat.
    Report the Landis & Koch scale row for each result.
 2. Hand-label n = 200 of the 500 (amendment 2026-08-14; was 300 of
-   1000), stratified by pool (120/80) and by domain with
-   proportional allocation and a 10-item floor per domain category.
+   1000), stratified by pool (~~120/80~~ **160/40, amended
+   2026-08-20**) and by domain with proportional allocation and a
+   10-item floor per domain category.
 3. Report 95% CIs on every kappa (SE formula above, or bootstrap).
 4. Report Krippendorff's alpha and PABAK as robustness checks on
    skewed facets, plus raw P_o and label distributions.

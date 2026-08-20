@@ -1,8 +1,10 @@
 # ANALYSIS_PLAN.md — draft for both-author review (ticket 013)
 
 Derived from `docs/shared-understanding-2026-08-13.md` plus the 2026-08-14
-amendments (learning records 0006, 0007). Nothing scales before the remaining
-TBDs are filled and the file is committed. "Pre-specified" means committed to
+amendments. (Those amendments were recorded in `learning-records/`, removed
+2026-08-20; the decisions they carried are restated in §0 and in
+`docs/shared-understanding-2026-08-13.md` §6.) Nothing scales before the
+remaining TBDs are filled and the file is committed. "Pre-specified" means committed to
 git before the data it governs exists.
 
 Status: draft written 2026-08-14. Ticket 013 closes when both authors have
@@ -291,7 +293,8 @@ flagged responses would delete the treatment effect being measured).
   than a decider. Freeze commit hash recorded here: TBD.
 - **Labeling frame (amended 2026-08-14, co-author review pending): n = 200
   items** drawn once from the frozen 500, after both pools exist.
-  Stratified by pool at the corpus ratio (120 pool A / 80 pool B) and by
+  Stratified by pool at the corpus ratio (~~120 pool A / 80 pool B~~ — see
+  the 2026-08-20 amendment below) and by
   domain (floor 10 per domain over the pooled frame). One `sample_sha`; the
   frame is never topped up (LABELING_DESIGN §10).
   - **Amended 2026-08-20** (§0 recomposition to 400 pool A / 100 pool B):

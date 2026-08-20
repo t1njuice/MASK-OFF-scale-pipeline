@@ -30,7 +30,9 @@ write, $2.91 against $8.29 uncached. Do not spend a ticket there.
    files to roughly 250. Every later ticket assumes it landed.
 2. **Evidence lives in `docs/evidence/`.** No ticket needs the results tree.
 3. **One ticket = one fresh context window = one verification command.** The
-   command is `uv run python -m pytest mask_off -q`. Baseline: 79 passed.
+   command is `uv run python -m pytest mask_off -q`. Baseline: ~~79~~ **439
+   passed** (2026-08-20; this number goes stale on most tickets, so read a
+   higher one as growth rather than regression).
 4. **This map is the shared memory.** Record every closed ticket below in one
    line, so the next agent does not re-derive what the last one settled.
 
@@ -189,8 +191,11 @@ write, $2.91 against $8.29 uncached. Do not spend a ticket there.
   an existing run directory replays from the top and re-bills its Stage A work.
   Journaled batches still drain — `drain_orphans` matches ids and keys verbatim
   from `_batches.jsonl` and never recomputes them — so no paid work is lost,
-  only re-bought. User confirmed harmless 2026-08-13; `output/` is empty on
-  this branch and no `_results.jsonl` exists in the checkout.
+  only re-bought. User confirmed harmless 2026-08-13; ~~`output/` is empty on
+  this branch and no `_results.jsonl` exists in the checkout~~ — **that
+  no-live-consequence argument expired 2026-08-20:** `output/` now holds five
+  run directories, including a live stamped Stage B run with `_results.jsonl`
+  present. Re-read this defect before touching the journal path.
 - **Two published figures were wrong and are corrected in `docs/evidence/`.**
   p6 holds 103 log records but **102 waves** (one record is a lint record
   sharing a wave), and **50** of them fall on the 5 seeds that never accepted,
@@ -245,7 +250,11 @@ write, $2.91 against $8.29 uncached. Do not spend a ticket there.
   runs, so `git add -A` picked them up. `AGENTS.md` now names the mechanism:
   stage by name, never `-A`, never `-a`. Editing a prompt also moves
   `scale.fingerprint`, so every stamped run directory refuses to resume
-  without `--force`. No live consequence — `output/` is empty on this branch.
+  without `--force`. ~~No live consequence — `output/` is empty on this
+  branch.~~ **Expired 2026-08-20:** `output/scale_v1_300/` is a stamped run
+  that is still executing, so a config edit now DOES strand it. This is the
+  exact reason the fable-5 removal is held until that run finishes
+  (`ANALYSIS_PLAN.md` §6).
 - **Two vocabulary bans were written wider than the code could obey, and the
   glossary moved rather than the code.** "Transport" is banned as a synonym for
   one Route, but `routes.py` IS the transport seam and that is the ticket's own
@@ -513,7 +522,8 @@ What makes it hold, mechanically:
 
 - Where the iteration cap belongs after the direction-lock fix. Ticket 09
   produces the instrumentation; the next pilot produces the number.
-- Which 13 models fill the target roster. Ticket 07 makes the roster a list;
+- Which models fill the target roster (**16 seated** as of 2026-08-18; §6 of
+  `ANALYSIS_PLAN.md` pre-registers dropping fable-5 to 15). Ticket 07 makes the roster a list;
   it does not choose the entries.
 - Whether the `.claude/worktrees/diversity-20-construction-e33e67` worktree
   should go. It is 3,829 files and 128 MB of a second full checkout, so it

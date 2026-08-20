@@ -258,8 +258,12 @@ mid-write cannot corrupt it.
 Flat per-domain quota: `1200 / 14 ≈ 86` items per domain. Each cohort draws
 stratified across domains that have not met quota.
 
-Pools are already uniform (14 domains × 40 rows × 5 seeds = 200 each), so a flat
-draw and a flat quota look identical *until yield varies by domain*. The quota
+~~Pools are already uniform (14 domains × 40 rows × 5 seeds = 200 each)~~, so a flat
+draw and a flat quota look identical *until yield varies by domain*.
+**Corrected 2026-08-20:** they are not uniform. `experiments/seedcorpus2`
+holds 2500 seeds over **500** of the 560 rows, and per-domain counts run
+165–195, not 200 each. The argument still holds — a flat draw and a flat quota
+diverge once yield varies by domain — but it does not rest on uniformity. The quota
 exists only for that case: a domain the validity gate treats harshly keeps
 drawing instead of being silently underrepresented.
 
@@ -381,6 +385,14 @@ FINGERPRINT_FIELDS = (
 )
 ```
 
+> **Corrected 2026-08-20.** The tuple above is not what shipped. `VALIDITY_MODEL`
+> does not exist on `config` (`hasattr` is `False`), and the real
+> `config.FINGERPRINT_FIELDS` (`mask_off/config.py:258`) has **11** fields —
+> it drops `VALIDITY_MODEL` and adds `ARBITER_SLOT` and `ARBITER_MAX_TOKENS`,
+> both absent here. The arbiter fields matter: the arbiter instruction shapes
+> every revision the generator makes, so a wording change between runs is an
+> instrument change. Read the tuple from `config.py`, not from this block.
+
 Read via `getattr(config, f)` at run start — **after** any mutation has landed.
 
 This must be an explicit tuple, not the config module's namespace. All 13
@@ -392,6 +404,14 @@ config.VALIDITY_PANEL = ["openai/gpt-5.6-terra-pro", "x-ai/grok-4.5"]
 config.VALIDITY_VOTES = 2
 from mask_off.frozen_pipeline import run     # only now
 ```
+
+> **The example above is stale in two ways (2026-08-20).** `gpt-5.6-terra-pro`
+> is on no panel, in no price table and on no route — `config.py:329`
+> explicitly disowns it. And `VALIDITY_PANEL` is a list of `Seat` objects, not
+> of model-id strings. The "all 13 experiment scripts" this section describes
+> were deleted on 2026-08-13 (`AGENTS.md`), so the pattern it documents has no
+> remaining caller. Kept as the rationale for why `FINGERPRINT_FIELDS` must be
+> an explicit tuple rather than the config namespace — that reasoning stands.
 
 Hashing the namespace would sweep in `BATCH_POLL_SECONDS` and `OUTPUT_DIR`, so
 changing the poll interval would lock you out of your own run. The explicit tuple

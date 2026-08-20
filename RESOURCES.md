@@ -36,6 +36,6 @@
 
 ## Gaps
 
-- `ANALYSIS_PLAN.md` is derived from §8 but not yet committed — it must exist before Phase 4 scales.
-- No code exists for Self-BLEU, POS compression ratio, Vendi Score, Cramér's V, or the verb–object task extraction. §8 promises all five.
-- The binding 300-item sample and its κ run are blocked on the frozen corpus existing.
+- ~~`ANALYSIS_PLAN.md` is derived from §8 but not yet committed~~ — **closed 2026-08-20:** it is committed at the repo root, 560 lines.
+- No code exists for Self-BLEU, POS compression ratio, Vendi Score, Cramér's V, or the verb–object task extraction. §8 promises all five. (**Still open 2026-08-20.** `diversity/shared_text.py` exists but covers the shared-phrase audit, not these five.)
+- ~~The binding 300-item sample and its κ run are blocked on the frozen corpus existing.~~ **Restated 2026-08-20:** all three corpora are frozen, so the corpus no longer blocks it. The sample is **n = 200**, not 300, and its pool split is 160 A / 40 B (`ANALYSIS_PLAN.md` §5). What it now waits on is author labels.

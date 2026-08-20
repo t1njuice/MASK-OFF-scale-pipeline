@@ -1023,8 +1023,10 @@ def test_validate_facets_accepts_a_clean_row():
 
 
 def test_validate_facets_rejects_a_missing_item():
-    with pytest.raises(ValueError, match="S22"):
-        docimport.validate_facets(_one_row(), [])
+    """Counts match, ids do not. The count check cannot catch this one."""
+    wrong = dict(GOOD_FACET, source_item_id="S99")
+    with pytest.raises(ValueError, match="no facet row for S22"):
+        docimport.validate_facets(_one_row(), [wrong])
 
 
 def test_validate_facets_rejects_a_duplicate_item():

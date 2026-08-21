@@ -194,3 +194,27 @@ def test_a_stale_openai_batch_journal_row_is_skipped_never_tombstoned(tmp_path):
 
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))
+
+
+def test_a_rate_limit_429_retries_and_falls_back_to_auto(monkeypatch):
+    """A plain rate-limit 429 (no `resource_unavailable` in the body) must
+    back off and retry like a capacity 429, ending on the auto-tier
+    fallback — found 2026-08-21: a throttled key failed every terra judge
+    request on first touch instead of retrying."""
+    monkeypatch.setattr(batch_providers, "FLEX_BACKOFF_SECONDS", (0, 0))
+    calls = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        tier = json.loads(request.read())["service_tier"]
+        calls.append(tier)
+        if len(calls) < 3:
+            return httpx.Response(429, json={"error": {
+                "message": "Rate limit reached for gpt-5.6-terra"}})
+        return httpx.Response(200, json={
+            "model": "gpt-5.6-sol-2026-07-01", "service_tier": "default",
+            "choices": [{"message": {"content": "ok"}, "finish_reason": "stop"}],
+            "usage": {"prompt_tokens": 1, "completion_tokens": 1}})
+
+    msg = batch_providers.flex_call(_req("a")["params"], _client(handler))
+    assert calls == ["flex", "flex", "auto"]
+    assert msg.route == "openai_sync", "the fallback tier bills as sync"

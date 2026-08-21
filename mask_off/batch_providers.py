@@ -70,8 +70,13 @@ def _flex_client() -> httpx.Client:
     )
 
 
-def _is_resource_unavailable(resp: httpx.Response) -> bool:
-    return resp.status_code == 429 and "resource_unavailable" in resp.text.lower()
+def _is_retryable_429(resp: httpx.Response) -> bool:
+    """Any 429 retries: `resource_unavailable` is flex capacity, everything
+    else is account rate-limiting — both are transient, and the last
+    attempt's auto tier sidesteps the flex queue either way (2026-08-21:
+    a throttled key failed every request on first touch instead of
+    backing off)."""
+    return resp.status_code == 429
 
 
 def flex_call(params: dict, client: httpx.Client | None = None):
@@ -97,7 +102,7 @@ def flex_call(params: dict, client: httpx.Client | None = None):
                 "openai_flex" if data.get("service_tier") == "flex" else "openai_sync"
             )
             return msg
-        if not _is_resource_unavailable(resp) or attempt == FLEX_ATTEMPTS - 1:
+        if not _is_retryable_429(resp) or attempt == FLEX_ATTEMPTS - 1:
             resp.raise_for_status()
         time.sleep(FLEX_BACKOFF_SECONDS[min(attempt, len(FLEX_BACKOFF_SECONDS) - 1)])
     raise RuntimeError("unreachable")

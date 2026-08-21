@@ -301,6 +301,98 @@ unchanged. Only the grading surface merges; `kappa.py` still scores two independ
 measurements. If the notebook stops between phase 1 and phase 2, the next launch
 serves that item's phase 2 first.
 
+## 13. Amendment 2026-08-22 — the role-audit frame
+
+Declared before any binding role label beyond the 9 calibration rows existed.
+Task A (response grading, 100 cells × 3) is **unchanged** by everything below.
+
+### Why the deviation
+
+Both judges labeled the full frame-150 under menu `75616a058466`. Judge-vs-judge
+κ: beneficiary 0.815, institution 0.659, standing 0.629 — institution and
+standing sit at or below the 0.667 discard line, and the confusion diagnostic
+fires the §6 overlap rule: `new / current` holds 59% of standing disagreements
+and is hereby named a residual overlap. Two consequences:
+
+1. Human validation of the judge labels cannot be skipped ("models are good at
+   entities" is false for these constructs), but it also need not be uniform —
+   the information sits where the judges disagree.
+2. **Beneficiary is the primary diversity axis** (judge-judge 0.815);
+   institution and standing are reported as descriptive, with the overlap named.
+   Any corpus diversity number on institution or standing states which judge
+   file produced it, or uses the two-judge-consensus subset with the
+   disagreement rate quoted.
+
+### The frame
+
+Built by `build_role_audit.py` from the two frozen judge files
+(`judge_axes_claude-opus-4-8.jsonl`, `judge_axes_openai_gpt-5.6-terra-pro.jsonl`)
+and `sample_150.jsonl`; output `out/frame150/role_audit.json`, seed 20260822,
+`frame_sha 34bd7a107867`. Three strata, drawn before looking at any existing
+author rows:
+
+| Stratum | Definition | Frame | Drawn | weight_stratum |
+|---|---|---|---|---|
+| `disagree` | judges differ on any axis | 50 | 50 (census) | 1 |
+| `agree_cell` | judges agree; item is an audited cell the author opens anyway | 68 | 68 (census) | 1 |
+| `agree_noncell` | judges agree; not a cell | 32 | 10 (seeded SRS) | 3.2 |
+
+128 role items; ~28 of them are reads the author would not otherwise do (vs ~50
+under the full 150). All 100 audited cells are inside the frame by construction.
+The frame is frozen against the two named judge files: a judge re-run or menu
+change does not move it. Selecting the frame on judge disagreement does not bias
+per-judge estimates — the strata are a deterministic partition of a frozen
+frame, so the stratum-weighted estimator is unbiased for any per-item indicator,
+including "judge J matches the human" for either J separately.
+
+### The gate, restated
+
+The §6 gate becomes the **frame-projected κ per axis**: Horvitz–Thompson
+weighted P\_o and marginals under `weight_stratum`, κ formed from those, 95%
+stratified bootstrap (census strata fixed, SRS stratum resampled). The
+registered bars are unchanged: ≥ 0.80 passes, 0.67–0.80 tentative, below 0.67
+fails — applied to author-vs-author and to judge-vs-adjudicated per axis.
+Per-stratum unweighted κ is diagnostic only: the disagree stratum understates κ
+by construction and the SRS stratum is too small to read alone. Projected raw
+accuracy is reported **beside** the κ with the weighted majority-class baseline
+— never as the gate (skewed marginals: a constant "current" rater scores
+P\_o ≈ 0.89 on standing). Corpus-level rates additionally multiply
+`weight_domain` (the 150 is not self-weighting; weights run 1.0–5.3).
+
+Precision, pre-stated: the census strata carry no sampling error, so the
+projected-accuracy half-width is (32/150)·CI(p̂ on 10 of 32). At p = 0.90 that
+is about ±0.033; at p = 0.70 about ±0.055. Report the realized interval.
+
+The n = 150 floor in `agreement-standards.md` applied to a κ on a
+representative sample; it is superseded for the role validation by this
+stratified design. The 10-per-domain stratification floor is broken at 128;
+per-domain error analysis on the role axes is therefore dropped.
+
+### Adjudication protocol (pre-registered)
+
+1. Both authors label the 128 independently; both files committed with stamps
+   before any discussion.
+2. Disagreements adjudicated by discussing the **email only, blind to both
+   judge files**; the adjudicated label goes to a third file
+   (`adjudicated: true` plus a note), never edits either author file.
+3. Report the fraction of the 128 requiring adjudication, per axis.
+4. Judge accuracy is reported under three references as a sensitivity band:
+   strict (matches both authors), lenient (matches either), adjudicated. The
+   adjudicated number outside [strict, lenient] means the protocol failed.
+
+### Mechanics
+
+Every role row saved under the frame carries `frame_sha`, `stratum`,
+`weight_stratum`, `weight_domain`, `weight`. `check_rows()` stops on a
+`frame_sha` mismatch (rows without the key predate the frame; the projection
+recomputes their membership). The notebook queues an item while its roles are
+needed (in frame, unsaved) **or** its responses are incomplete, so every cell
+reaches phase 2 whatever the role frame says. `kappa.py --frame
+out/frame150/role_audit.json <files…>` prints the projected section and marks
+it PROVISIONAL until every stratum is fully labeled. The 2 already-labeled
+rows outside the frame stay in the author file (append-only) and are excluded
+from the projection by id.
+
 ## Artifact paths
 
 - This design: `diversity/labeling/LABELING_DESIGN.md`

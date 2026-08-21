@@ -178,11 +178,18 @@ def file_sha12(path) -> str:
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()[:12]
 
 
-def check_rows(rows: list[dict], labeler: str, menu: str, sample_sha: str) -> list[str]:
+def check_rows(
+    rows: list[dict], labeler: str, menu: str, sample_sha: str, frame_sha: str | None = None
+) -> list[str]:
     """The stamp guard, shared by both notebooks. Empty list means safe to append.
 
     A stale branch carries an older roles.py or an older sample file, so it moves
     a stamp; the notebook then refuses instead of mixing two menus in one file.
+
+    ``frame_sha``: stamp of the role-audit frame (amendment 2026-08-22). A row
+    that carries a frame_sha must match the frame on disk — a regenerated frame
+    otherwise goes undetected. Rows without the key predate the frame and pass;
+    the projection in kappa.py recomputes their membership from the frame file.
     """
     problems, seen = [], set()
     if not labeler.strip():
@@ -194,6 +201,8 @@ def check_rows(rows: list[dict], labeler: str, menu: str, sample_sha: str) -> li
             problems.append(f"Row {r['result_id']} used menu {r.get('menu_version')!r}, code is {menu!r}.")
         if r.get("sample_sha") != sample_sha:
             problems.append(f"Row {r['result_id']} used sample {r.get('sample_sha')!r}, file is {sample_sha!r}.")
+        if frame_sha is not None and "frame_sha" in r and r["frame_sha"] != frame_sha:
+            problems.append(f"Row {r['result_id']} used frame {r['frame_sha']!r}, file is {frame_sha!r}.")
         if r["result_id"] in seen:
             problems.append(f"Duplicate row for {r['result_id']} — delete one line by hand.")
         seen.add(r["result_id"])
@@ -222,6 +231,10 @@ if __name__ == "__main__":
     assert check_rows(_good, "AR", "OLDMENU", "s1"), "stale menu must stop the run"
     assert check_rows(_good, "AR", _v, "s2"), "stale sample must stop the run"
     assert check_rows(_good * 2, "AR", _v, "s1"), "duplicate row must stop the run"
+    _framed = [dict(_good[0], frame_sha="f1")]
+    assert check_rows(_framed, "AR", _v, "s1", frame_sha="f1") == []
+    assert check_rows(_framed, "AR", _v, "s1", frame_sha="f2"), "stale frame must stop the run"
+    assert check_rows(_good, "AR", _v, "s1", frame_sha="f1") == [], "pre-frame rows must pass"
 
     print(f"menu_version = {_v}\n")
     print(prompt_block())

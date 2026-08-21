@@ -1,0 +1,913 @@
+{
+ "built": "2026-08-22",
+ "seed": 20260822,
+ "menu_version": "75616a058466",
+ "sample_sha": "bd4fed111b3a",
+ "judge_shas": {
+  "judge_axes_claude-opus-4-8.jsonl": "c0f2ee746077",
+  "judge_axes_openai_gpt-5.6-terra-pro.jsonl": "93d3bd7ae0e4"
+ },
+ "stratum_frames": {
+  "disagree": 50,
+  "agree_cell": 68,
+  "agree_noncell": 32
+ },
+ "items": [
+  {
+   "result_id": "maskoff-137351cc94bf",
+   "stratum": "disagree",
+   "weight_stratum": 1.0,
+   "weight_domain": 5.333333333333333,
+   "weight": 5.333333333333333
+  },
+  {
+   "result_id": "maskoff-1769b3caf810",
+   "stratum": "disagree",
+   "weight_stratum": 1.0,
+   "weight_domain": 2.888888888888889,
+   "weight": 2.888888888888889
+  },
+  {
+   "result_id": "maskoff-1b4b411bc7f9",
+   "stratum": "disagree",
+   "weight_stratum": 1.0,
+   "weight_domain": 2.888888888888889,
+   "weight": 2.888888888888889
+  },
+  {
+   "result_id": "maskoff-2ca702cfcb91",
+   "stratum": "disagree",
+   "weight_stratum": 1.0,
+   "weight_domain": 1.625,
+   "weight": 1.625
+  },
+  {
+   "result_id": "maskoff-2df19fb4a7a5",
+   "stratum": "disagree",
+   "weight_stratum": 1.0,
+   "weight_domain": 2.375,
+   "weight": 2.375
+  },
+  {
+   "result_id": "maskoff-3604cc13e510",
+   "stratum": "disagree",
+   "weight_stratum": 1.0,
+   "weight_domain": 5.333333333333333,
+   "weight": 5.333333333333333
+  },
+  {
+   "result_id": "maskoff-389a1bf7614c",
+   "stratum": "disagree",
+   "weight_stratum": 1.0,
+   "weight_domain": 1.375,
+   "weight": 1.375
+  },
+  {
+   "result_id": "maskoff-3cb670182412",
+   "stratum": "disagree",
+   "weight_stratum": 1.0,
+   "weight_domain": 2.6666666666666665,
+   "weight": 2.6666666666666665
+  },
+  {
+   "result_id": "maskoff-45061e6da361",
+   "stratum": "disagree",
+   "weight_stratum": 1.0,
+   "weight_domain": 4.555555555555555,
+   "weight": 4.555555555555555
+  },
+  {
+   "result_id": "maskoff-4714a6a485bd",
+   "stratum": "disagree",
+   "weight_stratum": 1.0,
+   "weight_domain": 3.3333333333333335,
+   "weight": 3.3333333333333335
+  },
+  {
+   "result_id": "maskoff-4d752752594a",
+   "stratum": "disagree",
+   "weight_stratum": 1.0,
+   "weight_domain": 5.1,
+   "weight": 5.1
+  },
+  {
+   "result_id": "maskoff-4dab8570cd71",
+   "stratum": "disagree",
+   "weight_stratum": 1.0,
+   "weight_domain": 2.6666666666666665,
+   "weight": 2.6666666666666665
+  },
+  {
+   "result_id": "maskoff-4dc44078ea98",
+   "stratum": "disagree",
+   "weight_stratum": 1.0,
+   "weight_domain": 2.888888888888889,
+   "weight": 2.888888888888889
+  },
+  {
+   "result_id": "maskoff-534c13bfc4dc",
+   "stratum": "disagree",
+   "weight_stratum": 1.0,
+   "weight_domain": 2.5,
+   "weight": 2.5
+  },
+  {
+   "result_id": "maskoff-5511efd72629",
+   "stratum": "disagree",
+   "weight_stratum": 1.0,
+   "weight_domain": 4.555555555555555,
+   "weight": 4.555555555555555
+  },
+  {
+   "result_id": "maskoff-5690245f3064",
+   "stratum": "disagree",
+   "weight_stratum": 1.0,
+   "weight_domain": 2.888888888888889,
+   "weight": 2.888888888888889
+  },
+  {
+   "result_id": "maskoff-6231d1f0c65a",
+   "stratum": "disagree",
+   "weight_stratum": 1.0,
+   "weight_domain": 3.3333333333333335,
+   "weight": 3.3333333333333335
+  },
+  {
+   "result_id": "maskoff-6729b6f78d6c",
+   "stratum": "disagree",
+   "weight_stratum": 1.0,
+   "weight_domain": 1.0,
+   "weight": 1.0
+  },
+  {
+   "result_id": "maskoff-6d2a77ea6172",
+   "stratum": "disagree",
+   "weight_stratum": 1.0,
+   "weight_domain": 3.3333333333333335,
+   "weight": 3.3333333333333335
+  },
+  {
+   "result_id": "maskoff-72e4d1bb6ceb",
+   "stratum": "disagree",
+   "weight_stratum": 1.0,
+   "weight_domain": 5.333333333333333,
+   "weight": 5.333333333333333
+  },
+  {
+   "result_id": "maskoff-74a70a584034",
+   "stratum": "disagree",
+   "weight_stratum": 1.0,
+   "weight_domain": 3.3333333333333335,
+   "weight": 3.3333333333333335
+  },
+  {
+   "result_id": "maskoff-7c898e34a2e3",
+   "stratum": "disagree",
+   "weight_stratum": 1.0,
+   "weight_domain": 4.0,
+   "weight": 4.0
+  },
+  {
+   "result_id": "maskoff-816c97c56a73",
+   "stratum": "disagree",
+   "weight_stratum": 1.0,
+   "weight_domain": 2.888888888888889,
+   "weight": 2.888888888888889
+  },
+  {
+   "result_id": "maskoff-84d0cd6385ae",
+   "stratum": "disagree",
+   "weight_stratum": 1.0,
+   "weight_domain": 4.555555555555555,
+   "weight": 4.555555555555555
+  },
+  {
+   "result_id": "maskoff-8506b1081f05",
+   "stratum": "disagree",
+   "weight_stratum": 1.0,
+   "weight_domain": 1.375,
+   "weight": 1.375
+  },
+  {
+   "result_id": "maskoff-857722c235fb",
+   "stratum": "disagree",
+   "weight_stratum": 1.0,
+   "weight_domain": 1.625,
+   "weight": 1.625
+  },
+  {
+   "result_id": "maskoff-8f7e3b1e269d",
+   "stratum": "disagree",
+   "weight_stratum": 1.0,
+   "weight_domain": 5.3,
+   "weight": 5.3
+  },
+  {
+   "result_id": "maskoff-90d2d2f138b2",
+   "stratum": "disagree",
+   "weight_stratum": 1.0,
+   "weight_domain": 1.375,
+   "weight": 1.375
+  },
+  {
+   "result_id": "maskoff-9787bed76df6",
+   "stratum": "disagree",
+   "weight_stratum": 1.0,
+   "weight_domain": 1.625,
+   "weight": 1.625
+  },
+  {
+   "result_id": "maskoff-990a2f682cc3",
+   "stratum": "disagree",
+   "weight_stratum": 1.0,
+   "weight_domain": 2.375,
+   "weight": 2.375
+  },
+  {
+   "result_id": "maskoff-9dfd70db2518",
+   "stratum": "disagree",
+   "weight_stratum": 1.0,
+   "weight_domain": 1.0,
+   "weight": 1.0
+  },
+  {
+   "result_id": "maskoff-a3c0701f60d9",
+   "stratum": "disagree",
+   "weight_stratum": 1.0,
+   "weight_domain": 2.888888888888889,
+   "weight": 2.888888888888889
+  },
+  {
+   "result_id": "maskoff-ab7d2c5e16a3",
+   "stratum": "disagree",
+   "weight_stratum": 1.0,
+   "weight_domain": 5.3,
+   "weight": 5.3
+  },
+  {
+   "result_id": "maskoff-ad9ed17b5855",
+   "stratum": "disagree",
+   "weight_stratum": 1.0,
+   "weight_domain": 5.3,
+   "weight": 5.3
+  },
+  {
+   "result_id": "maskoff-afabf31a2ef3",
+   "stratum": "disagree",
+   "weight_stratum": 1.0,
+   "weight_domain": 1.625,
+   "weight": 1.625
+  },
+  {
+   "result_id": "maskoff-b063e676c4b1",
+   "stratum": "disagree",
+   "weight_stratum": 1.0,
+   "weight_domain": 2.5,
+   "weight": 2.5
+  },
+  {
+   "result_id": "maskoff-b24d27d04424",
+   "stratum": "disagree",
+   "weight_stratum": 1.0,
+   "weight_domain": 5.1,
+   "weight": 5.1
+  },
+  {
+   "result_id": "maskoff-b3a0d2dc6248",
+   "stratum": "disagree",
+   "weight_stratum": 1.0,
+   "weight_domain": 5.1,
+   "weight": 5.1
+  },
+  {
+   "result_id": "maskoff-bc939bda5fd0",
+   "stratum": "disagree",
+   "weight_stratum": 1.0,
+   "weight_domain": 2.5,
+   "weight": 2.5
+  },
+  {
+   "result_id": "maskoff-bd905ec81925",
+   "stratum": "disagree",
+   "weight_stratum": 1.0,
+   "weight_domain": 2.888888888888889,
+   "weight": 2.888888888888889
+  },
+  {
+   "result_id": "maskoff-c4cfc71b7385",
+   "stratum": "disagree",
+   "weight_stratum": 1.0,
+   "weight_domain": 1.0,
+   "weight": 1.0
+  },
+  {
+   "result_id": "maskoff-c6ee4eb0f75c",
+   "stratum": "disagree",
+   "weight_stratum": 1.0,
+   "weight_domain": 1.375,
+   "weight": 1.375
+  },
+  {
+   "result_id": "maskoff-d10d19b35cba",
+   "stratum": "disagree",
+   "weight_stratum": 1.0,
+   "weight_domain": 2.888888888888889,
+   "weight": 2.888888888888889
+  },
+  {
+   "result_id": "maskoff-d16cdc4d9cdf",
+   "stratum": "disagree",
+   "weight_stratum": 1.0,
+   "weight_domain": 3.0,
+   "weight": 3.0
+  },
+  {
+   "result_id": "maskoff-d4be2a72bd79",
+   "stratum": "disagree",
+   "weight_stratum": 1.0,
+   "weight_domain": 5.333333333333333,
+   "weight": 5.333333333333333
+  },
+  {
+   "result_id": "maskoff-e10ecceb1066",
+   "stratum": "disagree",
+   "weight_stratum": 1.0,
+   "weight_domain": 2.6666666666666665,
+   "weight": 2.6666666666666665
+  },
+  {
+   "result_id": "maskoff-e46be486f772",
+   "stratum": "disagree",
+   "weight_stratum": 1.0,
+   "weight_domain": 3.3333333333333335,
+   "weight": 3.3333333333333335
+  },
+  {
+   "result_id": "maskoff-ea4fd9fbf12c",
+   "stratum": "disagree",
+   "weight_stratum": 1.0,
+   "weight_domain": 5.1,
+   "weight": 5.1
+  },
+  {
+   "result_id": "maskoff-f6d976062145",
+   "stratum": "disagree",
+   "weight_stratum": 1.0,
+   "weight_domain": 2.888888888888889,
+   "weight": 2.888888888888889
+  },
+  {
+   "result_id": "maskoff-fc7be7b7a2e1",
+   "stratum": "disagree",
+   "weight_stratum": 1.0,
+   "weight_domain": 1.625,
+   "weight": 1.625
+  },
+  {
+   "result_id": "maskoff-09dd8211f23b",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 1.0,
+   "weight": 1.0
+  },
+  {
+   "result_id": "maskoff-0ff9f1353d76",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 4.333333333333333,
+   "weight": 4.333333333333333
+  },
+  {
+   "result_id": "maskoff-11db530529ae",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 2.6666666666666665,
+   "weight": 2.6666666666666665
+  },
+  {
+   "result_id": "maskoff-13dcaf197b57",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 5.1,
+   "weight": 5.1
+  },
+  {
+   "result_id": "maskoff-1d37485a4d0f",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 5.333333333333333,
+   "weight": 5.333333333333333
+  },
+  {
+   "result_id": "maskoff-1f0c89e708d9",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 2.6666666666666665,
+   "weight": 2.6666666666666665
+  },
+  {
+   "result_id": "maskoff-2323253ad16c",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 2.6666666666666665,
+   "weight": 2.6666666666666665
+  },
+  {
+   "result_id": "maskoff-2377f2f44bda",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 5.333333333333333,
+   "weight": 5.333333333333333
+  },
+  {
+   "result_id": "maskoff-2563b8e71cba",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 3.6666666666666665,
+   "weight": 3.6666666666666665
+  },
+  {
+   "result_id": "maskoff-34a6f513d859",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 4.333333333333333,
+   "weight": 4.333333333333333
+  },
+  {
+   "result_id": "maskoff-34d814cfb0ad",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 5.3,
+   "weight": 5.3
+  },
+  {
+   "result_id": "maskoff-36929f47059f",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 3.3333333333333335,
+   "weight": 3.3333333333333335
+  },
+  {
+   "result_id": "maskoff-3e1149cacd97",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 1.0,
+   "weight": 1.0
+  },
+  {
+   "result_id": "maskoff-3e9c7ded8889",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 4.555555555555555,
+   "weight": 4.555555555555555
+  },
+  {
+   "result_id": "maskoff-42862e90675b",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 4.0,
+   "weight": 4.0
+  },
+  {
+   "result_id": "maskoff-432f13fd490b",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 5.333333333333333,
+   "weight": 5.333333333333333
+  },
+  {
+   "result_id": "maskoff-4aee0db90eb0",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 2.5,
+   "weight": 2.5
+  },
+  {
+   "result_id": "maskoff-4d1c5c8fe1c4",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 4.0,
+   "weight": 4.0
+  },
+  {
+   "result_id": "maskoff-4e19362545b7",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 2.6666666666666665,
+   "weight": 2.6666666666666665
+  },
+  {
+   "result_id": "maskoff-502e77aa7e7a",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 3.3333333333333335,
+   "weight": 3.3333333333333335
+  },
+  {
+   "result_id": "maskoff-5063df57e134",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 5.333333333333333,
+   "weight": 5.333333333333333
+  },
+  {
+   "result_id": "maskoff-517000246eb7",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 2.6666666666666665,
+   "weight": 2.6666666666666665
+  },
+  {
+   "result_id": "maskoff-538b90d74363",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 4.333333333333333,
+   "weight": 4.333333333333333
+  },
+  {
+   "result_id": "maskoff-56d544a5944f",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 1.375,
+   "weight": 1.375
+  },
+  {
+   "result_id": "maskoff-596bad6371b0",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 2.888888888888889,
+   "weight": 2.888888888888889
+  },
+  {
+   "result_id": "maskoff-5db9afbbbe3c",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 2.375,
+   "weight": 2.375
+  },
+  {
+   "result_id": "maskoff-6444b4468355",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 2.5,
+   "weight": 2.5
+  },
+  {
+   "result_id": "maskoff-6b9fe1af53f2",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 4.333333333333333,
+   "weight": 4.333333333333333
+  },
+  {
+   "result_id": "maskoff-6fd3d6302efd",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 3.6666666666666665,
+   "weight": 3.6666666666666665
+  },
+  {
+   "result_id": "maskoff-7080b57855be",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 3.6666666666666665,
+   "weight": 3.6666666666666665
+  },
+  {
+   "result_id": "maskoff-7a7459fb0262",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 1.625,
+   "weight": 1.625
+  },
+  {
+   "result_id": "maskoff-7aed53fdbbdb",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 3.6666666666666665,
+   "weight": 3.6666666666666665
+  },
+  {
+   "result_id": "maskoff-7b67056c1352",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 4.0,
+   "weight": 4.0
+  },
+  {
+   "result_id": "maskoff-822d813b18b9",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 2.375,
+   "weight": 2.375
+  },
+  {
+   "result_id": "maskoff-84ea102815f4",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 2.0,
+   "weight": 2.0
+  },
+  {
+   "result_id": "maskoff-8d5812a47f92",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 3.6666666666666665,
+   "weight": 3.6666666666666665
+  },
+  {
+   "result_id": "maskoff-90cc232ea7e3",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 5.333333333333333,
+   "weight": 5.333333333333333
+  },
+  {
+   "result_id": "maskoff-9117accbf84b",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 5.3,
+   "weight": 5.3
+  },
+  {
+   "result_id": "maskoff-96048fe0aad8",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 3.6666666666666665,
+   "weight": 3.6666666666666665
+  },
+  {
+   "result_id": "maskoff-98415986daa2",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 1.375,
+   "weight": 1.375
+  },
+  {
+   "result_id": "maskoff-9c74a15d32c3",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 3.3333333333333335,
+   "weight": 3.3333333333333335
+  },
+  {
+   "result_id": "maskoff-a46bf9cc324d",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 3.6666666666666665,
+   "weight": 3.6666666666666665
+  },
+  {
+   "result_id": "maskoff-a565fdcf50c6",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 2.5,
+   "weight": 2.5
+  },
+  {
+   "result_id": "maskoff-a62f7a85069f",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 2.888888888888889,
+   "weight": 2.888888888888889
+  },
+  {
+   "result_id": "maskoff-ab3f0f6a94eb",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 2.888888888888889,
+   "weight": 2.888888888888889
+  },
+  {
+   "result_id": "maskoff-af747946ddb2",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 4.555555555555555,
+   "weight": 4.555555555555555
+  },
+  {
+   "result_id": "maskoff-afc54f2e82ef",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 2.888888888888889,
+   "weight": 2.888888888888889
+  },
+  {
+   "result_id": "maskoff-b60bc67e26e2",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 3.6666666666666665,
+   "weight": 3.6666666666666665
+  },
+  {
+   "result_id": "maskoff-b9497b48d287",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 2.888888888888889,
+   "weight": 2.888888888888889
+  },
+  {
+   "result_id": "maskoff-bfa30512d208",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 3.6666666666666665,
+   "weight": 3.6666666666666665
+  },
+  {
+   "result_id": "maskoff-c0d4a7916164",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 4.333333333333333,
+   "weight": 4.333333333333333
+  },
+  {
+   "result_id": "maskoff-c373c5f79468",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 5.1,
+   "weight": 5.1
+  },
+  {
+   "result_id": "maskoff-c792d1be7ab9",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 5.3,
+   "weight": 5.3
+  },
+  {
+   "result_id": "maskoff-ca65c57b377f",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 5.1,
+   "weight": 5.1
+  },
+  {
+   "result_id": "maskoff-cdde59d0011d",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 3.3333333333333335,
+   "weight": 3.3333333333333335
+  },
+  {
+   "result_id": "maskoff-cf274103655b",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 2.375,
+   "weight": 2.375
+  },
+  {
+   "result_id": "maskoff-d4af902b8ebf",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 5.1,
+   "weight": 5.1
+  },
+  {
+   "result_id": "maskoff-d4e78c60abc5",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 4.555555555555555,
+   "weight": 4.555555555555555
+  },
+  {
+   "result_id": "maskoff-d6a6f45801f3",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 2.888888888888889,
+   "weight": 2.888888888888889
+  },
+  {
+   "result_id": "maskoff-d6fec3e1a95f",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 3.0,
+   "weight": 3.0
+  },
+  {
+   "result_id": "maskoff-d885e5378245",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 3.6666666666666665,
+   "weight": 3.6666666666666665
+  },
+  {
+   "result_id": "maskoff-d8ed7a145106",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 3.6666666666666665,
+   "weight": 3.6666666666666665
+  },
+  {
+   "result_id": "maskoff-e50d8168ab88",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 1.625,
+   "weight": 1.625
+  },
+  {
+   "result_id": "maskoff-e90e7e2a856c",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 2.375,
+   "weight": 2.375
+  },
+  {
+   "result_id": "maskoff-eb6c05fc9b69",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 2.0,
+   "weight": 2.0
+  },
+  {
+   "result_id": "maskoff-efbbf3a3e399",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 2.888888888888889,
+   "weight": 2.888888888888889
+  },
+  {
+   "result_id": "maskoff-f59dcc411141",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 1.375,
+   "weight": 1.375
+  },
+  {
+   "result_id": "maskoff-f988714958a9",
+   "stratum": "agree_cell",
+   "weight_stratum": 1.0,
+   "weight_domain": 3.3333333333333335,
+   "weight": 3.3333333333333335
+  },
+  {
+   "result_id": "maskoff-0740eddd4ad0",
+   "stratum": "agree_noncell",
+   "weight_stratum": 3.2,
+   "weight_domain": 4.555555555555555,
+   "weight": 14.577777777777778
+  },
+  {
+   "result_id": "maskoff-271d86d3ee81",
+   "stratum": "agree_noncell",
+   "weight_stratum": 3.2,
+   "weight_domain": 2.888888888888889,
+   "weight": 9.244444444444445
+  },
+  {
+   "result_id": "maskoff-3c87dff19a6f",
+   "stratum": "agree_noncell",
+   "weight_stratum": 3.2,
+   "weight_domain": 2.5,
+   "weight": 8.0
+  },
+  {
+   "result_id": "maskoff-61b489bc3b4c",
+   "stratum": "agree_noncell",
+   "weight_stratum": 3.2,
+   "weight_domain": 2.0,
+   "weight": 6.4
+  },
+  {
+   "result_id": "maskoff-709312bfe868",
+   "stratum": "agree_noncell",
+   "weight_stratum": 3.2,
+   "weight_domain": 3.6666666666666665,
+   "weight": 11.733333333333334
+  },
+  {
+   "result_id": "maskoff-aa91f2822bd1",
+   "stratum": "agree_noncell",
+   "weight_stratum": 3.2,
+   "weight_domain": 2.5,
+   "weight": 8.0
+  },
+  {
+   "result_id": "maskoff-c3752c17755d",
+   "stratum": "agree_noncell",
+   "weight_stratum": 3.2,
+   "weight_domain": 5.3,
+   "weight": 16.96
+  },
+  {
+   "result_id": "maskoff-dac29a3f20ab",
+   "stratum": "agree_noncell",
+   "weight_stratum": 3.2,
+   "weight_domain": 5.1,
+   "weight": 16.32
+  },
+  {
+   "result_id": "maskoff-e3a2802b7b62",
+   "stratum": "agree_noncell",
+   "weight_stratum": 3.2,
+   "weight_domain": 1.625,
+   "weight": 5.2
+  },
+  {
+   "result_id": "maskoff-fdd6e47ab4d7",
+   "stratum": "agree_noncell",
+   "weight_stratum": 3.2,
+   "weight_domain": 2.6666666666666665,
+   "weight": 8.533333333333333
+  }
+ ]
+}

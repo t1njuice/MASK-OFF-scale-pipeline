@@ -173,6 +173,27 @@ column is the defensive one.
 - One binding pooled kappa per axis. Per-pool kappa is descriptive
   only: pool B alone at n = 80 carries about ±0.10.
 
+### Amendment 2026-08-22 — role axes: stratified audit supersedes the n = 150 floor
+
+Scope: the three role axes only (beneficiary / institution /
+standing). The domain facet and Task A keep the rules above.
+
+The n = 150 floor assumed a representative sample scored with an
+unweighted kappa. For the role axes it is superseded by the
+stratified role-audit frame of `LABELING_DESIGN.md` §13: both judges
+labeled all 150 first, and the human sample is a census of the 50
+judge-disagreement items, a census of the 68 judge-agreement audit
+cells (opened anyway for Task A), and a seeded SRS of 10 of the 32
+remaining items (weight 3.2). The gate statistic becomes the
+frame-projected kappa (stratum-weighted P_o and marginals); the
+0.80 / 0.67 bars are unchanged. Precision: all sampling error sits
+on the 32-item substratum, so the projected-accuracy half-width is
+(32/150)·CI(p on 10 of 32) ≈ ±0.033 at p = 0.90 — tighter than the
+±0.061 the n = 150 floor bought. The 10-per-domain floor is broken
+at 128 items; per-domain error analysis on the role axes is dropped.
+Motivation, frame freeze, and the adjudication protocol:
+`LABELING_DESIGN.md` §13.
+
 ### Stratification
 
 Yes — stratify, on one facet. Draw the sample stratified by the

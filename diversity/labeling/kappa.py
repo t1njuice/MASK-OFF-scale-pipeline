@@ -79,6 +79,111 @@ SENTENCE_KEYS = ["beneficiary", "institution", "standing"]
 STAMPS = ["menu_version", "sample_sha"]
 
 
+# ---------------------------------------------------------------------------
+# Frame projection (amendment 2026-08-22, LABELING_DESIGN.md §13).
+#
+# The role-audit frame is a stratified draw: disagree + agree_cell are censuses
+# (weight_stratum = 1), agree_noncell is a seeded SRS (weight_stratum > 1).
+# The gate statistic is the FRAME-PROJECTED kappa: Horvitz–Thompson-weighted
+# P_o and marginals, kappa formed from those. The registered 0.80 / 0.67 bars
+# apply to this number. Per-stratum unweighted kappas are diagnostics only —
+# the enriched stratum understates kappa by construction, and the SRS stratum
+# is too small to read alone.
+
+
+def weighted_kappa(a: list[str], b: list[str], w: list[float]) -> tuple[float, float]:
+    """(P_o, kappa) with item weights: weighted agreement, weighted marginals."""
+    tot = sum(w)
+    po = sum(wi for x, y, wi in zip(a, b, w) if x == y) / tot
+    ca, cb = defaultdict(float), defaultdict(float)
+    for x, y, wi in zip(a, b, w):
+        ca[x] += wi
+        cb[y] += wi
+    pe = sum(ca[k] * cb[k] for k in ca) / tot**2
+    return po, (po - pe) / (1 - pe) if pe < 1 else 1.0
+
+
+def projected_ci(
+    a: list[str], b: list[str], w: list[float], strata: list[str], reps: int = BOOTSTRAP
+) -> tuple[float, float]:
+    """95% stratified bootstrap on the frame-projected kappa. Seeded.
+
+    Census strata (weight 1) are held FIXED — under the finite-population
+    estimand they carry no sampling error. Only sampled strata (weight > 1)
+    are resampled. No fpc on the resample, so the interval is slightly
+    conservative for a without-replacement draw.
+    """
+    rng = random.Random(0)
+    fixed = [i for i, wi in enumerate(w) if wi == 1.0]
+    sampled = defaultdict(list)
+    for i, (wi, s) in enumerate(zip(w, strata)):
+        if wi != 1.0:
+            sampled[s].append(i)
+    draws = []
+    for _ in range(reps):
+        idx = fixed + [rng.choice(members) for s, members in sampled.items() for _i in members]
+        draws.append(weighted_kappa([a[i] for i in idx], [b[i] for i in idx], [w[i] for i in idx])[1])
+    draws.sort()
+    return draws[int(0.025 * reps)], draws[min(reps - 1, int(0.975 * reps))]
+
+
+def load_frame(path: str) -> dict:
+    frame = json.loads(Path(path).read_text())
+    meta = {i["result_id"]: i for i in frame["items"]}
+    frame["meta"] = meta
+    return frame
+
+
+def project_pair(na: str, la: dict, nb: str, lb: dict, frame: dict) -> None:
+    meta = frame["meta"]
+    ids = sorted(la.keys() & lb.keys() & meta.keys())
+    dropped = len(la.keys() & lb.keys()) - len(ids)
+    per_stratum = Counter(meta[i]["stratum"] for i in ids)
+    coverage = "  ".join(
+        f"{s}={per_stratum.get(s, 0)}/{sum(1 for m in meta.values() if m['stratum'] == s)}"
+        for s in frame["stratum_frames"]
+    )
+    print(f"\n{na} vs {nb} — frame projection ({coverage}; {dropped} shared rows outside frame)")
+    if not ids:
+        return
+    incomplete = any(
+        per_stratum.get(s, 0) < sum(1 for m in meta.values() if m["stratum"] == s)
+        for s in frame["stratum_frames"]
+    )
+    if incomplete:
+        print("  ⚠ frame not fully labeled — projections below are PROVISIONAL")
+    strata = [meta[i]["stratum"] for i in ids]
+    ws = [meta[i]["weight_stratum"] for i in ids]
+    wc = [meta[i]["weight"] for i in ids]  # × weight_domain: corpus rates only
+    for key in SENTENCE_KEYS:
+        if any(key not in next(iter(x.values())) for x in (la, lb)):
+            continue
+        a = [la[i][key] for i in ids]
+        b = [lb[i][key] for i in ids]
+        po_f, k_f = weighted_kappa(a, b, ws)
+        lo, hi = projected_ci(a, b, ws, strata)
+        po_c, k_c = weighted_kappa(a, b, wc)
+        # trivial-rater baseline: the best weighted single-label agreement
+        base = max(
+            sum(wi for y, wi in zip(col, ws) if y == lab) / sum(ws)
+            for col in (a, b)
+            for lab in set(col)
+        )
+        print(
+            f"  {key:<12} frame: po={po_f:.3f} kappa={k_f:.3f} [{lo:.3f},{hi:.3f}]"
+            f"   corpus: po={po_c:.3f} kappa={k_c:.3f}   majority-baseline po={base:.3f}"
+        )
+        for s in frame["stratum_frames"]:
+            sa = [x for x, st in zip(a, strata) if st == s]
+            sb = [y for y, st in zip(b, strata) if st == s]
+            if len(set(sa) | set(sb)) < 2 or not sa:
+                continue
+            print(
+                f"      [{s}] n={len(sa)} po={sum(x == y for x, y in zip(sa, sb)) / len(sa):.3f}"
+                f" kappa={cohen_kappa(sa, sb):.3f}  (diagnostic only)"
+            )
+
+
 def load(path: str) -> dict[str, dict]:
     rows = {}
     for r in map(json.loads, Path(path).read_text().splitlines()):
@@ -101,7 +206,8 @@ def confusion(a: list[str], b: list[str], top: int = 5) -> list[tuple[tuple[str,
     return Counter((x, y) for x, y in zip(a, b) if x != y).most_common(top)
 
 
-def main(paths: list[str]) -> None:
+def main(paths: list[str], frame_path: str | None = None) -> None:
+    frame = load_frame(frame_path) if frame_path else None
     sets = {Path(p).stem: load(p) for p in paths}
     for name, rows in sets.items():
         st = stamps_of(rows)
@@ -140,6 +246,13 @@ def main(paths: list[str]) -> None:
                     print(f"      {x} / {y}: {n} ({share:.0%} of disagreements){mark}")
                 if not bad:
                     print("      no disagreements")
+    if frame:
+        print(f"\n=== FRAME-PROJECTED (gate) — role_audit strata {frame['stratum_frames']} ===")
+        for (na, la), (nb, lb) in combinations(sets.items(), 2):
+            if any(r.get("sample_sha") != frame["sample_sha"] for x in (la, lb) for r in x.values()):
+                print(f"{na} vs {nb}: frame projection SKIPPED — sample_sha differs from frame")
+                continue
+            project_pair(na, la, nb, lb, frame)
     for name, rows in sets.items():
         print(f"\n{name}: n={len(rows)}")
         for key in AXIS_KEYS:
@@ -178,11 +291,30 @@ def _selfcheck() -> None:
     assert (wide[1] - wide[0]) > (tight[1] - tight[0]), (wide, tight)
     assert confusion(a, b)[0] == (("y", "z"), 1) or confusion(a, b)[0][1] >= 1
     assert Counter(dict(confusion(a, b)))[("y", "x")] == 1
+    # frame projection: uniform weights in one stratum must reproduce plain kappa
+    w1 = [1.0] * len(a)
+    po_u, k_u = weighted_kappa(a, b, w1)
+    assert abs(k_u - cohen_kappa(a, b)) < 1e-12 and abs(po_u - 6 / 8) < 1e-12
+    # census-only strata carry no sampling error: the interval must be a point
+    lo1, hi1 = projected_ci(a, b, w1, ["c"] * len(a), reps=50)
+    assert lo1 == hi1 == k_u, (lo1, hi1, k_u)
+    # up-weighting disagreeing items must pull kappa down
+    w2 = [1.0 if x == y else 4.0 for x, y in zip(a, b)]
+    assert weighted_kappa(a, b, w2)[1] < k_u
+    # sampled stratum resamples: interval must widen around the point estimate
+    lo2, hi2 = projected_ci(a, b, w2, ["s"] * len(a), reps=200)
+    assert lo2 < hi2
 
 
 if __name__ == "__main__":
     _selfcheck()
-    if len(sys.argv) > 2:
-        main(sys.argv[1:])
+    argv = sys.argv[1:]
+    frame_path = None
+    if "--frame" in argv:
+        i = argv.index("--frame")
+        frame_path = argv[i + 1]
+        argv = argv[:i] + argv[i + 2 :]
+    if len(argv) >= 2:
+        main(argv, frame_path)
     else:
-        print("selfcheck ok — pass 2+ label files to compare")
+        print("selfcheck ok — usage: kappa.py [--frame role_audit.json] <file1> <file2> [...]")

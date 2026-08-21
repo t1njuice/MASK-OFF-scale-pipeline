@@ -150,11 +150,11 @@ def _(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(HERE, mo):
     sample_path = mo.ui.text(
         label="Sample file",
-        value=str(HERE / "out" / "pilot" / "sample_26.jsonl"),
+        value=str(HERE / "out" / "frame150" / "sample_150.jsonl"),
         full_width=True,
     )
     initials = mo.ui.text(label="Your initials (e.g. AR)", value="")
@@ -313,7 +313,7 @@ def _(AXES, AXIS_KEYS, current, mo, phase):
     assert list(picks) == AXIS_KEYS
     hard = mo.ui.checkbox(label="Hard case (forces a note)")
     note = mo.ui.text_area(label="Note (required for a hard case or any 'other')", value="")
-    return hard, note, pick_beneficiary, pick_institution, pick_standing, picks
+    return hard, note, picks
 
 
 @app.cell(hide_code=True)
@@ -379,6 +379,14 @@ def _(
         set_pending(current if "responses" in current else None)
         set_saved(get_saved() + 1)
 
+    # Must be a GLOBAL. The UI registry holds elements by weakref, so a button
+    # created inline in the vstack is collected as soon as this cell finishes.
+    # It still renders, but the click arrives for a dead id and is dropped, so
+    # on_click never fires and "Save roles" is a silent no-op (2026-08-21).
+    save_roles_button = mo.ui.button(
+        label="Save roles", on_click=_save_roles, kind="success"
+    )
+
     _parts = {
         key: (SENTENCE[key][picks[key].value] if picks[key].value else f"[{key}]")
         for key in AXIS_KEYS
@@ -400,7 +408,7 @@ def _(
             ),
             mo.hstack([picks[key] for key in AXIS_KEYS], justify="start", gap=2),
             mo.hstack([hard, note], justify="start", gap=2),
-            mo.ui.button(label="Save roles", on_click=_save_roles, kind="success"),
+            save_roles_button,
             mo.accordion(
                 {
                     "Full option definitions": mo.md(_definitions),
@@ -496,6 +504,12 @@ def _(
         set_pending(None)
         set_saved(get_saved() + 1)
 
+    # Same weakref rule as "Save roles": the button must be a global to survive
+    # past this cell, or its clicks resolve to a dead id and are dropped.
+    save_responses_button = mo.ui.button(
+        label="Save responses", on_click=_save_responses, kind="success"
+    )
+
     _panels = []
     for _tag, _k in shown:
         _panels.append(mo.md(f"**{_tag}**\n\n" + block(current["responses"][_k])))
@@ -520,7 +534,7 @@ def _(
                 )
             ),
             *_panels,
-            mo.ui.button(label="Save responses", on_click=_save_responses, kind="success"),
+            save_responses_button,
         ]
     ) if (not guard and current is not None and phase == 2) else mo.md("")
     return

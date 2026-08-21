@@ -78,7 +78,10 @@ TARGET_PANEL = [
     # same batch. It is the most expensive seat on the panel by a factor of
     # two — see PRICES.
     # Seat("fable5", "claude-fable-5", TARGET_EFFORT, TARGET_MAX_TOKENS),
-    # ^ REMOVED 2026-08-21 (user): cohort-1 census showed 914/1000 roleplay
+    # ^ REMOVED 2026-08-21 (user), briefly restored the same day for the
+    # scale_v1_300 cohort-2 resume (the stored stage_b.json was bought
+    # 16-seat; a fresh run dir would abandon billed batches) and re-removed
+    # after it completed. Rationale: cohort-1 census showed 914/1000 roleplay
     # samples killed by API-level refusal stops (stop_reason "refusal") —
     # 88 scoreable responses at 2x opus price. The top-up and pool-B census
     # runs therefore evaluate 15 seats; scale_v1_300's cohort 1 keeps its

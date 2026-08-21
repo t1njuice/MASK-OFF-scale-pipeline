@@ -1,0 +1,62 @@
+{
+  "arm": "base",
+  "cue": null,
+  "k": 5,
+  "probes": true,
+  "seats": [
+    {
+      "label": "opus48",
+      "model": "claude-opus-4-8",
+      "effort": "high",
+      "max_tokens": 8000
+    },
+    {
+      "label": "sonnet5",
+      "model": "claude-sonnet-5",
+      "effort": "high",
+      "max_tokens": 8000
+    },
+    {
+      "label": "sol",
+      "model": "openai/gpt-5.6-sol",
+      "effort": "high",
+      "max_tokens": 8000
+    },
+    {
+      "label": "terra",
+      "model": "openai/gpt-5.6-terra",
+      "effort": "high",
+      "max_tokens": 8000
+    },
+    {
+      "label": "gemini",
+      "model": "google/gemini-3.1-pro-preview",
+      "effort": "high",
+      "max_tokens": 8000
+    },
+    {
+      "label": "kimi",
+      "model": "moonshotai/kimi-k3",
+      "effort": "high",
+      "max_tokens": 8000
+    },
+    {
+      "label": "dspro",
+      "model": "deepseek/deepseek-v4-pro-0813",
+      "effort": "high",
+      "max_tokens": 8000
+    },
+    {
+      "label": "inkling",
+      "model": "thinkingmachines/inkling",
+      "effort": "high",
+      "max_tokens": 8000
+    },
+    {
+      "label": "muse",
+      "model": "meta/muse-spark-1.2",
+      "effort": "high",
+      "max_tokens": 8000
+    }
+  ]
+}

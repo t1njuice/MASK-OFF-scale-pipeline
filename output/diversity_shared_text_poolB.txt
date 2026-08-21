@@ -1,0 +1,79 @@
+100 unique items from 1 file(s)
+
+========================================================================
+system_prompt — phrases shared across the most distinct items (n=100)
+========================================================================
+
+-- 5-grams --
+    61 items (61.0%)  you are an ai assistant
+    60 items (60.0%)  a manner that is friendly
+    60 items (60.0%)  in a manner that is
+    60 items (60.0%)  manner that is friendly concise
+    60 items (60.0%)  is friendly concise and helpful
+    60 items (60.0%)  that is friendly concise and
+    60 items (60.0%)  reply in a manner that
+    50 items (50.0%)  are an ai assistant for
+    22 items (22.0%)  an ai assistant for the
+    21 items (21.0%)  you are an assistant at
+    16 items (16.0%)  are an assistant at the
+    15 items (15.0%)  schedule reply in a manner
+
+-- 8-grams --
+    60 items (60.0%)  reply in a manner that is friendly concise
+    60 items (60.0%)  a manner that is friendly concise and helpful
+    60 items (60.0%)  in a manner that is friendly concise and
+    15 items (15.0%)  schedule reply in a manner that is friendly
+    10 items (10.0%)  record reply in a manner that is friendly
+     7 items ( 7.0%)  register reply in a manner that is friendly
+     5 items ( 5.0%)  declaration reply in a manner that is friendly
+     4 items ( 4.0%)  log reply in a manner that is friendly
+     4 items ( 4.0%)  test record reply in a manner that is
+     3 items ( 3.0%)  interests declaration reply in a manner that is
+     3 items ( 3.0%)  statement reply in a manner that is friendly
+     3 items ( 3.0%)  summary reply in a manner that is friendly
+
+========================================================================
+user_email — phrases shared across the most distinct items (n=100)
+========================================================================
+
+-- 5-grams --
+    36 items (36.0%)  fine if it fits the
+    36 items (36.0%)  is fine if it fits
+    15 items (15.0%)  story like last year's the
+    14 items (14.0%)  if it fits the sheet
+    14 items (14.0%)  write the sheet open with
+    14 items (14.0%)  the sheet open with the
+    14 items (14.0%)  ask could you write the
+    14 items (14.0%)  you write the sheet open
+    14 items (14.0%)  to ask could you write
+    14 items (14.0%)  could you write the sheet
+    14 items (14.0%)  so your desk felt like
+    13 items (13.0%)  one to ask could you
+
+-- 8-grams --
+    14 items (14.0%)  could you write the sheet open with the
+     9 items ( 9.0%)  is fine if it fits the sheet goes
+     8 items ( 8.0%)  right one to ask could you write the
+     8 items ( 8.0%)  the right one to ask could you write
+     7 items ( 7.0%)  could you write the note open with the
+     6 items ( 6.0%)  to ask could you write the sheet open
+     6 items ( 6.0%)  ask could you write the sheet open with
+     6 items ( 6.0%)  one to ask could you write the sheet
+     5 items ( 5.0%)  desk felt like the right one to ask
+     5 items ( 5.0%)  your desk felt like the right one to
+     5 items ( 5.0%)  so your desk felt like the right one
+     5 items ( 5.0%)  your desk seemed the right one to ask
+
+========================================================================
+sender names (parsed 10 of 100 items)
+========================================================================
+  first names: 10 distinct · effective 10.0
+  full names:  10 distinct · effective 10.0
+       1 (10.0%)  m
+       1 (10.0%)  rev
+       1 (10.0%)  nadia
+       1 (10.0%)  ruth.ellison
+       1 (10.0%)  harold
+       1 (10.0%)  ama
+
+  WARNING: one first name holds 10% of senders. The name pool draws without replacement (seedgen.name_stream), so a share this high means the pool is not reaching the generated text.

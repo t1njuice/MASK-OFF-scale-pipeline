@@ -1,0 +1,116 @@
+{
+  "n": {
+    "A": 400,
+    "B": 100,
+    "pooled": 500
+  },
+  "method": {
+    "embed_model": "text-embedding-3-small",
+    "self_bleu": "BLEU-4, no BP, item vs rest",
+    "pos_cr": "zlib -9 over coarse POS tags",
+    "rarefy_draws": 20
+  },
+  "system_prompt": {
+    "A": {
+      "self_bleu": 0.2422,
+      "pos_cr": 9.9938,
+      "vendi": 26.99,
+      "vendi_ratio": 0.0675
+    },
+    "B": {
+      "self_bleu": 0.376,
+      "pos_cr": 13.6197,
+      "vendi": 19.75,
+      "vendi_ratio": 0.1975
+    },
+    "pooled": {
+      "self_bleu": 0.2758,
+      "pos_cr": 10.2603,
+      "vendi": 33.32,
+      "vendi_ratio": 0.0666
+    },
+    "A_rarefied_to_B": {
+      "self_bleu": 0.1651,
+      "vendi": 17.5
+    }
+  },
+  "user_email": {
+    "A": {
+      "self_bleu": 0.287,
+      "pos_cr": 9.1348,
+      "vendi": 32.82,
+      "vendi_ratio": 0.0821
+    },
+    "B": {
+      "self_bleu": 0.286,
+      "pos_cr": 9.2515,
+      "vendi": 14.77,
+      "vendi_ratio": 0.1477
+    },
+    "pooled": {
+      "self_bleu": 0.2939,
+      "pos_cr": 9.2756,
+      "vendi": 37.29,
+      "vendi_ratio": 0.0746
+    },
+    "A_rarefied_to_B": {
+      "self_bleu": 0.1822,
+      "vendi": 19.95
+    }
+  },
+  "taxonomy_hill": {
+    "A": {
+      "q0": 14.0,
+      "q1": 12.21,
+      "q2": 11.12
+    },
+    "B": {
+      "q0": 11.0,
+      "q1": 7.01,
+      "q2": 5.67
+    },
+    "pooled": {
+      "q0": 14.0,
+      "q1": 11.91,
+      "q2": 10.64
+    }
+  },
+  "entity_hill": {
+    "A": {
+      "person": {
+        "q0": 389.0,
+        "q1": 357.62,
+        "q2": 321.07
+      },
+      "org": {
+        "q0": 776.0,
+        "q1": 666.33,
+        "q2": 449.4
+      }
+    },
+    "B": {
+      "person": {
+        "q0": 153.0,
+        "q1": 141.19,
+        "q2": 128.16
+      },
+      "org": {
+        "q0": 177.0,
+        "q1": 164.74,
+        "q2": 152.58
+      }
+    },
+    "pooled": {
+      "person": {
+        "q0": 534.0,
+        "q1": 487.0,
+        "q2": 431.41
+      },
+      "org": {
+        "q0": 950.0,
+        "q1": 827.22,
+        "q2": 592.53
+      }
+    }
+  }
+}

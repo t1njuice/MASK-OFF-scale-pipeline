@@ -1,0 +1,31 @@
+{
+  "built_from": {
+    "output/dataset_v1b.jsonl": "5530593399bdf942ded16fc3e2a9cdd7959a182fbffcd1017d3fc638d41448ab",
+    "output/scale_v1b_eval/eval/cohort_01_eval.jsonl": "314bb9f92bc4877c10885bf78479cfbf5eddd18b72ab136af41dba78d9d84ae2",
+    "output/scale_v1b_eval/eval/cohort_01_eval_summary.json": "6ef2bb656a688adeccbf379c753c3af8fdb4527e3b609fba1de6a293340d1dfa"
+  },
+  "outputs": {
+    "dataset_pool_b_100.jsonl": "5530593399bdf942ded16fc3e2a9cdd7959a182fbffcd1017d3fc638d41448ab",
+    "pool_b_100_eval.jsonl": "314bb9f92bc4877c10885bf78479cfbf5eddd18b72ab136af41dba78d9d84ae2",
+    "pool_b_100_eval_summary.json": "6ef2bb656a688adeccbf379c753c3af8fdb4527e3b609fba1de6a293340d1dfa"
+  },
+  "n_items": 100,
+  "panel": [
+    "opus48",
+    "opus5",
+    "sonnet5",
+    "sol",
+    "terra",
+    "gpt55",
+    "gemini",
+    "gflash",
+    "grok",
+    "kimi",
+    "dspro",
+    "deepseek",
+    "inkling",
+    "qwen",
+    "muse"
+  ],
+  "notes": "Pool B evaluated the 15-seat panel from the start; eval rows copied verbatim (reordered to corpus order), no seat stripping. Includes the 2026-08-21 --fill pass that recovered the terra judge and probe-2 cells lost to the pre-fix flex 429 bug."
+}

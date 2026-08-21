@@ -198,6 +198,9 @@ def _(MENU, RUBRIC, check_rows, file_sha12, initials, json, mo, sample_path):
     get_saved, set_saved = mo.state(len(done_ids) + len(done_resp))
     get_pending, set_pending = mo.state(_orphans[0] if _orphans else None)
     get_count, set_count = mo.state(0)
+    # Why the last save click did nothing. A silent no-op cost a rater a
+    # session start (2026-08-21); every blocked save now says its reason.
+    get_blocked, set_blocked = mo.state("")
     mo.md(
         "\n\n".join(f"🛑 **STOPPED** — {g}" for g in guard)
         if guard
@@ -207,6 +210,7 @@ def _(MENU, RUBRIC, check_rows, file_sha12, initials, json, mo, sample_path):
         SHA,
         done_ids,
         done_resp,
+        get_blocked,
         get_count,
         get_pending,
         get_saved,
@@ -214,6 +218,7 @@ def _(MENU, RUBRIC, check_rows, file_sha12, initials, json, mo, sample_path):
         out_path,
         resp_path,
         scenarios,
+        set_blocked,
         set_count,
         set_pending,
         set_saved,
@@ -328,6 +333,7 @@ def _(
     current,
     datetime,
     done_ids,
+    get_blocked,
     get_count,
     get_saved,
     guard,
@@ -339,6 +345,7 @@ def _(
     out_path,
     phase,
     picks,
+    set_blocked,
     set_count,
     set_pending,
     set_saved,
@@ -350,11 +357,15 @@ def _(
         if guard or current is None or phase != 1:
             return
         if any(picks[key].value is None for key in AXIS_KEYS):
+            set_blocked("Not saved: pick all three axes — the read-back "
+                        "sentence must have no [brackets].")
             return
         needs_note = hard.value or any(picks[key].value == "other" for key in AXIS_KEYS)
         if needs_note and not note.value.strip():
+            set_blocked("Not saved: a hard case or any 'other' needs the note.")
             return
         if current["result_id"] in done_ids:
+            set_blocked("Not saved: this item is already in your file.")
             return
         out_path.parent.mkdir(parents=True, exist_ok=True)
         with out_path.open("a") as fh:
@@ -374,6 +385,7 @@ def _(
                 + "\n"
             )
         done_ids.add(current["result_id"])
+        set_blocked("")
         set_count(get_count() + 1)
         # Audited item: hold it on screen for phase 2 instead of advancing.
         set_pending(current if "responses" in current else None)
@@ -409,6 +421,7 @@ def _(
             mo.hstack([picks[key] for key in AXIS_KEYS], justify="start", gap=2),
             mo.hstack([hard, note], justify="start", gap=2),
             save_roles_button,
+            mo.md(f"⚠️ **{get_blocked()}**") if get_blocked() else mo.md(""),
             mo.accordion(
                 {
                     "Full option definitions": mo.md(_definitions),
@@ -427,18 +440,21 @@ def _(LABELS, current, initials, mo, phase, random):
     _keys = sorted(current["responses"]) if (current and phase == 2) else []
     random.Random(initials.value + (current["result_id"] if current else "")).shuffle(_keys)
     shown = [(f"R{i}", k) for i, k in enumerate(_keys, 1)]
-    rlabels = {
+    # mo.ui.dictionary, not a plain dict: marimo only binds widgets held in a
+    # composite (or assigned to globals). Plain-dict widgets render but their
+    # values never reach Python — the same bug the phase-1 radios had.
+    rlabels = mo.ui.dictionary({
         k: mo.ui.radio(
             options={f"{num}  {name}": str(num) for num, name, _d in LABELS}
             | {"0  invalid evidence": "null"},
             label=f"**{tag}**",
         )
         for tag, k in shown
-    }
+    })
     # One note per response, not one per screen: a shared note would be written onto
     # all three rows and stop describing the row it is attached to.
-    rhard = {k: mo.ui.checkbox(label="hard case") for _tag, k in shown}
-    rnote = {k: mo.ui.text_area(label="note", value="") for _tag, k in shown}
+    rhard = mo.ui.dictionary({k: mo.ui.checkbox(label="hard case") for _tag, k in shown})
+    rnote = mo.ui.dictionary({k: mo.ui.text_area(label="note", value="") for _tag, k in shown})
     return rhard, rlabels, rnote, shown
 
 
@@ -463,6 +479,8 @@ def _(
     rhard,
     rlabels,
     rnote,
+    get_blocked,
+    set_blocked,
     set_count,
     set_pending,
     set_saved,
@@ -472,10 +490,12 @@ def _(
     def _save_responses(_):
         if guard or current is None or phase != 2:
             return
-        if any(rlabels[k].value is None for _tag, k in shown):
+        if any(rlabels.value[k] is None for _tag, k in shown):
+            set_blocked("Not saved: give every response a label.")
             return
-        if any(rhard[k].value and not rnote[k].value.strip() for _tag, k in shown):
-            return  # a hard case needs its own note
+        if any(rhard.value[k] and not rnote.value[k].strip() for _tag, k in shown):
+            set_blocked("Not saved: a hard case needs its own note.")
+            return
         resp_path.parent.mkdir(parents=True, exist_ok=True)
         with resp_path.open("a") as fh:
             for _tag, k in shown:
@@ -486,9 +506,9 @@ def _(
                     json.dumps(
                         {
                             "result_id": row_id,
-                            "label": rlabels[k].value,
-                            "hard_case": bool(rhard[k].value),
-                            "note": rnote[k].value,
+                            "label": rlabels.value[k],
+                            "hard_case": bool(rhard.value[k]),
+                            "note": rnote.value[k],
                             "stratum": current.get("stratum"),
                             "weight": current.get("weight"),
                             "labeler": initials.value,
@@ -500,6 +520,7 @@ def _(
                     + "\n"
                 )
                 done_resp.add(row_id)
+        set_blocked("")
         set_count(get_count() + 1)
         set_pending(None)
         set_saved(get_saved() + 1)
@@ -535,6 +556,7 @@ def _(
             ),
             *_panels,
             save_responses_button,
+            mo.md(f"⚠️ **{get_blocked()}**") if get_blocked() else mo.md(""),
         ]
     ) if (not guard and current is not None and phase == 2) else mo.md("")
     return

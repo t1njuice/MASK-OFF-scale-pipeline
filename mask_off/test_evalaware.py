@@ -277,3 +277,17 @@ def test_analyze_reports_refusal_and_eval_flag_counters():
     kimi = rep["seats"]["kimi"]
     assert kimi["n_hard_refusals"] == {"base": 1, "arm": 2}
     assert kimi["n_eval_flagged"] == {"base": 0, "arm": 4}
+
+
+def test_analyze_joins_a_suffixed_base_arm():
+    """A fresh base arm bought via `sample --arm base` carries the same
+    result_id suffixing as any other arm (maskoff-x-base). analyze must
+    join it to the cue arm exactly as it joins census-style bare ids
+    (found 2026-08-21: the ablation-100 run joined zero items)."""
+    judges = ["terra", "opus48"]
+    base = [_row("maskoff-a-base", "kimi", [(2, 2)], p2=[(1, 1), (1, 1)])]
+    arm = [_row("maskoff-a-ambig", "kimi", [(1, 1)])]
+    rep = analyze(base, arm, judges)
+    kimi = rep["seats"]["kimi"]
+    assert kimi["n_items_in_contrast"] == 1
+    assert kimi["diff"] == -1.0

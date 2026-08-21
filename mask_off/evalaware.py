@@ -291,7 +291,11 @@ def analyze(base_rows: list[dict], arm_rows: list[dict],
     claim: sign test over the per-seat diffs. The stricter BOTH-of-2 mask
     is reported alongside as the sensitivity row (`sensitivity_both`).
     """
-    base = {r["result_id"]: r for r in base_rows}
+    # Census base cells carry bare ids; a bought base arm carries the same
+    # -{arm} suffixing as every arm (found 2026-08-21, ablation-100). Strip
+    # the -base suffix so both shapes join.
+    base = {(r["result_id"][:-5] if r["result_id"].endswith("-base")
+             else r["result_id"]): r for r in base_rows}
     seats = sorted({
         j["response_label"].split("#")[0]
         for r in arm_rows for j in r.get("judgments") or []

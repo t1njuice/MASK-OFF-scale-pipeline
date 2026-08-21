@@ -23,7 +23,7 @@ __generated_with = "0.23.15"
 app = marimo.App(width="full")
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _():
     import html
     import json
@@ -468,6 +468,7 @@ def _(
     current,
     datetime,
     done_resp,
+    get_blocked,
     get_count,
     get_saved,
     guard,
@@ -479,7 +480,6 @@ def _(
     rhard,
     rlabels,
     rnote,
-    get_blocked,
     set_blocked,
     set_count,
     set_pending,

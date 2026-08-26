@@ -20,7 +20,7 @@ older branch from mixing two menus into one file (design §10).
 import marimo
 
 __generated_with = "0.23.15"
-app = marimo.App(width="full")
+app = marimo.App(width="medium")
 
 
 @app.cell(hide_code=True)
@@ -202,6 +202,9 @@ def _(MENU, RUBRIC, check_rows, file_sha12, initials, json, mo, sample_path):
 
     get_saved, set_saved = mo.state(len(done_ids) + len(done_resp))
     get_pending, set_pending = mo.state(None)
+    # The last save of this session, as (result_id, phase) — what "Undo last
+    # save" reverts. One level, session-only: earlier saves stay manual edits.
+    get_last, set_last = mo.state(None)
     get_count, set_count = mo.state(0)
     # Why the last save click did nothing. A silent no-op cost a rater a
     # session start (2026-08-21); every blocked save now says its reason.
@@ -220,6 +223,7 @@ def _(MENU, RUBRIC, check_rows, file_sha12, initials, json, mo, sample_path):
         frame_meta,
         get_blocked,
         get_count,
+        get_last,
         get_pending,
         get_saved,
         guard,
@@ -228,6 +232,7 @@ def _(MENU, RUBRIC, check_rows, file_sha12, initials, json, mo, sample_path):
         scenarios,
         set_blocked,
         set_count,
+        set_last,
         set_pending,
         set_saved,
     )
@@ -375,6 +380,7 @@ def _(
     picks,
     set_blocked,
     set_count,
+    set_last,
     set_pending,
     set_saved,
     timezone,
@@ -436,6 +442,7 @@ def _(
             f"{current['result_id']}#{k}" not in done_resp for k in current["responses"]
         )
         set_pending(current if _resp_left else None)
+        set_last((current["result_id"], 1))
         set_saved(get_saved() + 1)
 
     # Must be a GLOBAL. The UI registry holds elements by weakref, so a button
@@ -509,6 +516,7 @@ def _(
     rnote,
     set_blocked,
     set_count,
+    set_last,
     set_pending,
     set_saved,
     shown,
@@ -550,6 +558,7 @@ def _(
         set_blocked("")
         set_count(get_count() + 1)
         set_pending(None)
+        set_last((current["result_id"], 2))
         set_saved(get_saved() + 1)
 
     # Same weakref rule as "Save roles": the button must be a global to survive
@@ -612,6 +621,69 @@ def _(LABELS, current, initials, mo, phase, random):
     rhard = mo.ui.dictionary({k: mo.ui.checkbox(label="hard case") for _tag, k in shown})
     rnote = mo.ui.dictionary({k: mo.ui.text_area(label="note", value="") for _tag, k in shown})
     return rhard, rlabels, rnote, shown
+
+
+@app.cell(hide_code=True)
+def _(
+    done_ids,
+    done_resp,
+    get_last,
+    get_saved,
+    guard,
+    json,
+    mo,
+    out_path,
+    resp_path,
+    scenarios,
+    set_blocked,
+    set_last,
+    set_pending,
+    set_saved,
+):
+    # "Undo last save": the README's sanctioned fix ("delete that one line by
+    # hand") with the line found for you. One level, this session only. It
+    # rewrites the file WITHOUT the reverted rows and re-serves the item at
+    # the phase that was undone; nothing else in the file changes.
+    get_saved()
+    _last = get_last()
+
+    def _drop(path, keep):
+        if not path.exists():
+            return
+        rows = [json.loads(x) for x in path.read_text().splitlines()]
+        kept = [r for r in rows if keep(r["result_id"])]
+        path.write_text("".join(json.dumps(r) + "\n" for r in kept))
+
+    def _undo(_):
+        last = get_last()
+        if guard or last is None:
+            return
+        rid, ph = last
+        item = next((s for s in scenarios if s["result_id"] == rid), None)
+        if ph == 1:
+            _drop(out_path, lambda i: i != rid)
+            done_ids.discard(rid)
+        else:
+            _drop(resp_path, lambda i: not i.startswith(rid + "#"))
+            for k in (item or {}).get("responses", {}):
+                done_resp.discard(f"{rid}#{k}")
+        set_last(None)
+        set_pending(item)  # back on screen at the phase just undone
+        set_blocked(f"Reverted {rid} (phase {ph}); re-label it and save again.")
+        set_saved(get_saved() + 1)
+
+    undo_button = mo.ui.button(
+        label=f"↩ Undo last save ({_last[0]}, phase {_last[1]})" if _last else "↩ Undo last save",
+        on_click=_undo,
+        kind="warn",
+        disabled=_last is None or bool(guard),
+    )
+    mo.hstack(
+        [undo_button, mo.md("_Reverts only the most recent save of this session._")],
+        justify="start",
+        gap=1,
+    )
+    return
 
 
 if __name__ == "__main__":

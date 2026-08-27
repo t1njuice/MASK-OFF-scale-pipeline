@@ -4,7 +4,8 @@
 **Date:** 2026-08-07
 
 Built: `batchcache.py`, `scale.py` (Stage A and Stage B replay-fill),
-`batch_providers.py` (anthropic + native openai_batch), `pricing.py`,
+`batch_providers.py` (anthropic + native openai_batch; openai_batch removed
+2026-08-16, `openai_flex` replaces it — see ADR-0002), `pricing.py`,
 `metrics.py`, `--max-cost`. §2 and §5 are superseded by
 [ADR-0002](adr-0002-native-batch-adapters.md); its §9 amendments are what
 shipped. Not built: `google_batch` (deferred until a `google/*` model is

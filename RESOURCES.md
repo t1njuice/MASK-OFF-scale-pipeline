@@ -37,5 +37,9 @@
 ## Gaps
 
 - ~~`ANALYSIS_PLAN.md` is derived from §8 but not yet committed~~ — **closed 2026-08-20:** it is committed at the repo root, 560 lines.
-- No code exists for Self-BLEU, POS compression ratio, Vendi Score, Cramér's V, or the verb–object task extraction. §8 promises all five. (**Still open 2026-08-20.** `diversity/shared_text.py` exists but covers the shared-phrase audit, not these five.)
-- ~~The binding 300-item sample and its κ run are blocked on the frozen corpus existing.~~ **Restated 2026-08-20:** all three corpora are frozen, so the corpus no longer blocks it. The sample is **n = 200**, not 300, and its pool split is 160 A / 40 B (`ANALYSIS_PLAN.md` §5). What it now waits on is author labels.
+- ~~No code exists for Self-BLEU, POS compression ratio, Vendi Score, Cramér's V, or the verb–object task extraction.~~ **Closed 2026-08-27:** `diversity/text_battery.py` computes Self-BLEU, POS-CR, and Vendi; artifacts are in `output/`. Cramér's V was cut with the role axes on 2026-08-27.
+- ~~The binding 300-item sample and its κ run are blocked on the frozen corpus existing.~~ **Restated 2026-08-20:** all three corpora are frozen, so the corpus no longer blocks it. The sample is **n = 200**, not 300, and its pool split is 160 A / 40 B (`ANALYSIS_PLAN.md` §5). ~~What it now waits on is author labels.~~ **Restated 2026-08-27:** the Task A response-grading labels are done, AR vs JM κ = 0.81 (`diversity/labeling/LABELING_DESIGN.md` §13); the role-axis labels were cut with the role axes.
+
+## Venue
+
+- AI4GOOD workshop at NeurIPS. Non-archival, 2-9 pages, deadline Aug 29 AoE. No Croissant or RAI gate.

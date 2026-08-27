@@ -3,7 +3,7 @@ id: 008
 title: Baseline corpus for text metrics
 type: grilling
 mode: HITL
-status: open
+status: closed — out of scope 2026-08-27 (Vendi and Self-BLEU dropped from the paper; no baseline needed)
 assignee:
 blocked-by: []
 ---

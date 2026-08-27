@@ -1,5 +1,7 @@
 # Start here — author labeling
 
+> **Amended 2026-08-27.** The role-axis sweep is retired. The live workflow is Task A response grading plus `kappa.py`. `hill.py` stays only as the record of the failed role-axis phase.
+
 Two authors label the same items independently. The agreement score between the
 two of you is the number the paper reports, so the protocol matters as much as
 the labels.

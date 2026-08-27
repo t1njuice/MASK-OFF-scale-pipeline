@@ -1,5 +1,7 @@
 # Wayfinder Map: Diversity measurement workstream
 
+> **Amended 2026-08-27.** The Destination and Decisions sections predate the role-axis cut of 2026-08-27; the role-axis deliverables (facet tables, judge-vs-author kappa) are void. The surviving deliverables are the Task A response-grading kappa (0.81), the trigger-family table, and the text battery. Ticket 008 (baseline corpus) was closed out of scope 2026-08-27: Vendi and Self-BLEU left the paper, so the baseline serves no claim. No tickets remain open.
+
 Label: `wayfinder:map` · Tracker: local markdown (tickets in `tickets/`, status + blocking in ticket frontmatter)
 
 ## Destination

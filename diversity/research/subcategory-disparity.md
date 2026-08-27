@@ -1,5 +1,7 @@
 # Subcategory disparity report
 
+> **Amended 2026-08-27.** The canonical source `grok_omission/BEHAVIOR.md` was deleted from this branch, so the figures below (260 subcategories, 21 near-duplicates, 8 families, min 12 per category) cannot be recomputed. Treat this report as historical.
+
 Date: 2026-08-09.
 Scope: the variation list in the canonical BEHAVIOR.md, mapped onto the 14 main categories.
 

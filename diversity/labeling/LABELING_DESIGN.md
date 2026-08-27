@@ -1,5 +1,7 @@
 # Labeling design: 300 items, two authors, measurable agreement
 
+> **Amended 2026-08-27.** Sections 1-3, the roles phase of section 12, and the section 13 frame describe the retired role-axis phase; see the 2026-08-27 amendment inside section 13. Only Task A response grading (sections 7 and 11) survives, with AR vs JM kappa = 0.81.
+
 Status: **approved and implemented 2026-08-12**. It refines the surface, not the frozen constructs.
 Scope: how the two authors label the 300-item sample, and how the labels are scored for agreement.
 Inputs: the handoff of 2026-08-12, `diversity/taxonomies.md` (frozen 2026-08-09), `diversity/labeling/roles.py`, `mask_off/prompts/response_judge.md`.
@@ -379,6 +381,14 @@ per-domain error analysis on the role axes is therefore dropped.
 4. Judge accuracy is reported under three references as a sensitivity band:
    strict (matches both authors), lenient (matches either), adjudicated. The
    adjudicated number outside [strict, lenient] means the protocol failed.
+
+**Amendment 2026-08-27 (post-hoc, after both author files and the κ run were
+read — disclosed as such).** The paper drops all three role axes and every
+facet claim (`shared-understanding-2026-08-13.md` §8). **No adjudication
+runs.** The protocol above is retired unexecuted; both author files and the
+κ output stay committed as evidence for the limitation paragraph. Task A
+(response grading) is untouched — its gate passed (AR vs JM κ = 0.81) and
+it remains the paper's validated human measurement.
 
 ### Mechanics
 

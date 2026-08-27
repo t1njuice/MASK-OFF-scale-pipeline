@@ -305,11 +305,11 @@ The evidence a reviewer reads:
 **Nothing in this repo writes `seed_keepers.json`.** See the open questions in
 §12.
 
-`diversity/labeling/` is a different instrument: two authors independently label
-*accepted items* for role axes and responses in a marimo notebook, and
-`kappa.py` scores their agreement. That is the paper's inter-rater work over
-Stage A output, not the seed checkpoint above. Start at
-`diversity/labeling/README.md`.
+`diversity/labeling/` is a different instrument: two authors independently grade
+*responses* on accepted items (Task A) in a marimo notebook, and `kappa.py`
+scores their agreement (AR vs JM kappa = 0.81). That is the paper's inter-rater
+work over Stage A output, not the seed checkpoint above; the role-axis phase is
+retired (2026-08-27). Start at `diversity/labeling/README.md`.
 
 ---
 

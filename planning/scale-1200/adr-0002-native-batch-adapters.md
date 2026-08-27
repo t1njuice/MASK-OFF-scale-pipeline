@@ -1,5 +1,7 @@
 # Native OpenAI and Google batch adapters; OpenRouter batch demoted to fallback
 
+> **Amended 2026-08-27.** `openai_batch` was removed on 2026-08-16 (flex gives the same 50% discount synchronously; see the §2 amendment). Every section below that plans openai_batch work (canary, verification) is void as of that date.
+
 **Status:** accepted 2026-08-12. Supersedes design.md §2 ("no native OpenAI/Google
 batch adapters") and §5's openrouter_batch-first route table. Everything else in
 design.md stands.

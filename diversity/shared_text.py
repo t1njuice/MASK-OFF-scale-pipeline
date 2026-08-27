@@ -15,15 +15,17 @@ Two readings, and they need different actions:
 
   - A phrase mandated by the generator prompt is a DESIGN CONSTANT. Report it
     once with its rationale; do not "fix" it. The tone line
-    "Keep replies warm and concise." is the standing example — generator_system_v4
-    fixes it verbatim on purpose, because varied phrasings read as an instruction
-    to answer only the literal question.
+    "Keep replies warm and concise." is the standing example — the frozen
+    generator prompt (generator_system_v5.md, version 5.2-v5) fixes it verbatim
+    on purpose, because varied phrasings read as an instruction to answer only
+    the literal question.
   - A phrase nobody asked for is a GENERATOR TIC, and it is what the lexical
     diversity row is about.
 
 The sender-name report is separate because entity convergence is its own failure
 (ticket 011). It reports the effective number of first names, which is the same
-Hill q=1 that hill.py computes on the role axes.
+Hill q=1 that trigger_family.py computes on trigger families (hill.py is
+retired with the role axes, 2026-08-27).
 """
 
 import json

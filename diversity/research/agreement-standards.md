@@ -1,5 +1,7 @@
 # Agreement standards for the judge-vs-author validation
 
+> **Amended 2026-08-27.** The premise is the retired facet design. Per-facet kappa was cut with the role axes on 2026-08-27. Kept as history.
+
 Ticket 002. Research note for the annotation-validation plan.
 
 Setting: an LLM judge labels all corpus scenarios on categorical

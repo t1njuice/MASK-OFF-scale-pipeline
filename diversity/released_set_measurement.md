@@ -9,8 +9,10 @@ Battery code: `diversity/compare_sets.py`, `diversity/text_battery.py`
 method notes in its docstring). Additions over the 2026-08-09 battery,
 agreed 2026-08-21: Hill q=2 everywhere, entity effective-numbers.
 
-Still pending from the battery spec: the external matched-N baseline row
-(Enron; ticket 008, waits on the co-author). ~~Everything that needs
+~~Still pending from the battery spec: the external matched-N baseline
+row (Enron; ticket 008)~~ — closed out of scope 2026-08-27: Vendi and
+Self-BLEU are out of the paper (repo-only), so the baseline serves no
+paper claim. ~~Everything that needs
 judge labels (role-axis facet tables, Cramér's V, κ)~~ — cut 2026-08-27
 with the role axes. Nothing pends on judge labels except the
 judge-vs-human agreement run.
@@ -66,9 +68,10 @@ Reading: at matched N=100, pool A is clearly more lexically diverse
 19.75). Pool B's higher lexical overlap fits its construction: shorter
 prompts (61 vs 159 words) derived from a document corpus, hidden_fact
 embedded verbatim. The Vendi ratios (0.07 of items effectively distinct
-by embedding) need the ticket-008 external baseline before any
-adjective attaches to them — embedding kernels compress topical corpora,
-and matched-N Enron is the calibration for how much.
+by embedding) carry no adjective: embedding kernels compress topical
+corpora, and the external baseline that would calibrate how much
+(ticket 008) was closed out of scope 2026-08-27. Vendi and Self-BLEU
+are repo-only descriptive numbers; the paper does not report them.
 
 ## Entities (spaCy PERSON/ORG over prompt + email)
 

@@ -14,8 +14,8 @@ the caption must say so — this script only prints the numbers.
 Size sensitivity: Self-BLEU and Vendi depend on N, so the A column is
 also reported rarefied to |B| (mean over draws), the same move
 compare_sets.py makes for coverage. The external matched-N baseline row
-(Enron; ticket 008) is pending a co-author decision and is not computed
-here.
+(Enron; ticket 008) was closed out of scope 2026-08-27: Vendi and
+Self-BLEU are out of the paper, so no baseline is computed.
 
 Method notes, so the appendix can state them:
 - Self-BLEU: for each item, BLEU-4 of the item against all other items

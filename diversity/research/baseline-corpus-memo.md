@@ -1,7 +1,8 @@
 # Baseline corpus for the text metrics — decision memo (ticket 008)
 
-Date: 2026-08-14. Status: drafted for the co-author grill. One decision is
-isolated at the end.
+Date: 2026-08-14. Status: closed out of scope 2026-08-27. Vendi and
+Self-BLEU left the paper (repo-only), so no baseline decision is needed.
+Kept as history.
 
 ## What the baseline is for
 

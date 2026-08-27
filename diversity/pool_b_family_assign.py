@@ -267,6 +267,10 @@ def summarize(_args) -> None:
     OUT_SUMMARY.write_text("\n".join(lines))
     print(f"summary -> {OUT_SUMMARY}")
 
+    if OUT_AUDIT.exists():
+        # never overwrite: the file may hold filled human_verdict fields
+        print(f"audit sample exists, left untouched -> {OUT_AUDIT}")
+        return
     sample = random.Random(AUDIT_SEED).sample(assigns, AUDIT_N)
     with OUT_AUDIT.open("w") as fh:
         for a in sample:
